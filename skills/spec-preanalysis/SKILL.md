@@ -43,7 +43,8 @@ the Vigers reference corpus.
 
 - A decision file is already approved and the subject has not changed.
 - The request is a tiny local edit to one known article.
-- The user asks only for implementation: use `delivery-workflow` if scope is approved.
+- The user asks only for implementation: use `delivery-workflow` from an existing
+  `spec_ready` case.
 - The task is old-process migration: inventory it with `legacy-case-migration`, then return here.
 
 ## Workflow

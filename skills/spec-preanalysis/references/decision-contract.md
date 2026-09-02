@@ -4,8 +4,8 @@
 {
   "schema": 1,
   "subject_id": "TASK-123",
-  "status": "approved",
-  "decision_ref": "user-message-or-project-decision",
+  "status": "proposed",
+  "decision_ref": "",
   "decision": "single",
   "reason": "One independently acceptable product outcome",
   "shared_context": [],
@@ -27,6 +27,10 @@
   ]
 }
 ```
+
+The preanalysis agent always emits `proposed` with an empty `decision_ref`. Only the
+parent records `approved` and the real user or project decision reference after the
+user has chosen the decomposition.
 
 `single` requires exactly one article; `split` requires at least two. `article-first`
 requires the sole block `ARTICLE`; `hybrid` requires at least two blocks. Dependencies

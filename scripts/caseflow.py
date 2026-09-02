@@ -27,6 +27,7 @@ ITEM_STATUSES = {"open", "applied", "verified", "waived"}
 GATING_SEVERITIES = {"critical", "major"}
 ITEM_RE = re.compile(r"^D([1-4])-\d{3}$")
 LANE_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PROCESS_KERNEL = Path(__file__).resolve().parent.parent / "rules" / "process-kernel.md"
 
 
@@ -61,10 +62,15 @@ def atomic_json(path: Path, payload: Any) -> None:
 
 
 @contextmanager
-def case_lock(case_root: Path):
-    case_root.mkdir(parents=True, exist_ok=True)
+def case_lock(case_root: Path, *, create: bool = False):
+    if create:
+        case_root.mkdir(parents=True, exist_ok=True)
+    elif not manifest_path(case_root).is_file():
+        raise CaseFlowError(f"case does not exist: {case_root}")
     lock_path = case_root / ".caseflow.lock"
-    with lock_path.open("a+", encoding="utf-8") as handle:
+    if not create and not lock_path.is_file():
+        raise CaseFlowError(f"case lock is missing: {lock_path}")
+    with lock_path.open("a+" if create else "r", encoding="utf-8") as handle:
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
             yield
@@ -90,6 +96,18 @@ def relative_or_absolute(case_root: Path, path: Path) -> str:
         return str(path.relative_to(case_root))
     except ValueError:
         return str(path)
+
+
+def normalized_target_path(case_root: Path, target: str) -> Path:
+    return resolve_artifact(case_root, target.split("#", 1)[0])
+
+
+def target_snapshot(case_root: Path, item: dict[str, Any]) -> dict[str, str]:
+    path = normalized_target_path(case_root, item["target"])
+    return {
+        "target_path": relative_or_absolute(case_root, path),
+        "target_sha256": digest(path),
+    }
 
 
 def manifest_path(case_root: Path) -> Path:
@@ -118,15 +136,21 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
         if not isinstance(record, dict):
             raise CaseFlowError(f"case has no {label} fingerprint")
         verify_record(case_root, record, label)
+    article_path = None
+    if payload.get("article"):
+        article_path = resolve_artifact(case_root, payload["article"]["path"])
     for stage, record in payload.get("stages", {}).items():
         for block, submission in record.get("submissions", {}).items():
-            verify_record(
-                case_root,
-                submission.get("method_basis", {}),
-                f"stage {stage} block {block} method basis",
-            )
             if record.get("state") == "complete":
-                verify_record(case_root, submission, f"stage {stage} block {block}")
+                verify_record(
+                    case_root,
+                    submission.get("method_basis", {}),
+                    f"stage {stage} block {block} method basis",
+                )
+                submission_path = resolve_artifact(case_root, submission["path"])
+                shared_article_path = stage == "4" and submission_path == article_path
+                if not shared_article_path:
+                    verify_record(case_root, submission, f"stage {stage} block {block}")
         if record.get("state") == "complete" and record.get("stitch"):
             verify_record(case_root, record["stitch"], f"stage {stage} stitch")
         if record.get("diff_pool"):
@@ -139,12 +163,12 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
     if delivery:
         for stage, record in delivery.get("stages", {}).items():
             for lane, submission in record.get("submissions", {}).items():
-                verify_record(
-                    case_root,
-                    submission.get("method_basis", {}),
-                    f"delivery stage {stage} lane {lane} method basis",
-                )
                 if record.get("state") == "complete":
+                    verify_record(
+                        case_root,
+                        submission.get("method_basis", {}),
+                        f"delivery stage {stage} lane {lane} method basis",
+                    )
                     verify_record(case_root, submission, f"delivery stage {stage} lane {lane}")
             if record.get("state") == "complete" and record.get("stitch"):
                 verify_record(case_root, record["stitch"], f"delivery stage {stage} stitch")
@@ -213,8 +237,16 @@ def validate_diff_payload(payload: Any, stage: int, *, initial: bool = False) ->
             raise CaseFlowError(f"{item_id} {status} without correction receipt")
         if status == "verified" and not item.get("verification_receipt"):
             raise CaseFlowError(f"{item_id} verified without verification receipt")
+        if status == "verified" and not SHA256_RE.fullmatch(
+            str(item["verification_receipt"].get("target_sha256", ""))
+        ):
+            raise CaseFlowError(f"{item_id} verified without target fingerprint")
         if status == "waived" and not item.get("decision_ref"):
             raise CaseFlowError(f"{item_id} waived without decision_ref")
+        if status == "waived" and not SHA256_RE.fullmatch(
+            str(item.get("waiver_target_sha256", ""))
+        ):
+            raise CaseFlowError(f"{item_id} waived without target fingerprint")
     return payload
 
 
@@ -328,6 +360,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     blocks = article["blocks"]
     ids = [block["id"] for block in blocks]
     case_root.mkdir(parents=True, exist_ok=True)
+    (case_root / ".caseflow.lock").touch(exist_ok=True)
     for block_id in ids:
         (case_root / "blocks" / block_id).mkdir(parents=True, exist_ok=True)
     (case_root / "stitches").mkdir(exist_ok=True)
@@ -405,7 +438,49 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
 def command_context(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
+    delivery = payload.get("delivery")
+    lane = getattr(args, "lane", None)
+    if delivery:
+        if getattr(args, "block", None):
+            raise CaseFlowError("delivery context uses --lane, not --block")
+        if lane and lane not in delivery["lanes"]:
+            raise CaseFlowError(f"unknown delivery lane: {lane}")
+        stage = int(delivery["stage"])
+        read_set = [str(PROCESS_KERNEL)]
+        if payload.get("article"):
+            read_set.append(str(resolve_artifact(case_root, payload["article"]["path"])))
+        current = delivery_stage_record(payload)
+        selected_lanes = [lane] if lane else delivery["lanes"]
+        for selected_lane in selected_lanes:
+            submission = current["submissions"].get(selected_lane)
+            if submission:
+                read_set.extend(
+                    [
+                        str(resolve_artifact(case_root, submission["method_basis"]["path"])),
+                        str(resolve_artifact(case_root, submission["path"])),
+                    ]
+                )
+        if stage > 1:
+            previous = delivery["stages"][str(stage - 1)]
+            for selected_lane in selected_lanes:
+                submission = previous["submissions"].get(selected_lane)
+                if submission:
+                    read_set.append(str(resolve_artifact(case_root, submission["path"])))
+            if previous.get("stitch"):
+                read_set.append(str(resolve_artifact(case_root, previous["stitch"]["path"])))
+        read_set = list(dict.fromkeys(read_set))
+        return {
+            "mode": "delivery",
+            "delivery_stage": stage,
+            "delivery_state": delivery["state"],
+            "lane": lane,
+            "read_set": [path for path in read_set if Path(path).exists()],
+            "missing_required": [path for path in read_set if not Path(path).exists()],
+            "rule": "read only the current delivery stage reference and this read_set",
+        }
     stage = int(payload["stage"])
+    if lane:
+        raise CaseFlowError("specification context uses --block, not --lane")
     if args.block and args.block not in {item["id"] for item in payload["blocks"]}:
         raise CaseFlowError(f"unknown block: {args.block}")
     read_set: list[str] = [str(PROCESS_KERNEL), payload["template"]]
@@ -445,6 +520,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     missing = [path for path in read_set if not Path(path).exists()]
     return {
         "stage": stage,
+        "mode": "specification",
         "state": payload["state"],
         "block": args.block,
         "read_set": existing,
@@ -558,6 +634,7 @@ def mutate_pool_item(
         if not evidence.strip():
             raise CaseFlowError("decision_ref cannot be empty")
         item["decision_ref"] = evidence.strip()
+        item["waiver_target_sha256"] = target_snapshot(case_root, item)["target_sha256"]
     item["status"] = status
     item["resolved_at"] = now()
     atomic_json(pool_path, pool)
@@ -606,6 +683,7 @@ def command_verify(args: argparse.Namespace) -> dict[str, Any]:
         "sha256": digest(receipt),
         "result": result,
         "recorded_at": now(),
+        **target_snapshot(case_root, item),
     }
     item.setdefault("verification_attempts", []).append(verification_record)
     if result == "pass":
@@ -656,8 +734,20 @@ def command_append_item(args: argparse.Namespace) -> dict[str, Any]:
     return {"item": item["id"], "status": "open", "state": payload["state"]}
 
 
-def normalized_target_path(case_root: Path, target: str) -> Path:
-    return resolve_artifact(case_root, target.split("#", 1)[0])
+def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[Path, str]:
+    expected: dict[Path, str] = {}
+    for item in pool["items"]:
+        if item["status"] == "verified":
+            expected_hash = item["verification_receipt"]["target_sha256"]
+        elif item["status"] == "waived":
+            expected_hash = item["waiver_target_sha256"]
+        else:
+            continue
+        expected[normalized_target_path(case_root, item["target"])] = expected_hash
+    for path, expected_hash in expected.items():
+        if digest(path) != expected_hash:
+            raise CaseFlowError(f"diff target changed after verification or waiver: {path}")
+    return expected
 
 
 def rebind_stage_outputs(
@@ -667,13 +757,14 @@ def rebind_stage_outputs(
     *,
     label: str,
 ) -> list[str]:
-    allowed = {
-        normalized_target_path(case_root, item["target"])
-        for item in pool["items"]
-        if item["status"] == "verified"
-    }
+    allowed = closed_target_expectations(case_root, pool)
     rebound: list[str] = []
     records = list(record.get("submissions", {}).values())
+    records.extend(
+        submission["method_basis"]
+        for submission in record.get("submissions", {}).values()
+        if submission.get("method_basis")
+    )
     if record.get("stitch"):
         records.append(record["stitch"])
     for artifact_record in records:
@@ -682,7 +773,7 @@ def rebind_stage_outputs(
         if current == artifact_record["sha256"]:
             continue
         if path not in allowed:
-            raise CaseFlowError(f"{label} artifact changed outside verified diff pool: {path}")
+            raise CaseFlowError(f"{label} artifact changed outside a closed diff item: {path}")
         artifact_record["sha256"] = current
         artifact_record["rebound_at"] = now()
         rebound.append(relative_or_absolute(case_root, path))
@@ -743,6 +834,7 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if unresolved:
             raise CaseFlowError(f"unverified review diff items remain: {', '.join(unresolved)}")
+        closed_target_expectations(case_root, pool)
     article = resolve_artifact(case_root, args.article)
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
@@ -959,6 +1051,7 @@ def command_verify_review(args: argparse.Namespace) -> dict[str, Any]:
         "sha256": digest(receipt),
         "result": args.result,
         "recorded_at": now(),
+        **target_snapshot(case_root, item),
     }
     item.setdefault("verification_attempts", []).append(verification_record)
     if args.result == "pass":
@@ -988,6 +1081,7 @@ def command_waive_review(args: argparse.Namespace) -> dict[str, Any]:
     if not args.decision_ref.strip():
         raise CaseFlowError("decision_ref cannot be empty")
     item["decision_ref"] = args.decision_ref.strip()
+    item["waiver_target_sha256"] = target_snapshot(case_root, item)["target_sha256"]
     item["status"] = "waived"
     item["resolved_at"] = now()
     atomic_json(pool_path, pool)
@@ -1136,6 +1230,7 @@ def command_delivery_verify(args: argparse.Namespace) -> dict[str, Any]:
         "sha256": digest(receipt),
         "result": args.result,
         "recorded_at": now(),
+        **target_snapshot(case_root, matching[0]),
     }
     item = matching[0]
     item.setdefault("verification_attempts", []).append(verification)
@@ -1164,8 +1259,10 @@ def command_delivery_waive(args: argparse.Namespace) -> dict[str, Any]:
         raise CaseFlowError(f"delivery diff item must be open: {args.item}")
     if not args.decision_ref.strip():
         raise CaseFlowError("decision_ref cannot be empty")
-    matching[0]["decision_ref"] = args.decision_ref.strip()
-    matching[0]["status"] = "waived"
+    item = matching[0]
+    item["decision_ref"] = args.decision_ref.strip()
+    item["waiver_target_sha256"] = target_snapshot(case_root, item)["target_sha256"]
+    item["status"] = "waived"
     atomic_json(pool_path, pool)
     record = delivery_stage_record(payload)
     record["diff_pool"]["sha256"] = digest(pool_path)
@@ -1266,6 +1363,7 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--case-root", type=Path, required=True)
         if name == "context":
             command.add_argument("--block")
+            command.add_argument("--lane")
         command.set_defaults(handler=handler)
 
     submit = subparsers.add_parser("submit-block")
@@ -1416,7 +1514,7 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         if hasattr(args, "case_root"):
-            with case_lock(args.case_root.resolve()):
+            with case_lock(args.case_root.resolve(), create=args.command == "init"):
                 result = args.handler(args)
         else:
             result = args.handler(args)

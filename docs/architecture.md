@@ -42,9 +42,13 @@ stage 4: one article          -> deterministic checks -> revmux convergence
 
 Предыдущие черновики не перечитываются целиком. Их зарегистрированные версии
 представлены последним block artifact, stitch report и snapshot fingerprints в
-`case.json`. Изменённый block artifact или stitch перепривязывается на `advance` только
-когда его путь назван `verified`-пунктом diff-pool; после закрытия стадии fingerprints
-снова неизменяемы. Финальная статья после чистого review также замораживается.
+`case.json`. Изменённый block artifact, его method basis или stitch перепривязывается
+на `advance` только когда его путь назван `verified`- или явно `waived`-пунктом
+diff-pool, а текущие bytes совпадают с fingerprint проверки или решения. После закрытия
+стадии fingerprints снова неизменяемы. Финальная статья после чистого review также
+замораживается. В `article-first` stage-4 projection может быть тем же файлом, что и
+статья: тогда mutable review fingerprint статьи заменяет исторический fingerprint
+projection до завершения review.
 
 ## Границы компонентов
 
@@ -86,8 +90,9 @@ acceptance boundary. Деление по backend/frontend, экрану или �
 
 У каждой стадии один `required-diff.json`. Пул append-only до закрытия стадии.
 Каждый пункт содержит стабильный id, target, требуемое изменение, основание и статус.
-Исполнитель не исправляет ничего вне пула. Проверяющий либо подтверждает receipt,
-либо добавляет новый точный пункт в тот же пул.
+Исполнитель не исправляет ничего вне пула. Проверяющий подтверждает конкретный hash
+target bytes либо добавляет новый точный пункт в тот же пул; последующее изменение
+target требует нового пункта и новой проверки.
 
 Зарегистрированный пул не редактируется вручную: новый пункт проходит `append-item`,
 `append-review-item` или `delivery-append-item`. Команда проверяет schema и уникальность

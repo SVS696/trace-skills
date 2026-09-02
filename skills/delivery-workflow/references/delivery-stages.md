@@ -15,6 +15,11 @@ with `delivery-submit`, then use `delivery-open-stitch` and
 `delivery-append-item --item-file`, never by hand-editing the pool. `caseflow.py status`
 is the source of truth on resume.
 
+Before assigning or resuming one lane, obtain its bounded read-set with
+`caseflow.py context --case-root CASE --lane BACKEND`. It contains the reviewed article,
+the current recorded lane artifacts if any, and the previous delivery stage/stitch;
+it never returns specification block drafts as the active delivery context.
+
 ## Stage 1: Plan
 
 **Entry:** Approved article and route=`delivery`.

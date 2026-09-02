@@ -24,13 +24,17 @@ Rules:
   editing the registered pool by hand or opening side lists.
 - `target`, `change` and `reason` must be exact enough to verify independently.
 - `applied` requires a correction receipt path and fingerprint, but does not close the item.
-- `verified` requires a separate verification receipt and closes the item.
+- `verified` requires a separate verification receipt, fingerprints the target bytes
+  that were checked, and closes the item.
 - A failed verification returns the same item to `open`; correction and verification
   attempts remain in its history. Do not create a replacement item just to retry a fix.
-- `waived` requires a user or project decision reference.
+- `waived` requires a user or project decision reference and fingerprints the target
+  bytes accepted by that decision.
 - A correction batch may edit only targets named by open items.
 - If verification discovers another defect, append a new id to the same pool.
 - A stage may advance only when every item is `verified` or `waived`.
+- Any edit after verification or waiver requires another appended item and another
+  check; `advance` rejects bytes different from the last closed item for that target.
 
 Commands:
 
