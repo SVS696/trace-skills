@@ -1,0 +1,13 @@
+{
+  "artifact_order": [
+    "preanalysis-brief.json",
+    "decomposition-decision.json",
+    "execution-plan.json"
+  ],
+  "first_decision": "single or split before block design",
+  "composition_decision": "article-first or hybrid per resulting article",
+  "agent_may_approve": false,
+  "agent_may_publish_plan": false,
+  "parent_may_publish_without_authorization": false,
+  "next_gate": "validated artifacts plus user-approved decision and plan"
+}

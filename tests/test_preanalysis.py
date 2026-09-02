@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import copy
+import unittest
+
+from scripts import preanalysis
+
+
+def decision() -> dict:
+    return {
+        "schema": 1,
+        "subject_id": "TASK-1",
+        "status": "approved",
+        "decision_ref": "user-message-1",
+        "decision": "single",
+        "reason": "One outcome",
+        "shared_context": [],
+        "unknowns": [],
+        "articles": [
+            {
+                "id": "TASK-1",
+                "title": "Title",
+                "goal": "Goal",
+                "outcome": "Outcome",
+                "acceptance_boundary": "Boundary",
+                "dependencies": [],
+                "composition": "article-first",
+                "blocks": [{"id": "ARTICLE", "title": "Whole article"}],
+            }
+        ],
+    }
+
+
+class PreanalysisTests(unittest.TestCase):
+    def test_article_first_requires_one_article_block(self) -> None:
+        payload = decision()
+        payload["articles"][0]["blocks"] = [{"id": "B01", "title": "Wrong"}]
+        with self.assertRaises(preanalysis.DecisionError):
+            preanalysis.validate_decision(payload, require_approved=True)
+
+    def test_split_dependencies_must_be_acyclic(self) -> None:
+        payload = decision()
+        payload["decision"] = "split"
+        second = copy.deepcopy(payload["articles"][0])
+        payload["articles"][0]["id"] = "A"
+        payload["articles"][0]["dependencies"] = ["B"]
+        second["id"] = "B"
+        second["dependencies"] = ["A"]
+        payload["articles"].append(second)
+        with self.assertRaises(preanalysis.DecisionError):
+            preanalysis.validate_decision(payload, require_approved=True)
+
+    def test_approved_single_is_valid(self) -> None:
+        self.assertEqual(
+            preanalysis.validate_decision(decision(), require_approved=True)["decision"],
+            "single",
+        )
+
+    def test_estimate_requires_range_or_explicit_unavailability(self) -> None:
+        brief = {
+            "schema": 1,
+            "subject_id": "TASK-1",
+            "sources": [],
+            "problem": {"statement": "Problem", "evidence_refs": []},
+            "goal": {"statement": "Goal", "evidence_refs": []},
+            "solution_hypothesis": {"statement": "Hypothesis", "evidence_refs": []},
+            "preliminary_user_stories": [],
+            "scope_in": [],
+            "scope_out": [],
+            "unknowns": [],
+            "assumptions": [],
+            "dependencies": [],
+            "estimate": {"status": "estimated", "min": 2, "max": 1, "unit": "days", "confidence": "low", "basis": ["expert"]},
+        }
+        with self.assertRaises(preanalysis.BriefError):
+            preanalysis.validate_brief(brief)
+        brief["estimate"] = {"status": "unavailable", "reason": "No implementation contour"}
+        self.assertEqual(preanalysis.validate_brief(brief)["subject_id"], "TASK-1")
+
+    def test_plan_requires_acyclic_tasks_and_sync_readback(self) -> None:
+        plan = {
+            "schema": 1,
+            "subject_id": "TASK-1",
+            "status": "approved",
+            "decision_ref": "user-message-1",
+            "route": "specification",
+            "tasks": [
+                {"id": "P1", "title": "Analyze", "output": "brief", "depends_on": []}
+            ],
+            "external_sync": {
+                "status": "synced",
+                "system": "singularity",
+                "target_ref": "TASK-1",
+            },
+        }
+        with self.assertRaises(preanalysis.PlanError):
+            preanalysis.validate_plan(plan)
+        plan["external_sync"]["readback_ref"] = "receipt-1"
+        self.assertEqual(preanalysis.validate_plan(plan)["route"], "specification")
+
+
+if __name__ == "__main__":
+    unittest.main()

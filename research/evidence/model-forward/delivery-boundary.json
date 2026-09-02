@@ -1,0 +1,19 @@
+{
+  "scenario_a_start_delivery": false,
+  "scenario_a_next_step": "honor route stop and leave the approved specification as the final artifact",
+  "scenario_b_agent": "implementation-backend",
+  "scenario_b_read_scope": [
+    "assigned backend lane",
+    "shared contract",
+    "current integration report"
+  ],
+  "scenario_b_may_change_frontend": false,
+  "scenario_b_self_check_is_independent_verification": false,
+  "scenario_b_final_statuses_kept_separate": [
+    "implemented",
+    "committed",
+    "merged",
+    "deployed",
+    "accepted"
+  ]
+}

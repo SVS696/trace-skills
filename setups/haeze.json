@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "project_id": "HAEZE",
+  "project_root_env": "HAEZE_PROJECT_ROOT",
+  "instructions": ["CLAUDE.md", "AGENTS.md"],
+  "template": {
+    "path": "ШАБЛОН ПОСТАНОВКИ.md",
+    "sha256": "854639fa1becec3652703ab0571b547cffd2a208390a29d14d637516c5677a45"
+  },
+  "routes": {
+    "method": "method-library",
+    "preanalysis": "spec-preanalysis",
+    "specification": "spec-workflow",
+    "implementation": "delivery-workflow",
+    "timer": "process-timer",
+    "legacy": "legacy-case-migration"
+  },
+  "planning_system": "singularity-app",
+  "publication_system": "atlassian",
+  "post_spec_route": "explicit_decision_required",
+  "project_sources_remain_authoritative": true
+}

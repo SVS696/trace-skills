@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delivery Workflow"
+  short_description: "Implement approved scope through integration gates"
+  default_prompt: "Run $delivery-workflow only from an approved specification routed to delivery."

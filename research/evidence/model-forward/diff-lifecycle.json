@@ -1,0 +1,9 @@
+{
+  "can_advance": false,
+  "blocking_status": "applied",
+  "next_action": "independently recheck and record caseflow.py verify",
+  "status_after_success": "verified",
+  "hidden_edits_allowed": false,
+  "lists_allowed": 1,
+  "other_stage_references_to_read": []
+}

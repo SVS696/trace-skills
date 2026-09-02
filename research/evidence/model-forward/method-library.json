@@ -1,0 +1,14 @@
+{
+  "scenario_a_domain": "requirements",
+  "scenario_a_route": "scenarios",
+  "scenario_b_domain": "delivery",
+  "scenario_b_routes": ["core-change", "backend-http"],
+  "may_read_full_vigers_extract_by_default": false,
+  "may_load_other_lane_basis": false,
+  "project_canon_priority": "higher",
+  "route_creates_product_scope": false,
+  "native_rule_coverage_gate": {
+    "requirements": 70,
+    "delivery": 30
+  }
+}

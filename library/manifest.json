@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "domains": {
+    "requirements": {
+      "source_repo": "https://github.com/SVS696/vigers-skill",
+      "source_commit": "62bb3275ec3a56a8e37ea6f1218c89120389fb6a",
+      "router": "library/requirements/references/knowledge-map.md",
+      "primary_source": {
+        "id": "WIEGERS-MEMO-2019",
+        "title": "Краткая выжимка из учебника К. Вигерса «Разработка требований к программному обеспечению»",
+        "version": "редакция памятки от 23.07.2019",
+        "fallback": "https://github.com/SVS696/vigers-skill/blob/62bb3275ec3a56a8e37ea6f1218c89120389fb6a/references/book-extract.md"
+      },
+      "mirrors": [
+        {"path": "library/requirements/references/requirements-method.md", "sha256": "a876de958e942218dd791a57da26d85c08c03eeb2a59eb17e7467a66ef63d052"},
+        {"path": "library/requirements/references/knowledge-map.md", "sha256": "8a2e0bf9b5b4c6bcfdb845b85c272b6a84f45816f7c346162df1c22d2a71f54d"},
+        {"path": "library/requirements/references/native-checklists.md", "sha256": "1bf144e4a37229617857d030e754b389fabca67ae929d90e47eaa7dfaa73ac90"},
+        {"path": "library/requirements/references/native-tables.md", "sha256": "ffb486342e5d27c95cf7fcc5fa6caeabd8857bae82d9a307575ab4b9707a54be"},
+        {"path": "library/requirements/references/native-diagrams.md", "sha256": "6bbe634ddd35fc7434e991bc11546b0190143ceff9c58540604e6731c73a5a02"},
+        {"path": "library/requirements/references/native-image-map.md", "sha256": "66e69edf6cabf5426cd9e252a7fa02351f9091fb19e57ce7c3e0aa0a10ae6a7a"},
+        {"path": "library/requirements/references/task-template.md", "sha256": "d5dd58056f72e52b69bbc55ba6606dd141d227dbdb390f024d12f5eb62c62d5e"}
+      ]
+    },
+    "delivery": {
+      "source_repo": "https://github.com/SVS696/delivery-engineering-skill",
+      "source_commit": "56a93cb0c3e4021e099238dde1606344ab590dad",
+      "router": "library/delivery/references/knowledge-map.md",
+      "primary_sources": ["SWEBOK-4.0a", "SWE-GOOGLE-2020"],
+      "mirrors": [
+        {"path": "library/delivery/references/engineering-basis.md", "sha256": "ddee1b79975c9e12a12371cdcbad8d77f705add74f1fff8679b818725f9d0f9a"},
+        {"path": "library/delivery/references/source-registry.md", "sha256": "8a3d95585f61ae4bf0d773a2522fc79a124e6984a9629856750ea53f85790fa5"},
+        {"path": "library/delivery/references/knowledge-map.md", "sha256": "872f4f5dab43278cbbb6aa5e582518f7588a2c94bc2bf9d5cf79434ec646927a"},
+        {"path": "library/delivery/references/native-engineering.md", "sha256": "58e57ac6816f04105988fd470e7e7d193f09e4f9cefd84aa2e68d5a87970331e"},
+        {"path": "library/delivery/references/native-backend.md", "sha256": "c4b2973135406b399e0b33a684c9ad0c832ece2ffc4653ecf79b1a50e4c67e27"},
+        {"path": "library/delivery/references/native-frontend.md", "sha256": "03754cbc77aed1dc14f060896d0de3593f49c2b40a2726577d5dd99838a231ab"},
+        {"path": "library/delivery/references/native-testing.md", "sha256": "c6b22407b7b86120e69c4637e861b62ae472f29f15385529a0fbae8d1a61c3dd"},
+        {"path": "library/delivery/references/native-security.md", "sha256": "b9b314b09f43d9e173364c34cf059943cebf421e1d2ebbbe22d449a5268d09ee"}
+      ]
+    }
+  }
+}

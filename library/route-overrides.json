@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "domains": {
+    "requirements": {
+      "extend": {
+        "quality": [
+          {"file": "references/native-checklists.md", "heading": "C03. Доступность — стр. 34"},
+          {"file": "references/native-checklists.md", "heading": "C04. Установка — стр. 35"},
+          {"file": "references/native-checklists.md", "heading": "C05. Целостность и архивирование данных — стр. 36"},
+          {"file": "references/native-checklists.md", "heading": "C06. Совместимость — стр. 36"},
+          {"file": "references/native-checklists.md", "heading": "C07. Надежность — стр. 37"},
+          {"file": "references/native-checklists.md", "heading": "C08. Защита от вреда — стр. 37"},
+          {"file": "references/native-checklists.md", "heading": "C09. Информационная безопасность — стр. 38"},
+          {"file": "references/native-checklists.md", "heading": "C10. Измерение удобства использования — стр. 39"},
+          {"file": "references/native-checklists.md", "heading": "C11. Производительность и нагрузка — стр. 39"},
+          {"file": "references/native-checklists.md", "heading": "C12. Переносимость — стр. 40"},
+          {"file": "references/native-checklists.md", "heading": "C14. Масштабируемость и емкость — стр. 40"},
+          {"file": "references/native-checklists.md", "heading": "C15. Проверяемость и детерминизм — стр. 41"},
+          {"file": "references/native-tables.md", "heading": "T09. Пример попарной приоритизации качеств — стр. 34"},
+          {"file": "references/native-tables.md", "heading": "T10. Изучаемость и эффективность интерфейса — стр. 38"}
+        ],
+        "review-acceptance": [
+          {"file": "references/native-diagrams.md", "heading": "D09. Экспертиза требований — стр. 47"}
+        ],
+        "change-management": [
+          {"file": "references/native-checklists.md", "heading": "C22. Метрики изменений — стр. 57"},
+          {"file": "references/native-tables.md", "heading": "T18. Роли управления изменениями — стр. 56"},
+          {"file": "references/native-tables.md", "heading": "T19. Карточка запроса на изменение — стр. 59"}
+        ],
+        "modeling": [
+          {"file": "references/native-diagrams.md", "heading": "D16. Карта диалогов заказа химиката — стр. 70"},
+          {"file": "references/native-tables.md", "heading": "T25. Переходы состояния заказа — стр. 69"}
+        ]
+      },
+      "add": []
+    },
+    "delivery": {
+      "extend": {
+        "test-design": [
+          {"file": "references/native-testing.md", "heading": "T06. Risk-based depth"},
+          {"file": "references/native-testing.md", "heading": "T07. Дефект, spec gap и environment blocker"}
+        ],
+        "risk-security": [
+          {"file": "references/native-security.md", "heading": "S04. Security findings и полномочия"}
+        ]
+      },
+      "add": [
+        {
+          "id": "backend-data",
+          "when": "Меняется data, storage или transaction boundary backend",
+          "lanes": ["backend", "test"],
+          "signals": ["transaction", "транзакция", "storage", "database", "data boundary"],
+          "distilled": [
+            {"file": "references/native-backend.md", "heading": "B04. Data и transaction boundary"}
+          ]
+        }
+      ]
+    }
+  }
+}
