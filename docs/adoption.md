@@ -9,8 +9,8 @@
 5. [x] Подготовить инвентарь и посты для старых кейсов без их отправки.
 6. [x] Убрать старые skill/agent entrypoints из активного discovery.
 7. [x] Обновить проектные маршруты RTL и HÆZE на новые имена.
-8. [ ] Провести независимые model-forward проверки и финальный review репозитория.
-9. [ ] Опубликовать репозиторий и проверить GitHub read-back.
+8. [x] Провести независимые model-forward проверки и завершить review по его hard cap.
+9. [x] Опубликовать репозиторий и проверить GitHub read-back.
 
 Дополнительный release gate: `python3 scripts/rule_library.py validate` должен
 подтвердить hash всех зеркал и routing всех 100 native method rules.
