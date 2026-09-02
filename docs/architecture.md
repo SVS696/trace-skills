@@ -40,8 +40,9 @@ stage 4: one article          -> deterministic checks -> revmux convergence
 5. read-set из `caseflow context`;
 6. назначенный агенту блок и общий stitch предыдущей стадии.
 
-Предыдущие черновики не перечитываются целиком. Их актуальное содержание представлено
-последним block artifact, stitch report и fingerprints в `case.json`.
+Предыдущие черновики не перечитываются целиком. Их зарегистрированные версии
+представлены последним block artifact, stitch report и snapshot fingerprints в
+`case.json`; изменяемые тексты перепривязываются на следующем явном переходе.
 
 ## Границы компонентов
 
@@ -97,6 +98,14 @@ finding id. Все critical/major обязаны попасть в него; п�
 добавлены в ту же партию. Новый review-round нельзя запустить, пока пункты прошлого
 пула не `verified`/`waived` и новая версия статьи не зарегистрирована. Degraded-run
 не создаёт diff: сначала восстанавливается источник и повторяется сам review.
+Receipt обязан быть schema 1, содержать полную source accounting и SHA текущей статьи.
+Раунд с open questions переводит кейс в `revmux_decision_pending`; ответ фиксируется
+через `record-review-decisions`, после чего тот же пул покрывает gating findings и
+принятые изменения из ответов.
+
+После явного route=`delivery` `caseflow.py` заводит отдельные `delivery_stage` и
+`delivery_state`. Каждая из четырёх стадий повторяет барьер lanes → stitch → один
+diff-pool → независимая verification → advance, не перезаписывая историю постановки.
 
 ## Агенты
 

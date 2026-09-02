@@ -48,6 +48,47 @@ class WorkTimerTests(unittest.TestCase):
         with self.assertRaises(work_timer.TimerError):
             self.mark("resume")
 
+    def test_mixed_offsets_are_ordered_by_instant(self) -> None:
+        work_timer.command_mark(
+            argparse.Namespace(
+                ledger=self.ledger,
+                state="work_started",
+                at="2026-03-01T10:00:00+05:00",
+                reason=None,
+            )
+        )
+        work_timer.command_mark(
+            argparse.Namespace(
+                ledger=self.ledger,
+                state="work_finished",
+                at="2026-03-01T08:00:00+00:00",
+                reason=None,
+            )
+        )
+        source = work_timer.command_export(
+            argparse.Namespace(ledger=self.ledger, output=None)
+        )
+        self.assertEqual(source["coverage"]["started_at"], "2026-03-01T10:00:00+05:00")
+        self.assertEqual(source["coverage"]["ended_at"], "2026-03-01T08:00:00+00:00")
+
+    def test_earlier_event_is_rejected(self) -> None:
+        work_timer.command_mark(
+            argparse.Namespace(
+                ledger=self.ledger,
+                state="work_started",
+                at="2026-03-01T10:00:00+00:00",
+                reason=None,
+            )
+        )
+        with self.assertRaises(work_timer.TimerError):
+            work_timer.command_pulse(
+                argparse.Namespace(
+                    ledger=self.ledger,
+                    at="2026-03-01T09:00:00+00:00",
+                    category="model",
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

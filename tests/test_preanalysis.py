@@ -84,6 +84,7 @@ class PreanalysisTests(unittest.TestCase):
             "status": "approved",
             "decision_ref": "user-message-1",
             "route": "specification",
+            "article_ids": ["TASK-1"],
             "tasks": [
                 {"id": "P1", "title": "Analyze", "output": "brief", "depends_on": []}
             ],

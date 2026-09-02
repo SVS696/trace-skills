@@ -11,8 +11,8 @@ class RuleLibraryTests(unittest.TestCase):
     def test_every_native_rule_is_routed_and_mirrors_are_intact(self) -> None:
         result = rule_library.validate()
         self.assertTrue(result["ok"])
-        self.assertGreaterEqual(result["native_rules"]["requirements"], 70)
-        self.assertGreaterEqual(result["native_rules"]["delivery"], 25)
+        self.assertEqual(result["native_rules"]["requirements"], 70)
+        self.assertEqual(result["native_rules"]["delivery"], 30)
 
     def test_requirements_route_is_bounded(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -33,6 +33,15 @@ class RuleLibraryTests(unittest.TestCase):
             self.assertIn("E01. Минимальный проверяемый change", text)
             self.assertIn("B01. Ресурс, метод", text)
             self.assertNotIn("F01. Наблюдаемое поведение", text)
+
+    def test_delivery_rejects_two_specialized_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(rule_library.LibraryError):
+                rule_library.materialize(
+                    "delivery",
+                    ["backend-http", "frontend-behavior"],
+                    Path(temporary) / "basis.md",
+                )
 
     def test_route_uses_signals(self) -> None:
         result = rule_library.choose_route("delivery", "Изменить REST endpoint и status code")

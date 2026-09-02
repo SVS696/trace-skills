@@ -47,11 +47,35 @@ class CaseFlowTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        self.plan = self.root / "execution-plan.json"
+        self.plan.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "subject_id": "CASE-1",
+                    "status": "approved",
+                    "decision_ref": "user-message-1",
+                    "route": "specification",
+                    "article_ids": ["CASE-1"],
+                    "tasks": [
+                        {
+                            "id": "P1",
+                            "title": "Prepare CASE-1",
+                            "output": "Reviewed article",
+                            "depends_on": [],
+                        }
+                    ],
+                    "external_sync": {"status": "not_requested"},
+                }
+            ),
+            encoding="utf-8",
+        )
         caseflow.command_init(
             argparse.Namespace(
                 case_root=self.case_root,
                 template=self.template,
                 decision=self.decision,
+                plan=self.plan,
                 article_id="CASE-1",
             )
         )
@@ -77,6 +101,19 @@ class CaseFlowTests(unittest.TestCase):
                     artifact=str(artifact),
                 )
             )
+
+    def prepare_review(self) -> str:
+        article = self.write("article.md", "# Article\n")
+        payload = caseflow.load_case(self.case_root)
+        payload["stage"] = 4
+        payload["state"] = "revmux_pending"
+        payload["article"] = {
+            "path": "article.md",
+            "sha256": caseflow.digest(article),
+            "recorded_at": caseflow.now(),
+        }
+        caseflow.save_case(self.case_root, payload, "test_review_setup")
+        return payload["article"]["sha256"]
 
     def test_stitch_requires_every_block(self) -> None:
         self.write("method-basis/stage-01-B01.md", "# Method basis\n")
@@ -124,7 +161,12 @@ class CaseFlowTests(unittest.TestCase):
             caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
         verification = self.write("receipts/D1-001-verification.md")
         caseflow.command_verify(
-            argparse.Namespace(case_root=self.case_root, item="D1-001", receipt=str(verification))
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D1-001",
+                receipt=str(verification),
+                result="pass",
+            )
         )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
         self.assertEqual(advanced, {"stage": 2, "state": "blocks"})
@@ -188,13 +230,18 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(len(saved["verification_attempts"]), 2)
 
     def test_revmux_degraded_cannot_close_article(self) -> None:
-        payload = caseflow.load_case(self.case_root)
-        payload["stage"] = 4
-        payload["state"] = "revmux_pending"
-        caseflow.save_case(self.case_root, payload, "test_setup")
+        article_sha256 = self.prepare_review()
         receipt = self.root / "revmux.json"
         receipt.write_text(
-            json.dumps({"sources": {"degraded": ["docs"]}, "findings": []}),
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {"expected": 2, "reported": 1, "degraded": ["docs"]},
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
             encoding="utf-8",
         )
         result = caseflow.command_record_review(
@@ -203,16 +250,16 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(result["state"], "revmux_pending")
 
     def test_revmux_gating_findings_require_closed_round_diff(self) -> None:
-        payload = caseflow.load_case(self.case_root)
-        payload["stage"] = 4
-        payload["state"] = "revmux_pending"
-        caseflow.save_case(self.case_root, payload, "test_setup")
+        article_sha256 = self.prepare_review()
         receipt = self.root / "revmux-major.json"
         receipt.write_text(
             json.dumps(
                 {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
                     "sources": {"expected": 2, "reported": 2, "degraded": []},
                     "findings": [{"id": "f1", "severity": "major"}],
+                    "open_questions": [],
                 }
             ),
             encoding="utf-8",
@@ -272,14 +319,13 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(updated["state"], "revmux_pending")
 
     def test_revmux_open_question_blocks_spec_ready_until_decided(self) -> None:
-        payload = caseflow.load_case(self.case_root)
-        payload["stage"] = 4
-        payload["state"] = "revmux_pending"
-        caseflow.save_case(self.case_root, payload, "test_setup")
+        article_sha256 = self.prepare_review()
         receipt = self.root / "revmux-question.json"
         receipt.write_text(
             json.dumps(
                 {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
                     "sources": {"expected": 2, "reported": 2, "degraded": []},
                     "findings": [],
                     "open_questions": [{"id": "q1", "body": "Which owner is canonical?"}],
@@ -299,6 +345,200 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         self.assertEqual(decided["state"], "revmux_pending")
+
+    def test_template_drift_fails_every_case_command_closed(self) -> None:
+        self.template.write_text("# Changed template\n", encoding="utf-8")
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+
+    def test_init_requires_matching_approved_execution_plan(self) -> None:
+        plan = json.loads(self.plan.read_text(encoding="utf-8"))
+        plan["decision_ref"] = "another-decision"
+        mismatched = self.root / "mismatched-plan.json"
+        mismatched.write_text(json.dumps(plan), encoding="utf-8")
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_init(
+                argparse.Namespace(
+                    case_root=self.root / "second-case",
+                    template=self.template,
+                    decision=self.decision,
+                    plan=mismatched,
+                    article_id="CASE-1",
+                )
+            )
+
+    def test_initial_diff_pool_cannot_arrive_closed(self) -> None:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 1,
+                    "items": [
+                        {
+                            "id": "D1-001",
+                            "target": "x",
+                            "change": "y",
+                            "reason": "z",
+                            "status": "verified",
+                            "receipt": "fabricated",
+                            "verification_receipt": "fabricated",
+                        }
+                    ],
+                }
+            ),
+        )
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_record_stitch(
+                argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+            )
+
+    def test_revmux_receipt_requires_schema_sources_and_current_article_sha(self) -> None:
+        article_sha256 = self.prepare_review()
+        malformed = self.root / "malformed-review.json"
+        malformed.write_text(json.dumps({"schema": 1, "findings": []}), encoding="utf-8")
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(malformed), diff_pool=None)
+            )
+        wrong_article = self.root / "wrong-article-review.json"
+        wrong_article.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": "0" * len(article_sha256),
+                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(wrong_article), diff_pool=None)
+            )
+
+    def test_revmux_gating_and_question_flow_through_decision_state(self) -> None:
+        article_sha256 = self.prepare_review()
+        receipt = self.root / "combined-review.json"
+        receipt.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "findings": [{"id": "f1", "severity": "major"}],
+                    "open_questions": [{"id": "q1", "body": "Choose a boundary"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        recorded = caseflow.command_record_review(
+            argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=None)
+        )
+        self.assertEqual(recorded["state"], "revmux_decision_pending")
+        pool = self.write(
+            "article-diffs/combined.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 4,
+                    "items": [
+                        {
+                            "id": "D4-001",
+                            "source_finding_id": "f1",
+                            "target": "article.md",
+                            "change": "Fix gating issue",
+                            "reason": "finding f1",
+                            "status": "open",
+                        }
+                    ],
+                }
+            ),
+        )
+        decided = caseflow.command_record_review_decisions(
+            argparse.Namespace(
+                case_root=self.case_root,
+                decision_ref="user-message-99",
+                diff_pool=str(pool),
+            )
+        )
+        self.assertEqual(decided["state"], "revmux_remediation")
+
+    def test_context_uses_recorded_submission_path(self) -> None:
+        for block in ("B01", "B02"):
+            self.write(f"method-basis/stage-01-{block}.md", "# Method basis\n")
+            artifact = self.write(f"blocks/{block}/custom-foundation.md")
+            caseflow.command_submit_block(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    stage=1,
+                    block=block,
+                    artifact=str(artifact),
+                )
+            )
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/custom-stage-one.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps({"schema": 1, "stage": 1, "items": []}),
+        )
+        caseflow.command_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        context = caseflow.command_context(
+            argparse.Namespace(case_root=self.case_root, block="B01")
+        )
+        self.assertIn(
+            str((self.case_root / "blocks/B01/custom-foundation.md").resolve()),
+            context["read_set"],
+        )
+
+    def test_delivery_has_machine_backed_stage_transitions(self) -> None:
+        payload = caseflow.load_case(self.case_root)
+        payload["stage"] = 4
+        payload["state"] = "spec_ready"
+        caseflow.save_case(self.case_root, payload, "test_spec_ready")
+        routed = caseflow.command_route(
+            argparse.Namespace(
+                case_root=self.case_root,
+                decision="delivery",
+                lane=["BACKEND", "TEST"],
+            )
+        )
+        self.assertEqual(routed["delivery"]["stage"], 1)
+        for lane in ("BACKEND", "TEST"):
+            artifact = self.write(f"delivery/stage-01-{lane}.md")
+            basis = self.write(f"delivery/method-{lane}.md")
+            caseflow.command_delivery_submit(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    stage=1,
+                    lane=lane,
+                    artifact=str(artifact),
+                    method_basis=str(basis),
+                )
+            )
+        caseflow.command_delivery_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("delivery/stitch-01.md")
+        pool = self.write(
+            "delivery/diff-01.json",
+            json.dumps({"schema": 1, "stage": 1, "items": []}),
+        )
+        caseflow.command_delivery_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        advanced = caseflow.command_delivery_advance(
+            argparse.Namespace(case_root=self.case_root)
+        )
+        self.assertEqual(advanced["delivery_stage"], 2)
+        status = caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(status["delivery_state"], "lanes")
 
 
 if __name__ == "__main__":

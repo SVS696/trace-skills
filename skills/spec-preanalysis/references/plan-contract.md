@@ -9,6 +9,7 @@
   "status": "proposed",
   "decision_ref": "",
   "route": "specification",
+  "article_ids": ["TASK-123"],
   "tasks": [
     {
       "id": "P1",
@@ -21,8 +22,10 @@
 }
 ```
 
-`route` is `stop`, `specification`, or `implementation`. Dependencies must be acyclic.
-An approved plan has a `decision_ref`.
+`route` is `stop`, `specification`, or `implementation`. `article_ids` names exactly
+the specification outputs approved in `decomposition-decision.json`; dependencies must
+be acyclic. An approved plan has the same `subject_id` and `decision_ref` as that
+decision.
 
 External sync states are `not_requested`, `authorized`, and `synced`. `synced` requires
 the destination `system`, exact `target_ref`, and `readback_ref`. Tool success without

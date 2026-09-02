@@ -37,4 +37,5 @@ Commands:
 python3 scripts/caseflow.py resolve --case-root CASE --item D2-001 --receipt RECEIPT
 python3 scripts/caseflow.py verify --case-root CASE --item D2-001 --receipt CHECK --result pass
 python3 scripts/caseflow.py verify --case-root CASE --item D2-001 --receipt CHECK --result fail
+python3 scripts/caseflow.py waive --case-root CASE --item D2-001 --decision-ref "<decision>"
 ```

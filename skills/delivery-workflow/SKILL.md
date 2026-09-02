@@ -15,7 +15,7 @@ Read [the process kernel](../../rules/process-kernel.md) once for the task. Use
 `method-library` to materialize the lane's delivery basis from the preserved SWEBOK,
 Software Engineering at Google and specialized standard distillates.
 
-1. Start only from `spec_ready` with route `delivery`.
+1. Start by routing a `spec_ready` case to `delivery` with its stable lane ids.
 2. Lanes may work independently, but every stage ends in one integrated change.
 3. All integration defects enter one exact stage diff-pool before correction.
 4. Developer checks, independent verification, merge, deploy and acceptance remain
@@ -38,8 +38,8 @@ Software Engineering at Google and specialized standard distillates.
 
 ## Four stages
 
-Read [delivery-stages.md](references/delivery-stages.md) and execute only the current
-stage reported by the case state.
+Read [delivery-stages.md](references/delivery-stages.md) and execute only
+`delivery_stage` and `delivery_state` reported by `caseflow.py status`.
 
 Before assigning a lane, materialize `core-change` plus at most one applicable
 specialized route such as `backend-http`, `backend-data`, `frontend-behavior`,

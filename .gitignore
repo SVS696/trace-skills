@@ -4,3 +4,6 @@ __pycache__/
 .ruff_cache/
 .revmux/
 .workflow/
+.omc/
+.serena/
+.DS_Store

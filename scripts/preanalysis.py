@@ -148,6 +148,15 @@ def validate_plan(payload: Any) -> dict[str, Any]:
             raise PlanError("plan.tasks must be an array")
         if route != "stop" and not tasks:
             raise PlanError("non-stop plan requires at least one task")
+        article_ids = payload.get("article_ids")
+        if not isinstance(article_ids, list) or not all(
+            isinstance(item, str) and ID_RE.fullmatch(item) for item in article_ids
+        ):
+            raise PlanError("plan.article_ids must be an array of article ids")
+        if len(article_ids) != len(set(article_ids)):
+            raise PlanError("plan.article_ids contains duplicates")
+        if route != "stop" and not article_ids:
+            raise PlanError("non-stop plan requires at least one article id")
         ids: set[str] = set()
         graph: dict[str, list[str]] = {}
         for index, task in enumerate(tasks, start=1):

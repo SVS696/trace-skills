@@ -14,17 +14,17 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .preanalysis import DecisionError, validate_decision
+    from .preanalysis import DecisionError, PlanError, validate_decision, validate_plan
 except ImportError:  # Direct script execution.
-    from preanalysis import DecisionError, validate_decision
+    from preanalysis import DecisionError, PlanError, validate_decision, validate_plan
 
 
 SCHEMA = 1
 STAGES = (1, 2, 3, 4)
 ITEM_STATUSES = {"open", "applied", "verified", "waived"}
 GATING_SEVERITIES = {"critical", "major"}
-BLOCK_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 ITEM_RE = re.compile(r"^D([1-4])-\d{3}$")
+LANE_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 PROCESS_KERNEL = Path(__file__).resolve().parent.parent / "rules" / "process-kernel.md"
 
 
@@ -82,6 +82,42 @@ def manifest_path(case_root: Path) -> Path:
     return case_root / "case.json"
 
 
+def verify_record(case_root: Path, record: dict[str, Any], label: str) -> None:
+    path_value = record.get("path")
+    expected = record.get("sha256")
+    if not isinstance(path_value, str) or not isinstance(expected, str):
+        raise CaseFlowError(f"{label} fingerprint record is invalid")
+    path = resolve_artifact(case_root, path_value)
+    if digest(path) != expected:
+        raise CaseFlowError(f"{label} changed after registration: {path}")
+
+
+def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
+    template = Path(str(payload.get("template", ""))).expanduser().resolve()
+    if digest(template) != payload.get("template_sha256"):
+        raise CaseFlowError(f"project template changed after case initialization: {template}")
+    for key, label in (
+        ("decomposition_decision", "decomposition decision"),
+        ("execution_plan", "execution plan"),
+    ):
+        record = payload.get(key)
+        if not isinstance(record, dict):
+            raise CaseFlowError(f"case has no {label} fingerprint")
+        verify_record(case_root, record, label)
+    for stage, record in payload.get("stages", {}).items():
+        if record.get("diff_pool"):
+            verify_record(case_root, record["diff_pool"], f"stage {stage} diff pool")
+    for index, round_record in enumerate(payload.get("review_rounds", []), start=1):
+        verify_record(case_root, round_record, f"review round {index}")
+        if round_record.get("diff_pool"):
+            verify_record(case_root, round_record["diff_pool"], f"review round {index} diff pool")
+    delivery = payload.get("delivery")
+    if delivery:
+        for stage, record in delivery.get("stages", {}).items():
+            if record.get("diff_pool"):
+                verify_record(case_root, record["diff_pool"], f"delivery stage {stage} diff pool")
+
+
 def load_case(case_root: Path) -> dict[str, Any]:
     payload = read_json(manifest_path(case_root))
     if not isinstance(payload, dict) or payload.get("schema") != SCHEMA:
@@ -90,6 +126,7 @@ def load_case(case_root: Path) -> dict[str, Any]:
         raise CaseFlowError("case stage is invalid")
     if not isinstance(payload.get("blocks"), list) or not payload["blocks"]:
         raise CaseFlowError("case has no blocks")
+    verify_case_integrity(case_root, payload)
     return payload
 
 
@@ -104,14 +141,7 @@ def stage_record(payload: dict[str, Any], stage: int | None = None) -> dict[str,
     return payload["stages"][str(stage)]
 
 
-def parse_block(value: str) -> dict[str, str]:
-    block_id, separator, title = value.partition(":")
-    if not separator or not BLOCK_RE.fullmatch(block_id) or not title.strip():
-        raise argparse.ArgumentTypeError("block must be ID:Title with a stable uppercase ID")
-    return {"id": block_id, "title": title.strip()}
-
-
-def validate_diff_pool(path: Path, stage: int) -> dict[str, Any]:
+def validate_diff_pool(path: Path, stage: int, *, initial: bool = False) -> dict[str, Any]:
     payload = read_json(path)
     if not isinstance(payload, dict) or payload.get("schema") != 1:
         raise CaseFlowError("required diff must use schema 1")
@@ -137,6 +167,8 @@ def validate_diff_pool(path: Path, stage: int) -> dict[str, Any]:
         status = item.get("status")
         if status not in ITEM_STATUSES:
             raise CaseFlowError(f"{item_id}.status is invalid")
+        if initial and status != "open":
+            raise CaseFlowError(f"new diff item must start open: {item_id}")
         if status in {"applied", "verified"} and not item.get("receipt"):
             raise CaseFlowError(f"{item_id} {status} without correction receipt")
         if status == "verified" and not item.get("verification_receipt"):
@@ -152,6 +184,50 @@ def require_state(payload: dict[str, Any], *states: str) -> None:
         raise CaseFlowError(f"state must be one of [{expected}], got {payload.get('state')}")
 
 
+def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]:
+    if not isinstance(receipt, dict) or receipt.get("schema") != 1:
+        raise CaseFlowError("revmux receipt must be a schema 1 JSON object")
+    if receipt.get("article_sha256") != article_sha256:
+        raise CaseFlowError("revmux receipt is not bound to the current article sha256")
+    sources = receipt.get("sources")
+    if not isinstance(sources, dict):
+        raise CaseFlowError("revmux receipt.sources must be an object")
+    expected = sources.get("expected")
+    reported = sources.get("reported")
+    degraded = sources.get("degraded")
+    if (
+        not isinstance(expected, int)
+        or isinstance(expected, bool)
+        or expected < 1
+        or not isinstance(reported, int)
+        or isinstance(reported, bool)
+        or reported < 0
+        or not isinstance(degraded, list)
+        or not all(isinstance(item, str) and item.strip() for item in degraded)
+    ):
+        raise CaseFlowError("revmux receipt source accounting is invalid")
+    findings = receipt.get("findings")
+    questions = receipt.get("open_questions")
+    if not isinstance(findings, list) or not isinstance(questions, list):
+        raise CaseFlowError("revmux receipt findings and open_questions must be arrays")
+    for finding in findings:
+        if (
+            not isinstance(finding, dict)
+            or not isinstance(finding.get("id"), str)
+            or not finding["id"].strip()
+            or finding.get("severity") not in {"critical", "major", "minor"}
+        ):
+            raise CaseFlowError("revmux receipt contains an invalid finding")
+    for question in questions:
+        if (
+            not isinstance(question, dict)
+            or not isinstance(question.get("id"), str)
+            or not question["id"].strip()
+        ):
+            raise CaseFlowError("revmux receipt contains an invalid open question")
+    return receipt
+
+
 def command_init(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     if manifest_path(case_root).exists():
@@ -164,6 +240,22 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         decision = validate_decision(read_json(decision_path), require_approved=True)
     except DecisionError as exc:
         raise CaseFlowError(str(exc)) from exc
+    plan_path = args.plan.expanduser().resolve()
+    try:
+        plan = validate_plan(read_json(plan_path))
+    except PlanError as exc:
+        raise CaseFlowError(str(exc)) from exc
+    if plan.get("status") != "approved":
+        raise CaseFlowError("execution plan must be approved before case initialization")
+    if plan["subject_id"] != decision["subject_id"]:
+        raise CaseFlowError("execution plan and decomposition decision have different subjects")
+    if plan["decision_ref"] != decision["decision_ref"]:
+        raise CaseFlowError("execution plan and decomposition decision have different decision_ref")
+    article_ids = {article["id"] for article in decision["articles"]}
+    if set(plan["article_ids"]) != article_ids:
+        raise CaseFlowError("execution plan article_ids do not match decomposition outputs")
+    if plan["route"] == "stop":
+        raise CaseFlowError("a stop plan cannot initialize a specification case")
     matches = [article for article in decision["articles"] if article["id"] == args.article_id]
     if not matches:
         raise CaseFlowError(f"article id is not present in decision: {args.article_id}")
@@ -196,6 +288,11 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
             "sha256": digest(decision_path),
             "decision_ref": decision["decision_ref"],
         },
+        "execution_plan": {
+            "path": str(plan_path),
+            "sha256": digest(plan_path),
+            "decision_ref": plan["decision_ref"],
+        },
         "template": str(template),
         "template_sha256": digest(template),
         "stage": 1,
@@ -215,22 +312,29 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
 
 def command_status(args: argparse.Namespace) -> dict[str, Any]:
     payload = load_case(args.case_root.resolve())
-    current = stage_record(payload)
+    delivery = payload.get("delivery")
+    current = delivery_stage_record(payload) if delivery else stage_record(payload)
+    current_stage = delivery["stage"] if delivery else payload["stage"]
     open_count = None
     if current.get("diff_pool"):
         pool_path = resolve_artifact(args.case_root.resolve(), current["diff_pool"]["path"])
-        pool = validate_diff_pool(pool_path, int(payload["stage"]))
+        pool = validate_diff_pool(pool_path, int(current_stage))
         open_count = sum(item["status"] in {"open", "applied"} for item in pool["items"])
-    return {
+    result = {
         "case_id": payload["case_id"],
         "stage": payload["stage"],
         "state": payload["state"],
         "route": payload["route"],
         "submitted_blocks": sorted(current["submissions"]),
-        "required_blocks": [block["id"] for block in payload["blocks"]],
+        "required_blocks": delivery["lanes"] if delivery else [block["id"] for block in payload["blocks"]],
         "open_diff_items": open_count,
         "next_skill": "delivery-workflow" if payload["route"] == "delivery" else "spec-workflow",
     }
+    if payload.get("delivery"):
+        result["delivery_stage"] = payload["delivery"]["stage"]
+        result["delivery_state"] = payload["delivery"]["state"]
+        result["delivery_lanes"] = payload["delivery"]["lanes"]
+    return result
 
 
 def command_context(args: argparse.Namespace) -> dict[str, Any]:
@@ -253,19 +357,25 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     elif stage in (2, 3):
         previous = stage - 1
         if args.block:
-            read_set.append(str(case_root / "blocks" / args.block / f"stage-{previous:02d}.md"))
+            submission = stage_record(payload, previous)["submissions"].get(args.block)
+            if submission:
+                read_set.append(str(resolve_artifact(case_root, submission["path"])))
         else:
-            read_set.extend(
-                str(case_root / "blocks" / item["id"] / f"stage-{previous:02d}.md")
-                for item in payload["blocks"]
-            )
-        read_set.append(str(case_root / "stitches" / f"stage-{previous:02d}.md"))
+            for item in payload["blocks"]:
+                submission = stage_record(payload, previous)["submissions"].get(item["id"])
+                if submission:
+                    read_set.append(str(resolve_artifact(case_root, submission["path"])))
+        previous_stitch = stage_record(payload, previous).get("stitch")
+        if previous_stitch:
+            read_set.append(str(resolve_artifact(case_root, previous_stitch["path"])))
     else:
-        read_set.extend(
-            str(case_root / "blocks" / item["id"] / "stage-03.md")
-            for item in payload["blocks"]
-        )
-        read_set.append(str(case_root / "stitches" / "stage-03.md"))
+        for item in payload["blocks"]:
+            submission = stage_record(payload, 3)["submissions"].get(item["id"])
+            if submission:
+                read_set.append(str(resolve_artifact(case_root, submission["path"])))
+        previous_stitch = stage_record(payload, 3).get("stitch")
+        if previous_stitch:
+            read_set.append(str(resolve_artifact(case_root, previous_stitch["path"])))
     existing = [path for path in read_set if Path(path).exists()]
     missing = [path for path in read_set if not Path(path).exists()]
     return {
@@ -329,7 +439,7 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     stage = int(payload["stage"])
     report = resolve_artifact(case_root, args.report)
     pool_path = resolve_artifact(case_root, args.diff_pool)
-    pool = validate_diff_pool(pool_path, stage)
+    pool = validate_diff_pool(pool_path, stage, initial=True)
     record = stage_record(payload)
     record["stitch"] = {
         "path": relative_or_absolute(case_root, report),
@@ -425,7 +535,7 @@ def command_verify(args: argparse.Namespace) -> dict[str, Any]:
     if item["status"] != "applied":
         raise CaseFlowError(f"diff item must be applied before verification: {args.item}")
     receipt = resolve_artifact(case_root, args.receipt)
-    result = getattr(args, "result", "pass")
+    result = args.result
     verification_record = {
         "path": relative_or_absolute(case_root, receipt),
         "sha256": digest(receipt),
@@ -532,24 +642,19 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     payload = load_case(case_root)
     require_state(payload, "revmux_pending")
     receipt_path = resolve_artifact(case_root, args.receipt)
-    receipt = read_json(receipt_path)
-    if not isinstance(receipt, dict):
-        raise CaseFlowError("revmux receipt must be a JSON object")
-    sources = receipt.get("sources", {})
-    degraded = sources.get("degraded", []) if isinstance(sources, dict) else []
-    expected = sources.get("expected") if isinstance(sources, dict) else None
-    reported = sources.get("reported") if isinstance(sources, dict) else None
-    source_count_mismatch = (
-        isinstance(expected, int) and isinstance(reported, int) and expected != reported
-    )
-    findings = receipt.get("findings", [])
-    open_questions = receipt.get("open_questions", [])
-    if (
-        not isinstance(degraded, list)
-        or not isinstance(findings, list)
-        or not isinstance(open_questions, list)
-    ):
-        raise CaseFlowError("revmux receipt has invalid sources/findings/open_questions")
+    if not payload.get("article"):
+        raise CaseFlowError("case has no finalized article")
+    article_path = resolve_artifact(case_root, payload["article"]["path"])
+    if digest(article_path) != payload["article"]["sha256"]:
+        raise CaseFlowError("current article changed without article-updated registration")
+    receipt = validate_review_receipt(read_json(receipt_path), payload["article"]["sha256"])
+    sources = receipt["sources"]
+    degraded = sources["degraded"]
+    expected = sources["expected"]
+    reported = sources["reported"]
+    source_count_mismatch = expected != reported
+    findings = receipt["findings"]
+    open_questions = receipt["open_questions"]
     gating = [
         finding
         for finding in findings
@@ -564,7 +669,7 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
             raise CaseFlowError("degraded revmux round must be rerun before forming a diff pool")
     elif diff_pool_arg:
         pool_path = resolve_artifact(case_root, diff_pool_arg)
-        pool = validate_diff_pool(pool_path, 4)
+        pool = validate_diff_pool(pool_path, 4, initial=True)
         if not pool["items"]:
             raise CaseFlowError("review diff pool cannot be empty")
         finding_ids = {
@@ -584,12 +689,13 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
             "path": relative_or_absolute(case_root, pool_path),
             "sha256": digest(pool_path),
         }
-    elif gating:
+    elif gating and not open_questions:
         raise CaseFlowError("gating revmux findings require an exact review diff pool")
 
     round_record = {
         "path": relative_or_absolute(case_root, receipt_path),
         "sha256": digest(receipt_path),
+        "article_sha256": payload["article"]["sha256"],
         "degraded": degraded,
         "source_count_mismatch": source_count_mismatch,
         "gating_findings": len(gating),
@@ -624,9 +730,12 @@ def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
     if not args.decision_ref.strip():
         raise CaseFlowError("decision_ref cannot be empty")
     round_record = payload["review_rounds"][-1]
-    receipt = read_json(resolve_artifact(case_root, round_record["path"]))
-    findings = receipt.get("findings", [])
-    questions = receipt.get("open_questions", [])
+    receipt = validate_review_receipt(
+        read_json(resolve_artifact(case_root, round_record["path"])),
+        payload["article"]["sha256"],
+    )
+    findings = receipt["findings"]
+    questions = receipt["open_questions"]
     gating = [
         finding
         for finding in findings
@@ -637,7 +746,7 @@ def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
         raise CaseFlowError("gating findings still require an exact review diff pool")
     if diff_pool_arg:
         pool_path = resolve_artifact(case_root, diff_pool_arg)
-        pool = validate_diff_pool(pool_path, 4)
+        pool = validate_diff_pool(pool_path, 4, initial=True)
         if not pool["items"]:
             raise CaseFlowError("review decision diff pool cannot be empty")
         finding_ids = {
@@ -761,14 +870,229 @@ def command_waive_review(args: argparse.Namespace) -> dict[str, Any]:
     return {"item": args.item, "status": "waived"}
 
 
+def delivery_stage_record(payload: dict[str, Any]) -> dict[str, Any]:
+    delivery = payload.get("delivery")
+    if not isinstance(delivery, dict):
+        raise CaseFlowError("delivery has not been initialized")
+    return delivery["stages"][str(delivery["stage"])]
+
+
+def require_delivery_state(payload: dict[str, Any], *states: str) -> dict[str, Any]:
+    require_state(payload, "delivery_active")
+    delivery = payload.get("delivery")
+    if not isinstance(delivery, dict) or delivery.get("state") not in states:
+        expected = ", ".join(states)
+        actual = delivery.get("state") if isinstance(delivery, dict) else None
+        raise CaseFlowError(f"delivery state must be one of [{expected}], got {actual}")
+    return delivery
+
+
+def command_delivery_submit(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery = require_delivery_state(payload, "lanes")
+    if args.stage != delivery["stage"]:
+        raise CaseFlowError(f"current delivery stage is {delivery['stage']}")
+    if args.lane not in delivery["lanes"]:
+        raise CaseFlowError(f"unknown delivery lane: {args.lane}")
+    artifact = resolve_artifact(case_root, args.artifact)
+    method_basis = resolve_artifact(case_root, args.method_basis)
+    record = {
+        "path": relative_or_absolute(case_root, artifact),
+        "sha256": digest(artifact),
+        "method_basis": {
+            "path": relative_or_absolute(case_root, method_basis),
+            "sha256": digest(method_basis),
+        },
+        "submitted_at": now(),
+    }
+    delivery_stage_record(payload)["submissions"][args.lane] = record
+    save_case(case_root, payload, f"delivery_stage_{delivery['stage']}_lane_{args.lane}_submitted")
+    return record
+
+
+def command_delivery_open_stitch(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery = require_delivery_state(payload, "lanes")
+    record = delivery_stage_record(payload)
+    missing = sorted(set(delivery["lanes"]) - set(record["submissions"]))
+    if missing:
+        raise CaseFlowError(f"delivery lanes missing submissions: {', '.join(missing)}")
+    delivery["state"] = "stitching"
+    record["state"] = "stitching"
+    save_case(case_root, payload, f"delivery_stage_{delivery['stage']}_stitch_opened")
+    return {"delivery_stage": delivery["stage"], "delivery_state": delivery["state"]}
+
+
+def command_delivery_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery = require_delivery_state(payload, "stitching")
+    stage = int(delivery["stage"])
+    report = resolve_artifact(case_root, args.report)
+    pool_path = resolve_artifact(case_root, args.diff_pool)
+    pool = validate_diff_pool(pool_path, stage, initial=True)
+    record = delivery_stage_record(payload)
+    record["stitch"] = {
+        "path": relative_or_absolute(case_root, report),
+        "sha256": digest(report),
+        "recorded_at": now(),
+    }
+    record["diff_pool"] = {
+        "path": relative_or_absolute(case_root, pool_path),
+        "sha256": digest(pool_path),
+    }
+    unresolved = [item["id"] for item in pool["items"]]
+    delivery["state"] = "remediation" if unresolved else "ready"
+    record["state"] = delivery["state"]
+    save_case(case_root, payload, f"delivery_stage_{stage}_stitch_recorded")
+    return {"delivery_stage": stage, "delivery_state": delivery["state"], "unresolved_items": unresolved}
+
+
+def delivery_pool(case_root: Path, payload: dict[str, Any]) -> tuple[dict[str, Any], Path, dict[str, Any]]:
+    delivery = require_delivery_state(payload, "remediation", "ready")
+    record = delivery_stage_record(payload)
+    if not record.get("diff_pool"):
+        raise CaseFlowError("delivery stage has no diff pool")
+    path = resolve_artifact(case_root, record["diff_pool"]["path"])
+    return delivery, path, validate_diff_pool(path, int(delivery["stage"]))
+
+
+def command_delivery_resolve(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery, pool_path, pool = delivery_pool(case_root, payload)
+    matching = [item for item in pool["items"] if item["id"] == args.item]
+    if not matching or matching[0]["status"] != "open":
+        raise CaseFlowError(f"delivery diff item must be open: {args.item}")
+    receipt = resolve_artifact(case_root, args.receipt)
+    receipt_record = {
+        "path": relative_or_absolute(case_root, receipt),
+        "sha256": digest(receipt),
+        "recorded_at": now(),
+    }
+    item = matching[0]
+    item["receipt"] = receipt_record
+    item.setdefault("correction_attempts", []).append(receipt_record)
+    item["status"] = "applied"
+    atomic_json(pool_path, pool)
+    delivery_stage_record(payload)["diff_pool"]["sha256"] = digest(pool_path)
+    save_case(case_root, payload, f"delivery_diff_{args.item}_applied")
+    return {"item": args.item, "status": "applied"}
+
+
+def command_delivery_verify(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery, pool_path, pool = delivery_pool(case_root, payload)
+    matching = [item for item in pool["items"] if item["id"] == args.item]
+    if not matching or matching[0]["status"] != "applied":
+        raise CaseFlowError(f"delivery diff item must be applied: {args.item}")
+    receipt = resolve_artifact(case_root, args.receipt)
+    verification = {
+        "path": relative_or_absolute(case_root, receipt),
+        "sha256": digest(receipt),
+        "result": args.result,
+        "recorded_at": now(),
+    }
+    item = matching[0]
+    item.setdefault("verification_attempts", []).append(verification)
+    if args.result == "pass":
+        item["verification_receipt"] = verification
+        item["status"] = "verified"
+    else:
+        item.pop("verification_receipt", None)
+        item["status"] = "open"
+    atomic_json(pool_path, pool)
+    record = delivery_stage_record(payload)
+    record["diff_pool"]["sha256"] = digest(pool_path)
+    unresolved = [entry["id"] for entry in pool["items"] if entry["status"] in {"open", "applied"}]
+    delivery["state"] = "remediation" if unresolved else "ready"
+    record["state"] = delivery["state"]
+    save_case(case_root, payload, f"delivery_diff_{args.item}_verification_{args.result}")
+    return {"item": args.item, "status": item["status"], "remaining_unresolved": unresolved}
+
+
+def command_delivery_waive(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery, pool_path, pool = delivery_pool(case_root, payload)
+    matching = [item for item in pool["items"] if item["id"] == args.item]
+    if not matching or matching[0]["status"] != "open":
+        raise CaseFlowError(f"delivery diff item must be open: {args.item}")
+    if not args.decision_ref.strip():
+        raise CaseFlowError("decision_ref cannot be empty")
+    matching[0]["decision_ref"] = args.decision_ref.strip()
+    matching[0]["status"] = "waived"
+    atomic_json(pool_path, pool)
+    record = delivery_stage_record(payload)
+    record["diff_pool"]["sha256"] = digest(pool_path)
+    unresolved = [entry["id"] for entry in pool["items"] if entry["status"] in {"open", "applied"}]
+    delivery["state"] = "remediation" if unresolved else "ready"
+    record["state"] = delivery["state"]
+    save_case(case_root, payload, f"delivery_diff_{args.item}_waived")
+    return {"item": args.item, "status": "waived", "remaining_unresolved": unresolved}
+
+
+def command_delivery_advance(args: argparse.Namespace) -> dict[str, Any]:
+    case_root = args.case_root.resolve()
+    payload = load_case(case_root)
+    delivery, _, pool = delivery_pool(case_root, payload)
+    if delivery["state"] != "ready":
+        raise CaseFlowError("delivery stage is not ready")
+    unresolved = [item["id"] for item in pool["items"] if item["status"] in {"open", "applied"}]
+    if unresolved:
+        raise CaseFlowError(f"unverified delivery diff items remain: {', '.join(unresolved)}")
+    stage = int(delivery["stage"])
+    delivery_stage_record(payload)["state"] = "complete"
+    if stage < 4:
+        delivery["stage"] = stage + 1
+        delivery["state"] = "lanes"
+        delivery_stage_record(payload)["state"] = "lanes"
+    else:
+        delivery["state"] = "complete"
+        payload["state"] = "delivery_ready"
+    save_case(case_root, payload, f"delivery_stage_{stage}_completed")
+    return {"delivery_stage": delivery["stage"], "delivery_state": delivery["state"], "state": payload["state"]}
+
+
 def command_route(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
     require_state(payload, "spec_ready")
+    lanes = getattr(args, "lane", []) or []
+    if args.decision == "delivery":
+        if not lanes or any(not LANE_RE.fullmatch(lane) for lane in lanes):
+            raise CaseFlowError("delivery route requires stable uppercase --lane ids")
+        if len(lanes) != len(set(lanes)):
+            raise CaseFlowError("delivery lanes must be unique")
+        payload["delivery"] = {
+            "stage": 1,
+            "state": "lanes",
+            "lanes": lanes,
+            "stages": {
+                str(stage): {
+                    "state": "lanes" if stage == 1 else "pending",
+                    "submissions": {},
+                    "stitch": None,
+                    "diff_pool": None,
+                }
+                for stage in STAGES
+            },
+        }
+        payload["state"] = "delivery_active"
+    else:
+        if lanes:
+            raise CaseFlowError("stop route does not accept delivery lanes")
+        payload["state"] = "stopped_after_spec"
     payload["route"] = args.decision
-    payload["state"] = "delivery_active" if args.decision == "delivery" else "stopped_after_spec"
     save_case(case_root, payload, f"route_{args.decision}_selected")
-    return {"route": payload["route"], "state": payload["state"]}
+    return {
+        "route": payload["route"],
+        "state": payload["state"],
+        "delivery": payload.get("delivery"),
+    }
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -779,6 +1103,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--case-root", type=Path, required=True)
     init.add_argument("--template", type=Path, required=True)
     init.add_argument("--decision", type=Path, required=True)
+    init.add_argument("--plan", type=Path, required=True)
     init.add_argument("--article-id", required=True)
     init.set_defaults(handler=command_init)
 
@@ -816,7 +1141,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--case-root", type=Path, required=True)
     verify.add_argument("--item", required=True)
     verify.add_argument("--receipt", required=True)
-    verify.add_argument("--result", choices=("pass", "fail"), default="pass")
+    verify.add_argument("--result", choices=("pass", "fail"), required=True)
     verify.set_defaults(handler=command_verify)
 
     waive = subparsers.add_parser("waive")
@@ -870,9 +1195,50 @@ def build_parser() -> argparse.ArgumentParser:
     waive_review.add_argument("--decision-ref", required=True)
     waive_review.set_defaults(handler=command_waive_review)
 
+    delivery_submit = subparsers.add_parser("delivery-submit")
+    delivery_submit.add_argument("--case-root", type=Path, required=True)
+    delivery_submit.add_argument("--stage", type=int, choices=STAGES, required=True)
+    delivery_submit.add_argument("--lane", required=True)
+    delivery_submit.add_argument("--artifact", required=True)
+    delivery_submit.add_argument("--method-basis", required=True)
+    delivery_submit.set_defaults(handler=command_delivery_submit)
+
+    delivery_stitch = subparsers.add_parser("delivery-open-stitch")
+    delivery_stitch.add_argument("--case-root", type=Path, required=True)
+    delivery_stitch.set_defaults(handler=command_delivery_open_stitch)
+
+    delivery_record = subparsers.add_parser("delivery-record-stitch")
+    delivery_record.add_argument("--case-root", type=Path, required=True)
+    delivery_record.add_argument("--report", required=True)
+    delivery_record.add_argument("--diff-pool", required=True)
+    delivery_record.set_defaults(handler=command_delivery_record_stitch)
+
+    for name, handler in (
+        ("delivery-resolve", command_delivery_resolve),
+        ("delivery-verify", command_delivery_verify),
+    ):
+        command = subparsers.add_parser(name)
+        command.add_argument("--case-root", type=Path, required=True)
+        command.add_argument("--item", required=True)
+        command.add_argument("--receipt", required=True)
+        if name == "delivery-verify":
+            command.add_argument("--result", choices=("pass", "fail"), required=True)
+        command.set_defaults(handler=handler)
+
+    delivery_waive = subparsers.add_parser("delivery-waive")
+    delivery_waive.add_argument("--case-root", type=Path, required=True)
+    delivery_waive.add_argument("--item", required=True)
+    delivery_waive.add_argument("--decision-ref", required=True)
+    delivery_waive.set_defaults(handler=command_delivery_waive)
+
+    delivery_advance = subparsers.add_parser("delivery-advance")
+    delivery_advance.add_argument("--case-root", type=Path, required=True)
+    delivery_advance.set_defaults(handler=command_delivery_advance)
+
     route = subparsers.add_parser("route")
     route.add_argument("--case-root", type=Path, required=True)
     route.add_argument("--decision", choices=("stop", "delivery"), required=True)
+    route.add_argument("--lane", action="append", default=[])
     route.set_defaults(handler=command_route)
     return parser
 

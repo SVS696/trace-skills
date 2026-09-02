@@ -1,5 +1,18 @@
 # Delivery stages
 
+Initialize from `spec_ready`:
+
+```bash
+python3 scripts/caseflow.py route --case-root CASE --decision delivery \
+  --lane BACKEND --lane FRONTEND --lane TEST
+```
+
+For every stage, submit one artifact and materialized method basis per declared lane
+with `delivery-submit`, then use `delivery-open-stitch` and
+`delivery-record-stitch`. Close the one stage pool only through `delivery-resolve`,
+`delivery-verify --result pass|fail`, or `delivery-waive --decision-ref`; advance with
+`delivery-advance`. `caseflow.py status` is the source of truth on resume.
+
 ## Stage 1: Plan
 
 **Entry:** Approved article and route=`delivery`.

@@ -45,11 +45,11 @@ into `method-basis/stage-NN-BLOCK.md`.
 
 ### Phase 1: Resolve current state
 
-**Entry:** An approved `decomposition-decision.json` exists and a case root exists or
-the user authorized its initialization.
+**Entry:** Approved `decomposition-decision.json` and `execution-plan.json` exist, and
+a case root exists or the user authorized its initialization.
 
 1. For a new case, initialize it with `scripts/caseflow.py init`; it must consume the
-   approved article entry from the decomposition decision.
+   matching approved decision and plan plus the selected article entry.
 2. Run `status`, then `context`.
 3. If `context` reports a missing method basis, materialize it before assigning the
    block. Read only the stage file and paths returned in `read_set`.
@@ -79,7 +79,7 @@ Follow the selected stage file. Do not preload the other three.
 2. Apply only open items, preferably as one correction batch.
 3. Record one receipt per item with `caseflow.py resolve`.
 4. Independently recheck each applied correction and record the result with
-   `caseflow.py verify`.
+   `caseflow.py verify --result pass|fail`; the result is mandatory and never inferred.
 5. Run `caseflow.py advance` only after every item is `verified` or `waived`.
 
 **Exit:** The case advanced exactly one stage, or stopped with explicit unresolved items.

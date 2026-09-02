@@ -229,6 +229,8 @@ def materialize(domain: str, route_ids: list[str], output: Path) -> dict[str, An
         raise LibraryError("at least one --route is required")
     if len(route_ids) > 2:
         raise LibraryError("at most two routes may be materialized together")
+    if domain == "delivery" and len([item for item in route_ids if item != "core-change"]) > 1:
+        raise LibraryError("delivery materialization allows core-change plus one specialized route")
     selected = list(route_ids)
     if domain == "delivery" and "core-change" not in selected:
         selected.insert(0, "core-change")

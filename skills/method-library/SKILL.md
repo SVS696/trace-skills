@@ -34,6 +34,8 @@ model. The library contains exact mirrored distillates; this skill emits one bou
 
 4. Confirm the route against the assignment. The signal match recommends; it does not
    decide scope or requirements.
+   `library/route-overrides.json` is the auditable overlay that extends pinned route
+   maps without editing their mirrored content.
 5. Materialize one route. A second route is allowed only for an independent surface:
 
    ```bash

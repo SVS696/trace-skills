@@ -51,9 +51,18 @@ def validate(payload: Any) -> dict[str, Any]:
     if actual != template.get("sha256"):
         raise SetupError(f"project template changed: expected {template.get('sha256')}, got {actual}")
     routes = payload.get("routes")
-    expected = {"method", "preanalysis", "specification", "implementation", "timer", "legacy"}
-    if not isinstance(routes, dict) or set(routes) != expected:
+    expected = {
+        "method": "method-library",
+        "preanalysis": "spec-preanalysis",
+        "specification": "spec-workflow",
+        "implementation": "delivery-workflow",
+        "timer": "process-timer",
+        "legacy": "legacy-case-migration",
+    }
+    if not isinstance(routes, dict) or set(routes) != set(expected):
         raise SetupError("setup.routes must define the six workflow routes exactly")
+    if routes != expected:
+        raise SetupError("setup.routes contains an unknown or misplaced workflow skill")
     return {"project_id": payload.get("project_id"), "template_sha256": actual}
 
 

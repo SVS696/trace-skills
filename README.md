@@ -44,6 +44,7 @@ python3 scripts/caseflow.py init \
   --case-root .workflow/cases/CASE-123 \
   --template /absolute/path/to/current-template.md \
   --decision /absolute/path/to/decomposition-decision.json \
+  --plan /absolute/path/to/execution-plan.json \
   --article-id CASE-123
 
 python3 scripts/caseflow.py status --case-root .workflow/cases/CASE-123

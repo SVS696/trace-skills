@@ -38,6 +38,35 @@ class InstallTests(unittest.TestCase):
         with self.assertRaises(install.InstallError):
             install.install(self.repo, self.home)
 
+    def test_preflight_collision_leaves_no_partial_agent_copy(self) -> None:
+        second = self.repo / "agents" / "codex" / "zzz.toml"
+        second.write_text("second\n", encoding="utf-8")
+        collision = self.home / ".codex" / "agents" / "zzz.toml"
+        collision.parent.mkdir(parents=True)
+        collision.write_text("mine\n", encoding="utf-8")
+        with self.assertRaises(install.InstallError):
+            install.install(self.repo, self.home)
+        self.assertFalse((self.home / ".codex" / "agents" / "role.toml").exists())
+
+    def test_verify_rejects_foreign_and_dangling_links_and_repair_is_explicit(self) -> None:
+        install.install(self.repo, self.home)
+        link = self.home / ".agents" / "skills" / install.SKILLS[0]
+        link.unlink()
+        foreign = self.root / "foreign"
+        foreign.mkdir()
+        link.symlink_to(foreign, target_is_directory=True)
+        with self.assertRaises(install.InstallError):
+            install.verify(self.repo, self.home, [])
+        with self.assertRaises(install.InstallError):
+            install.install(self.repo, self.home)
+        install.install(self.repo, self.home, repair_links=True)
+        self.assertTrue(install.verify(self.repo, self.home, [])["ok"])
+        current = self.home / ".workflow-skills" / "current"
+        current.unlink()
+        current.symlink_to(self.root / "missing", target_is_directory=True)
+        with self.assertRaises(install.InstallError):
+            install.verify(self.repo, self.home, [])
+
 
 if __name__ == "__main__":
     unittest.main()

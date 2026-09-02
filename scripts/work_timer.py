@@ -85,6 +85,16 @@ def next_id(payload: dict[str, Any], prefix: str) -> str:
     return f"{prefix}-{len(payload['events']) + 1:04d}"
 
 
+def append_time(payload: dict[str, Any], value: str | None) -> str:
+    timestamp = parse_time(value)
+    if payload["events"]:
+        current = datetime.fromisoformat(timestamp)
+        previous = datetime.fromisoformat(payload["events"][-1]["at"])
+        if current < previous:
+            raise TimerError("event timestamp cannot precede the previous event")
+    return timestamp
+
+
 def validate_transition(previous: str | None, current: str) -> None:
     if previous is None and current != "work_started":
         raise TimerError("first marker must be work_started")
@@ -123,7 +133,7 @@ def command_mark(args: argparse.Namespace) -> dict[str, Any]:
     event = {
         "id": next_id(payload, "marker"),
         "type": "state_marker",
-        "at": parse_time(args.at),
+        "at": append_time(payload, args.at),
         "state": args.state,
     }
     if args.reason:
@@ -142,7 +152,7 @@ def command_pulse(args: argparse.Namespace) -> dict[str, Any]:
     event = {
         "id": next_id(payload, "pulse"),
         "type": "activity_pulse",
-        "at": parse_time(args.at),
+        "at": append_time(payload, args.at),
         "category": args.category,
         "attributes": {},
     }
@@ -155,7 +165,9 @@ def command_export(args: argparse.Namespace) -> dict[str, Any]:
     payload = load(args.ledger.resolve())
     if latest_marker(payload) is None:
         raise TimerError("cannot export a source without work_started")
-    times = [event["at"] for event in payload["events"]]
+    timed_events = [
+        (datetime.fromisoformat(event["at"]), event["at"]) for event in payload["events"]
+    ]
     terminal = latest_marker(payload) in TERMINAL
     source = {
         "id": payload["source_id"],
@@ -163,8 +175,8 @@ def command_export(args: argparse.Namespace) -> dict[str, Any]:
         "required_for_coverage": True,
         "coverage": {
             "status": "complete" if terminal else "partial",
-            "started_at": min(times),
-            "ended_at": max(times),
+            "started_at": min(timed_events, key=lambda item: item[0])[1],
+            "ended_at": max(timed_events, key=lambda item: item[0])[1],
             "reason": None if terminal else "lifecycle_active",
         },
         "events": payload["events"],
