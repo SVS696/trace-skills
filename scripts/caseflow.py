@@ -25,6 +25,7 @@ SCHEMA = 1
 STAGES = (1, 2, 3, 4)
 ITEM_STATUSES = {"open", "applied", "verified", "waived"}
 GATING_SEVERITIES = {"critical", "major"}
+MAX_REVIEW_CYCLES = 5
 ITEM_RE = re.compile(r"^D([1-4])-\d{3}$")
 LANE_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -414,6 +415,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
 
 def command_status(args: argparse.Namespace) -> dict[str, Any]:
     payload = load_case(args.case_root.resolve())
+    review_cycles = review_cycles_used(payload)
     delivery = payload.get("delivery")
     current = delivery_stage_record(payload) if delivery else stage_record(payload)
     current_stage = delivery["stage"] if delivery else payload["stage"]
@@ -431,12 +433,23 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
         "required_blocks": delivery["lanes"] if delivery else [block["id"] for block in payload["blocks"]],
         "open_diff_items": open_count,
         "next_skill": "delivery-workflow" if payload["route"] == "delivery" else "spec-workflow",
+        "review_cycles_used": review_cycles,
+        "review_cycles_remaining": max(0, MAX_REVIEW_CYCLES - review_cycles),
     }
     if payload.get("delivery"):
         result["delivery_stage"] = payload["delivery"]["stage"]
         result["delivery_state"] = payload["delivery"]["state"]
         result["delivery_lanes"] = payload["delivery"]["lanes"]
     return result
+
+
+def review_cycles_used(payload: dict[str, Any]) -> int:
+    return sum(
+        1
+        for round_record in payload.get("review_rounds", [])
+        if not round_record.get("degraded")
+        and not round_record.get("source_count_mismatch")
+    )
 
 
 def command_context(args: argparse.Namespace) -> dict[str, Any]:
@@ -738,13 +751,8 @@ def command_append_item(args: argparse.Namespace) -> dict[str, Any]:
     return {"item": item["id"], "status": "open", "state": payload["state"]}
 
 
-def file_identity(path: Path) -> tuple[int, int]:
-    metadata = path.stat()
-    return metadata.st_dev, metadata.st_ino
-
-
-def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[tuple[int, int], str]:
-    ordered: dict[tuple[int, int], tuple[datetime, int, Path, str]] = {}
+def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[Path, str]:
+    ordered: dict[Path, tuple[datetime, int, str]] = {}
     for index, item in enumerate(pool["items"]):
         if item["status"] == "verified":
             expected_hash = item["verification_receipt"]["target_sha256"]
@@ -761,13 +769,11 @@ def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[tu
         if closed_moment.tzinfo is None:
             raise CaseFlowError(f"diff item closure timestamp has no timezone: {item['id']}")
         path = normalized_target_path(case_root, item["target"])
-        identity = file_identity(path)
-        candidate = (closed_moment.astimezone(timezone.utc), index, path, expected_hash)
-        if identity not in ordered or candidate[:2] > ordered[identity][:2]:
-            ordered[identity] = candidate
-    expected = {identity: candidate[3] for identity, candidate in ordered.items()}
-    for candidate in ordered.values():
-        path, expected_hash = candidate[2], candidate[3]
+        candidate = (closed_moment.astimezone(timezone.utc), index, expected_hash)
+        if path not in ordered or candidate[:2] > ordered[path][:2]:
+            ordered[path] = candidate
+    expected = {path: candidate[2] for path, candidate in ordered.items()}
+    for path, expected_hash in expected.items():
         if digest(path) != expected_hash:
             raise CaseFlowError(f"diff target changed after verification or waiver: {path}")
     return expected
@@ -795,7 +801,7 @@ def rebind_stage_outputs(
         current = digest(path)
         if current == artifact_record["sha256"]:
             continue
-        if file_identity(path) not in allowed:
+        if path not in allowed:
             raise CaseFlowError(f"{label} artifact changed outside a closed diff item: {path}")
         artifact_record["sha256"] = current
         artifact_record["rebound_at"] = now()
@@ -851,7 +857,7 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
     article = resolve_artifact(case_root, args.article)
     if article != current_article:
         raise CaseFlowError("article-updated cannot change the registered article path")
-    closed_targets: dict[tuple[int, int], str] = {}
+    closed_targets: dict[Path, str] = {}
     if payload["state"] == "revmux_remediation":
         if not payload["review_rounds"] or not payload["review_rounds"][-1].get("diff_pool"):
             raise CaseFlowError("current revmux round has no registered diff pool")
@@ -864,10 +870,7 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
             raise CaseFlowError(f"unverified review diff items remain: {', '.join(unresolved)}")
         closed_targets = closed_target_expectations(case_root, pool)
     if payload["state"] == "revmux_remediation":
-        if (
-            file_identity(article) not in closed_targets
-            and digest(article) != payload["article"]["sha256"]
-        ):
+        if article not in closed_targets and digest(article) != payload["article"]["sha256"]:
             raise CaseFlowError("article changed without a closed review diff target")
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
@@ -893,6 +896,13 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     expected = sources["expected"]
     reported = sources["reported"]
     source_count_mismatch = expected != reported
+    cap_decision_ref = getattr(args, "cap_decision_ref", None)
+    if review_cycles_used(payload) >= MAX_REVIEW_CYCLES and not (
+        isinstance(cap_decision_ref, str) and cap_decision_ref.strip()
+    ):
+        raise CaseFlowError(
+            "review cycle cap reached; another substantive round requires --cap-decision-ref"
+        )
     findings = receipt["findings"]
     open_questions = receipt["open_questions"]
     gating = [
@@ -945,6 +955,8 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     }
     if diff_pool_record:
         round_record["diff_pool"] = diff_pool_record
+    if isinstance(cap_decision_ref, str) and cap_decision_ref.strip():
+        round_record["cap_decision_ref"] = cap_decision_ref.strip()
     payload["review_rounds"].append(round_record)
     if degraded or source_count_mismatch:
         payload["state"] = "revmux_pending"
@@ -960,6 +972,8 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         "degraded": degraded,
         "source_count_mismatch": source_count_mismatch,
         "gating_findings": gating,
+        "review_cycles_used": review_cycles_used(payload),
+        "review_cycles_remaining": max(0, MAX_REVIEW_CYCLES - review_cycles_used(payload)),
     }
 
 
@@ -1461,6 +1475,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--case-root", type=Path, required=True)
     review.add_argument("--receipt", required=True)
     review.add_argument("--diff-pool")
+    review.add_argument("--cap-decision-ref")
     review.set_defaults(handler=command_record_review)
 
     review_decisions = subparsers.add_parser("record-review-decisions")

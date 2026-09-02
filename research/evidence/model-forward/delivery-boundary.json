@@ -5,8 +5,12 @@
   "scenario_b_read_scope": [
     "assigned backend lane",
     "shared contract",
+    "reviewed article",
+    "current recorded backend-lane artifacts",
+    "previous delivery stage and stitch",
     "named materialized method basis",
-    "current integration report"
+    "current integration report",
+    "no specification block drafts"
   ],
   "scenario_b_may_change_frontend": false,
   "scenario_b_self_check_is_independent_verification": false,

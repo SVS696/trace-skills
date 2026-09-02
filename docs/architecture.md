@@ -11,6 +11,7 @@
 preliminary sources + template headings
         |
 spec-preanalysis: problem/goal/hypothesis + stories + estimate + plan
+        | simplicity-spec on solution and decomposition
         |
 single/split + article-first/hybrid + optional plan sync
         |
@@ -23,7 +24,7 @@ stage 2: behavior per block   -> stitch -> required diff -> apply -> verify
         |
 stage 3: acceptance per block -> stitch -> required diff -> apply -> verify
         |
-stage 4: one article          -> deterministic checks -> revmux convergence
+stage 4: one article          -> simplicity-spec -> deterministic checks -> revmux convergence
         |
         +-- stop
         `-- delivery workflow
@@ -59,7 +60,8 @@ projection до завершения review.
 | `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
 | `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |
 | `process-timer` | наблюдаемыми событиями времени | оценками и выводом о качестве |
-| `revmux` | независимым review и его стандартными раундами | авторством статьи и внешней приёмкой |
+| `simplicity-spec` / `simplicity-code` | отдельным проходом против переусложнения решения или реализации | стилем прозы и формальной приёмкой |
+| `revmux` | независимым review и его ограниченными раундами | авторством статьи и внешней приёмкой |
 | `method-library` | pinned книжными дистиллятами и bounded materialization | продуктовым scope и решениями проекта |
 
 ## Два уровня декомпозиции
@@ -114,6 +116,13 @@ Receipt обязан быть schema 1, содержать полную source a
 Раунд с open questions переводит кейс в `revmux_decision_pending`; ответ фиксируется
 через `record-review-decisions`, после чего тот же пул покрывает gating findings и
 принятые изменения из ответов.
+
+`caseflow status` отдельно считает только завершённые non-degraded review cycles и
+возвращает остаток от hard cap `5`. `record-review` не принимает следующий раунд после
+исчерпания cap без точного `--cap-decision-ref`; технический retry деградировавшего или
+не состоявшегося запуска счётчик не расходует. До первого `revmux` статья проходит
+`simplicity-spec`, поэтому reviewer не становится первым барьером против лишней
+сложности.
 
 После явного route=`delivery` `caseflow.py` заводит отдельные `delivery_stage` и
 `delivery_state`. Каждая из четырёх стадий повторяет барьер lanes → stitch → один

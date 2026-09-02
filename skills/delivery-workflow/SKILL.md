@@ -21,6 +21,8 @@ Software Engineering at Google and specialized standard distillates.
 4. Developer checks, independent verification, merge, deploy and acceptance remain
    separate evidence gates.
 5. Load only the assigned lane, shared contract and current integration report.
+6. Run `simplicity-code` on the integrated implementation before independent
+   verification; its changes enter the current exact diff-pool, not a hidden cleanup.
 
 ## When to use
 
@@ -64,6 +66,8 @@ that lane basis and its hash to the agent.
 - Every code change traces to approved scope.
 - Every stage diff-pool is closed with receipts.
 - Integrated tests and project conformance checks pass.
+- The integrated implementation passed `simplicity-code`; removed/deferred complexity
+  and the resulting runnable check are recorded in the build-stage evidence.
 - Independent verification is recorded separately from developer self-checks.
 - Final report states what is implemented, committed, merged, deployed and accepted
   without collapsing those statuses.

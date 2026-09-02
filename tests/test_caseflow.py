@@ -256,11 +256,8 @@ class CaseFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after registration"):
             caseflow.command_status(argparse.Namespace(case_root=self.case_root))
 
-    def test_shared_filesystem_target_uses_the_last_closed_diff_item(self) -> None:
+    def test_shared_target_uses_the_last_closed_diff_item(self) -> None:
         self.submit_stage_one()
-        artifact = self.case_root / "blocks/B01/stage-01.md"
-        alias = self.case_root / "blocks/B01/stage-01-alias.md"
-        alias.hardlink_to(artifact)
         caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
         report = self.write("stitches/stage-01.md")
         pool = self.write(
@@ -279,7 +276,7 @@ class CaseFlowTests(unittest.TestCase):
                         },
                         {
                             "id": "D1-002",
-                            "target": "blocks/B01/stage-01-alias.md",
+                            "target": "blocks/B01/stage-01.md",
                             "change": "Apply the initial boundary correction",
                             "reason": "First correction to the same artifact",
                             "status": "open",
@@ -291,7 +288,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        artifact.write_text("initial correction\n", encoding="utf-8")
+        artifact = self.write("blocks/B01/stage-01.md", "initial correction\n")
         first_receipt = self.write("receipts/D1-002.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-002", receipt=str(first_receipt))
@@ -514,11 +511,83 @@ class CaseFlowTests(unittest.TestCase):
         )
         self.assertEqual(result["state"], "revmux_pending")
 
+    def test_revmux_five_round_cap_requires_explicit_user_decision(self) -> None:
+        article_sha256 = self.prepare_review()
+        degraded_receipt = self.root / "revmux-degraded-retry.json"
+        degraded_receipt.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {"expected": 2, "reported": 1, "degraded": ["adversarial"]},
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        caseflow.command_record_review(
+            argparse.Namespace(case_root=self.case_root, receipt=str(degraded_receipt))
+        )
+
+        for index in range(1, 6):
+            payload = caseflow.load_case(self.case_root)
+            payload["state"] = "revmux_pending"
+            caseflow.save_case(self.case_root, payload, f"prepare_review_round_{index}")
+            receipt = self.root / f"revmux-clean-{index}.json"
+            receipt.write_text(
+                json.dumps(
+                    {
+                        "schema": 1,
+                        "article_sha256": article_sha256,
+                        "sources": {"expected": 2, "reported": 2, "degraded": []},
+                        "findings": [],
+                        "open_questions": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(receipt))
+            )
+
+        status = caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(status["review_cycles_used"], 5)
+        self.assertEqual(status["review_cycles_remaining"], 0)
+
+        payload = caseflow.load_case(self.case_root)
+        payload["state"] = "revmux_pending"
+        caseflow.save_case(self.case_root, payload, "prepare_review_round_6")
+        receipt = self.root / "revmux-clean-6.json"
+        receipt.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "review cycle cap reached"):
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(receipt))
+            )
+
+        recorded = caseflow.command_record_review(
+            argparse.Namespace(
+                case_root=self.case_root,
+                receipt=str(receipt),
+                cap_decision_ref="user-message-override",
+            )
+        )
+        self.assertEqual(recorded["review_cycles_used"], 6)
+        self.assertEqual(recorded["review_cycles_remaining"], 0)
+
     def test_revmux_gating_findings_require_closed_round_diff(self) -> None:
         article_sha256 = self.prepare_review()
-        article = self.case_root / "article.md"
-        article_target_alias = self.case_root / "article-target-alias.md"
-        article_target_alias.hardlink_to(article)
         receipt = self.root / "revmux-major.json"
         receipt.write_text(
             json.dumps(
@@ -546,7 +615,7 @@ class CaseFlowTests(unittest.TestCase):
                         {
                             "id": "D4-001",
                             "source_finding_id": "f1",
-                            "target": "article-target-alias.md#section",
+                            "target": "article.md#section",
                             "change": "Fix the confirmed contradiction",
                             "reason": "revmux finding f1",
                             "status": "open",
@@ -563,7 +632,7 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         self.assertEqual(recorded["state"], "revmux_remediation")
-        article.write_text("# Fixed article\n", encoding="utf-8")
+        article = self.write("article.md", "# Fixed article\n")
         with self.assertRaises(caseflow.CaseFlowError):
             caseflow.command_article_updated(
                 argparse.Namespace(case_root=self.case_root, article=str(article))

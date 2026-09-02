@@ -1,0 +1,11 @@
+{
+  "scenario_a_gate": "simplicity-spec",
+  "scenario_a_default_disposition": "Remove or defer the generic mechanism that lacks a current requirement, preserving only its protected minimum; any extension becomes a separate decision (P04, P19).",
+  "scenario_b_gate_before_revmux": "simplicity-spec",
+  "scenario_b_finding_destination": "The same stage 4 article diff-pool: every accepted SIMPLIFY/REMOVE/DEFER goes into that pool, is applied before the pool is closed, and the simplicity table or clean line is shown with the article result.",
+  "scenario_c_start_round_six_without_user_decision": false,
+  "scenario_c_retry_counts": "No. A technical retry of a degraded or failed round does not consume the cap; only completed non-degraded substantive rounds count.",
+  "scenario_c_required_action": "Stop and get an explicit user decision; pass it to record-review as --cap-decision-ref for any sixth round, or close the remainder as accepted risk, deferred diff, or blocker.",
+  "scenario_d_gate_before_independent_verification": "simplicity-code",
+  "scenario_d_hidden_cleanup_allowed": false
+}

@@ -9,5 +9,5 @@
   "agent_may_approve": false,
   "agent_may_publish_plan": false,
   "parent_may_publish_without_authorization": false,
-  "next_gate": "validated artifacts plus a user-approved decision and plan with matching subject_id and decision_ref; unauthorized external sync remains not_requested"
+  "next_gate": "validated artifacts plus a visible simplicity-spec result and a user-approved decision and plan with matching subject_id and decision_ref; unauthorized external sync remains not_requested"
 }

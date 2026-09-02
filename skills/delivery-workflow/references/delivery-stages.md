@@ -35,8 +35,12 @@ it never returns specification block drafts as the active delivery context.
 **Entry:** Stage 1 pool closed.
 
 1. Implement lanes with developer tests.
-2. Integrate once, run build/tests, and collect all defects into one stage pool.
-3. Apply only pooled corrections and repeat the same checks.
+2. Integrate once, then run `simplicity-code` against the whole changed implementation.
+   Classify every smell as `KEEP/SIMPLIFY/REMOVE/DEFER/ASK`; put accepted code changes
+   into the same stage 2 diff-pool and preserve the protected minimum.
+3. Run build/tests and collect all remaining defects into that one stage pool.
+4. Apply only pooled corrections and repeat the same checks. The handoff must show the
+   simplicity result, including a clean line when nothing was removed.
 
 **Exit:** One integrated change passes developer checks.
 

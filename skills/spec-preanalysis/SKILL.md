@@ -59,9 +59,13 @@ the Vigers reference corpus.
    `elicitation`, and pass its path/hash to `spec-preanalyst`.
 3. Form a preliminary problem, goal, solution hypothesis, scope and dependencies.
 4. Draft preliminary user stories without promoting them to approved requirements.
-5. Write `preanalysis-brief.json` using [brief-contract.md](references/brief-contract.md).
-6. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
-7. Validate with `scripts/preanalysis.py validate-brief`.
+5. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
+   Remove or defer every mechanism that lacks a current requirement; preserve its
+   protected minimum. This is a semantic solution pass, not prose cleanup.
+6. Write the already simplified `preanalysis-brief.json` using
+   [brief-contract.md](references/brief-contract.md).
+7. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
+8. Validate with `scripts/preanalysis.py validate-brief`.
 
 **Exit:** A validated preliminary brief exists; facts and hypotheses are distinguishable.
 
@@ -97,7 +101,7 @@ Do not choose pure independent blocks with only a final stitch.
 2. Write `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
 3. Validate all three artifacts.
 4. Present the problem framing, recommendation, estimate range, plan and material
-   trade-offs to the user.
+   trade-offs to the user, including the visible `simplicity-spec` result.
 5. After the user's choice, approve the decision and plan with exact `decision_ref`.
 6. If separately authorized, sync the approved plan through the project's planning
    adapter (for example `singularity-app`) and record the exact read-back receipt.
@@ -123,3 +127,5 @@ and performs any separately authorized external synchronization.
 - Each article explicitly selects `article-first` or `hybrid`.
 - Dependencies are acyclic and shared rules have one owner.
 - The approved decision initializes cases without manual reinterpretation.
+- The proposed solution and decomposition passed `simplicity-spec`; its simplifications
+  or clean result were shown to the user.
