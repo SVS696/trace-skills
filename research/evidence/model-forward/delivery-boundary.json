@@ -5,6 +5,7 @@
   "scenario_b_read_scope": [
     "assigned backend lane",
     "shared contract",
+    "named materialized method basis",
     "current integration report"
   ],
   "scenario_b_may_change_frontend": false,
