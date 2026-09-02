@@ -256,8 +256,11 @@ class CaseFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after registration"):
             caseflow.command_status(argparse.Namespace(case_root=self.case_root))
 
-    def test_shared_target_uses_the_last_closed_diff_item(self) -> None:
+    def test_shared_filesystem_target_uses_the_last_closed_diff_item(self) -> None:
         self.submit_stage_one()
+        artifact = self.case_root / "blocks/B01/stage-01.md"
+        alias = self.case_root / "blocks/B01/stage-01-alias.md"
+        alias.hardlink_to(artifact)
         caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
         report = self.write("stitches/stage-01.md")
         pool = self.write(
@@ -276,7 +279,7 @@ class CaseFlowTests(unittest.TestCase):
                         },
                         {
                             "id": "D1-002",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "blocks/B01/stage-01-alias.md",
                             "change": "Apply the initial boundary correction",
                             "reason": "First correction to the same artifact",
                             "status": "open",
@@ -288,7 +291,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        artifact = self.write("blocks/B01/stage-01.md", "initial correction\n")
+        artifact.write_text("initial correction\n", encoding="utf-8")
         first_receipt = self.write("receipts/D1-002.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-002", receipt=str(first_receipt))
@@ -513,6 +516,9 @@ class CaseFlowTests(unittest.TestCase):
 
     def test_revmux_gating_findings_require_closed_round_diff(self) -> None:
         article_sha256 = self.prepare_review()
+        article = self.case_root / "article.md"
+        article_target_alias = self.case_root / "article-target-alias.md"
+        article_target_alias.hardlink_to(article)
         receipt = self.root / "revmux-major.json"
         receipt.write_text(
             json.dumps(
@@ -540,7 +546,7 @@ class CaseFlowTests(unittest.TestCase):
                         {
                             "id": "D4-001",
                             "source_finding_id": "f1",
-                            "target": "article.md#section",
+                            "target": "article-target-alias.md#section",
                             "change": "Fix the confirmed contradiction",
                             "reason": "revmux finding f1",
                             "status": "open",
@@ -557,7 +563,7 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         self.assertEqual(recorded["state"], "revmux_remediation")
-        article = self.write("article.md", "# Fixed article\n")
+        article.write_text("# Fixed article\n", encoding="utf-8")
         with self.assertRaises(caseflow.CaseFlowError):
             caseflow.command_article_updated(
                 argparse.Namespace(case_root=self.case_root, article=str(article))
@@ -590,6 +596,10 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(case_root=self.case_root, article=str(article))
         )
         self.assertEqual(updated["state"], "revmux_pending")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "cannot change the registered article path"):
+            caseflow.command_article_updated(
+                argparse.Namespace(case_root=self.case_root, article=str(alternate))
+            )
 
     def test_registered_review_pool_accepts_new_item(self) -> None:
         article_sha256 = self.prepare_review()

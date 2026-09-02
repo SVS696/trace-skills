@@ -738,8 +738,13 @@ def command_append_item(args: argparse.Namespace) -> dict[str, Any]:
     return {"item": item["id"], "status": "open", "state": payload["state"]}
 
 
-def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[Path, str]:
-    ordered: dict[Path, tuple[datetime, int, str]] = {}
+def file_identity(path: Path) -> tuple[int, int]:
+    metadata = path.stat()
+    return metadata.st_dev, metadata.st_ino
+
+
+def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[tuple[int, int], str]:
+    ordered: dict[tuple[int, int], tuple[datetime, int, Path, str]] = {}
     for index, item in enumerate(pool["items"]):
         if item["status"] == "verified":
             expected_hash = item["verification_receipt"]["target_sha256"]
@@ -756,11 +761,13 @@ def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[Pa
         if closed_moment.tzinfo is None:
             raise CaseFlowError(f"diff item closure timestamp has no timezone: {item['id']}")
         path = normalized_target_path(case_root, item["target"])
-        candidate = (closed_moment.astimezone(timezone.utc), index, expected_hash)
-        if path not in ordered or candidate[:2] > ordered[path][:2]:
-            ordered[path] = candidate
-    expected = {path: candidate[2] for path, candidate in ordered.items()}
-    for path, expected_hash in expected.items():
+        identity = file_identity(path)
+        candidate = (closed_moment.astimezone(timezone.utc), index, path, expected_hash)
+        if identity not in ordered or candidate[:2] > ordered[identity][:2]:
+            ordered[identity] = candidate
+    expected = {identity: candidate[3] for identity, candidate in ordered.items()}
+    for candidate in ordered.values():
+        path, expected_hash = candidate[2], candidate[3]
         if digest(path) != expected_hash:
             raise CaseFlowError(f"diff target changed after verification or waiver: {path}")
     return expected
@@ -788,7 +795,7 @@ def rebind_stage_outputs(
         current = digest(path)
         if current == artifact_record["sha256"]:
             continue
-        if path not in allowed:
+        if file_identity(path) not in allowed:
             raise CaseFlowError(f"{label} artifact changed outside a closed diff item: {path}")
         artifact_record["sha256"] = current
         artifact_record["rebound_at"] = now()
@@ -840,7 +847,11 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
     require_state(payload, "revmux_remediation", "revmux_pending")
-    closed_targets: dict[Path, str] = {}
+    current_article = resolve_artifact(case_root, payload["article"]["path"])
+    article = resolve_artifact(case_root, args.article)
+    if article != current_article:
+        raise CaseFlowError("article-updated cannot change the registered article path")
+    closed_targets: dict[tuple[int, int], str] = {}
     if payload["state"] == "revmux_remediation":
         if not payload["review_rounds"] or not payload["review_rounds"][-1].get("diff_pool"):
             raise CaseFlowError("current revmux round has no registered diff pool")
@@ -852,12 +863,11 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
         if unresolved:
             raise CaseFlowError(f"unverified review diff items remain: {', '.join(unresolved)}")
         closed_targets = closed_target_expectations(case_root, pool)
-    article = resolve_artifact(case_root, args.article)
     if payload["state"] == "revmux_remediation":
-        current_article = resolve_artifact(case_root, payload["article"]["path"])
-        if article != current_article:
-            raise CaseFlowError("review remediation cannot change the registered article path")
-        if article not in closed_targets and digest(article) != payload["article"]["sha256"]:
+        if (
+            file_identity(article) not in closed_targets
+            and digest(article) != payload["article"]["sha256"]
+        ):
             raise CaseFlowError("article changed without a closed review diff target")
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
