@@ -99,6 +99,47 @@ class PreanalysisTests(unittest.TestCase):
         plan["external_sync"]["readback_ref"] = "receipt-1"
         self.assertEqual(preanalysis.validate_plan(plan)["route"], "specification")
 
+    def test_plan_rejects_implementation_route(self) -> None:
+        plan = {
+            "schema": 1,
+            "subject_id": "TASK-1",
+            "status": "approved",
+            "decision_ref": "user-message-1",
+            "route": "implementation",
+            "article_ids": ["TASK-1"],
+            "tasks": [{"id": "P1", "title": "Build", "output": "code", "depends_on": []}],
+            "external_sync": {"status": "not_requested"},
+        }
+        with self.assertRaisesRegex(preanalysis.PlanError, "route is invalid"):
+            preanalysis.validate_plan(plan)
+
+    def test_task_cycle_error_preserves_ids_containing_article(self) -> None:
+        plan = {
+            "schema": 1,
+            "subject_id": "TASK-1",
+            "status": "approved",
+            "decision_ref": "user-message-1",
+            "route": "specification",
+            "article_ids": ["TASK-1"],
+            "tasks": [
+                {
+                    "id": "article-work",
+                    "title": "One",
+                    "output": "one",
+                    "depends_on": ["other"],
+                },
+                {
+                    "id": "other",
+                    "title": "Two",
+                    "output": "two",
+                    "depends_on": ["article-work"],
+                },
+            ],
+            "external_sync": {"status": "not_requested"},
+        }
+        with self.assertRaisesRegex(preanalysis.PlanError, "article-work"):
+            preanalysis.validate_plan(plan)
+
 
 if __name__ == "__main__":
     unittest.main()

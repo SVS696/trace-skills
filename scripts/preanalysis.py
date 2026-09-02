@@ -41,13 +41,13 @@ def required_text(payload: dict[str, Any], field: str, label: str) -> str:
     return value.strip()
 
 
-def detect_cycle(graph: dict[str, list[str]]) -> None:
+def detect_cycle(graph: dict[str, list[str]], noun: str = "article") -> None:
     visiting: set[str] = set()
     visited: set[str] = set()
 
     def visit(node: str) -> None:
         if node in visiting:
-            raise DecisionError(f"article dependency cycle includes {node}")
+            raise DecisionError(f"{noun} dependency cycle includes {node}")
         if node in visited:
             return
         visiting.add(node)
@@ -141,7 +141,7 @@ def validate_plan(payload: Any) -> dict[str, Any]:
         if payload.get("status") == "approved":
             required_text(payload, "decision_ref", "plan")
         route = payload.get("route")
-        if route not in {"stop", "specification", "implementation"}:
+        if route not in {"stop", "specification"}:
             raise PlanError("plan.route is invalid")
         tasks = payload.get("tasks")
         if not isinstance(tasks, list):
@@ -182,9 +182,9 @@ def validate_plan(payload: Any) -> dict[str, Any]:
             if task_id in dependencies:
                 raise PlanError(f"{task_id} cannot depend on itself")
         try:
-            detect_cycle(graph)
+            detect_cycle(graph, "task")
         except DecisionError as exc:
-            raise PlanError(str(exc).replace("article", "task")) from exc
+            raise PlanError(str(exc)) from exc
         sync = payload.get("external_sync", {"status": "not_requested"})
         if not isinstance(sync, dict):
             raise PlanError("plan.external_sync must be an object")

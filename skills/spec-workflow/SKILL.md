@@ -77,10 +77,12 @@ Follow the selected stage file. Do not preload the other three.
 
 1. Read [diff-pool.md](references/diff-pool.md).
 2. Apply only open items, preferably as one correction batch.
-3. Record one receipt per item with `caseflow.py resolve`.
-4. Independently recheck each applied correction and record the result with
+3. If correction or verification reveals another defect, register it with
+   `caseflow.py append-item --item-file`; never edit the fingerprinted pool manually.
+4. Record one receipt per item with `caseflow.py resolve`.
+5. Independently recheck each applied correction and record the result with
    `caseflow.py verify --result pass|fail`; the result is mandatory and never inferred.
-5. Run `caseflow.py advance` only after every item is `verified` or `waived`.
+6. Run `caseflow.py advance` only after every item is `verified` or `waived`.
 
 **Exit:** The case advanced exactly one stage, or stopped with explicit unresolved items.
 

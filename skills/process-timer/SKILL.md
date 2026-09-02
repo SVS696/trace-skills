@@ -27,12 +27,17 @@ Run `scripts/work_timer.py init`, then record `work_started`.
 **Entry:** Ledger validation passes.
 
 - Use `pulse` for observed activity.
-- Use `mark pause_started|deferred|resume` for explicit lifecycle changes.
+- Use `mark pause_started|limit_exhausted|deferred|resume` for explicit lifecycle
+  changes. `limit_exhausted` means an observed model or service usage limit, not an
+  inferred lack of activity.
 - Use `ready_for_handoff` when the result is ready, not when it is accepted.
 - Use `handoff` only after actual transfer.
 - Use terminal stop states exactly as observed.
 
 **Exit:** Every event has a stable id and timestamp; invalid transitions fail closed.
+
+Use `--at` when importing an observed timestamp. It must include a timezone and may
+not precede the previous event; omit it only for an event observed now.
 
 ### Phase 3: Export
 

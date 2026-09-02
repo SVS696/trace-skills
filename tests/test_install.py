@@ -67,6 +67,62 @@ class InstallTests(unittest.TestCase):
         with self.assertRaises(install.InstallError):
             install.verify(self.repo, self.home, [])
 
+    def test_verify_rejects_source_changed_after_install(self) -> None:
+        install.install(self.repo, self.home)
+        source = self.repo / "agents" / "codex" / "role.toml"
+        source.write_text("new role\n", encoding="utf-8")
+        with self.assertRaisesRegex(install.InstallError, "source changed"):
+            install.verify(self.repo, self.home, [])
+        install.install(self.repo, self.home)
+        self.assertTrue(install.verify(self.repo, self.home, [])["ok"])
+
+    def test_install_removes_only_owned_orphan_agent_copy(self) -> None:
+        install.install(self.repo, self.home)
+        old_source = self.repo / "agents" / "codex" / "role.toml"
+        new_source = old_source.with_name("renamed.toml")
+        old_source.rename(new_source)
+        result = install.install(self.repo, self.home)
+        old_copy = self.home / ".codex" / "agents" / "role.toml"
+        new_copy = self.home / ".codex" / "agents" / "renamed.toml"
+        self.assertFalse(old_copy.exists())
+        self.assertTrue(new_copy.exists())
+        self.assertIn(str(old_copy), result["removed_agent_copies"])
+        self.assertTrue(install.verify(self.repo, self.home, [])["ok"])
+
+    def test_install_recovers_pending_manifest(self) -> None:
+        install.install(self.repo, self.home)
+        source = self.repo / "agents" / "codex" / "role.toml"
+        destination = self.home / ".codex" / "agents" / "role.toml"
+        old_hash = install.sha256(destination)
+        source.write_text("new role\n", encoding="utf-8")
+        manifest_path = destination.parent / install.MANIFEST_NAME
+        manifest = install.load_manifest(manifest_path)
+        manifest["files"][str(destination)] = {
+            "source": str(source.resolve()),
+            "sha256": old_hash,
+            "pending_sha256": install.sha256(source),
+        }
+        install.atomic_json(manifest_path, manifest)
+        with self.assertRaisesRegex(install.InstallError, "incomplete agent install"):
+            install.verify(self.repo, self.home, [])
+        install.install(self.repo, self.home)
+        self.assertEqual(destination.read_text(encoding="utf-8"), "new role\n")
+        self.assertTrue(install.verify(self.repo, self.home, [])["ok"])
+
+    def test_project_repair_link_is_explicit(self) -> None:
+        project = self.root / "project"
+        project.mkdir()
+        install.install_project(self.repo, project)
+        link = project / ".agents" / "skills" / install.SKILLS[0]
+        link.unlink()
+        foreign = self.root / "project-foreign"
+        foreign.mkdir()
+        link.symlink_to(foreign, target_is_directory=True)
+        with self.assertRaises(install.InstallError):
+            install.install_project(self.repo, project)
+        install.install_project(self.repo, project, repair_links=True)
+        self.assertEqual(link.resolve(), (self.repo / "skills" / install.SKILLS[0]).resolve())
+
 
 if __name__ == "__main__":
     unittest.main()

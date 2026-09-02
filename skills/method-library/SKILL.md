@@ -36,6 +36,14 @@ model. The library contains exact mirrored distillates; this skill emits one bou
    decide scope or requirements.
    `library/route-overrides.json` is the auditable overlay that extends pinned route
    maps without editing their mirrored content.
+   Common exact ids needed before materialization are:
+
+   - `requirements/scenarios` for actor, trigger, main flow, alternatives and exceptions;
+   - `delivery/core-change` for every code change;
+   - `delivery/backend-http` as the one specialized route for an HTTP endpoint,
+     request/response or status-code surface.
+
+   Use `list` for all other route ids; do not infer an id from prose.
 5. Materialize one route. A second route is allowed only for an independent surface:
 
    ```bash
@@ -53,6 +61,9 @@ model. The library contains exact mirrored distillates; this skill emits one bou
 - Full Vigers `book-extract.md` is fallback-only at the pinned old commit.
 - Source registry versions do not prove conformance beyond the checked surface.
 - Run `python3 scripts/rule_library.py validate` before release or installation.
+- The release count gate is exactly 70 native requirements rules and 30 native
+  delivery rules. `tests/test_rule_library.py` pins these counts; `validate` separately
+  checks mirror hashes, route references and reachability.
 
 ## Success criteria
 

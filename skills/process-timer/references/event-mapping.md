@@ -4,6 +4,7 @@
 |---|---|
 | work actually begins | `work_started` |
 | explicit pause | `pause_started` |
+| observed model or service usage limit | `limit_exhausted` |
 | intentionally deferred | `deferred` |
 | explicit continuation | `resume` |
 | result ready to transfer | `ready_for_handoff` |

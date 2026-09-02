@@ -8,7 +8,8 @@
    stitch report and diff-pool for the assembled article.
 3. Close the stage 4 pool and run `finalize-article`.
 4. Run deterministic project checks for links, tables, diagrams and template-required
-   sections.
+   sections. If they change the article, register the new fingerprint with
+   `article-updated` before invoking review.
 5. Invoke `revmux` on the article diff using its standard workflow. Use
    `comprehensive` for the first substantive round.
 6. Put accepted review findings into one article diff-pool. Every item names the exact
@@ -17,7 +18,8 @@
    article; it also carries exact `sources.expected`, `sources.reported`,
    `sources.degraded`, `findings`, and `open_questions`.
 8. Register each actionable round with `record-review --diff-pool`. Apply and verify
-   only that pool through `resolve-review` and `verify-review`, then call
+   only that pool through `resolve-review` and `verify-review`; register any defect
+   discovered during correction with `append-review-item`. Then call
    `article-updated` and re-review with the profile selected by `revmux` rules.
 9. A failed verification reopens the same item. A waived item is recorded with
    `waive-review --decision-ref`. A degraded round forms no diff-pool:

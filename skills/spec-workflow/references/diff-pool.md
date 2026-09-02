@@ -20,7 +20,8 @@
 
 Rules:
 
-- One file per stage; append new findings to it instead of opening side lists.
+- One file per stage; append new findings through `caseflow.py append-item` instead of
+  editing the registered pool by hand or opening side lists.
 - `target`, `change` and `reason` must be exact enough to verify independently.
 - `applied` requires a correction receipt path and fingerprint, but does not close the item.
 - `verified` requires a separate verification receipt and closes the item.
@@ -34,8 +35,17 @@ Rules:
 Commands:
 
 ```bash
+python3 scripts/caseflow.py append-item --case-root CASE --item-file NEW-ITEM.json
 python3 scripts/caseflow.py resolve --case-root CASE --item D2-001 --receipt RECEIPT
 python3 scripts/caseflow.py verify --case-root CASE --item D2-001 --receipt CHECK --result pass
 python3 scripts/caseflow.py verify --case-root CASE --item D2-001 --receipt CHECK --result fail
 python3 scripts/caseflow.py waive --case-root CASE --item D2-001 --decision-ref "<decision>"
 ```
+
+`NEW-ITEM.json` contains one item object with `id`, `target`, `change`, `reason` and
+`status: open`. The command validates the item, rejects duplicate ids, updates the
+registered pool fingerprint and returns the stage to `remediation`.
+
+For the article review pool use `append-review-item`; for a delivery-stage pool use
+`delivery-append-item`. They accept the same `--item-file` contract and update their
+own registered fingerprints.

@@ -48,6 +48,14 @@ class WorkTimerTests(unittest.TestCase):
         with self.assertRaises(work_timer.TimerError):
             self.mark("resume")
 
+    def test_observed_limit_exhaustion_is_a_resumable_pause(self) -> None:
+        self.mark("work_started")
+        self.mark("limit_exhausted")
+        with self.assertRaises(work_timer.TimerError):
+            self.mark("ready_for_handoff")
+        self.mark("resume")
+        self.mark("work_finished")
+
     def test_mixed_offsets_are_ordered_by_instant(self) -> None:
         work_timer.command_mark(
             argparse.Namespace(

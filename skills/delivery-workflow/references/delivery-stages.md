@@ -11,7 +11,9 @@ For every stage, submit one artifact and materialized method basis per declared 
 with `delivery-submit`, then use `delivery-open-stitch` and
 `delivery-record-stitch`. Close the one stage pool only through `delivery-resolve`,
 `delivery-verify --result pass|fail`, or `delivery-waive --decision-ref`; advance with
-`delivery-advance`. `caseflow.py status` is the source of truth on resume.
+`delivery-advance`. A newly discovered defect is registered with
+`delivery-append-item --item-file`, never by hand-editing the pool. `caseflow.py status`
+is the source of truth on resume.
 
 ## Stage 1: Plan
 
