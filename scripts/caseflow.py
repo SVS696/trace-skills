@@ -241,12 +241,16 @@ def validate_diff_payload(payload: Any, stage: int, *, initial: bool = False) ->
             str(item["verification_receipt"].get("target_sha256", ""))
         ):
             raise CaseFlowError(f"{item_id} verified without target fingerprint")
+        if status == "verified" and not item.get("verified_at"):
+            raise CaseFlowError(f"{item_id} verified without closure timestamp")
         if status == "waived" and not item.get("decision_ref"):
             raise CaseFlowError(f"{item_id} waived without decision_ref")
         if status == "waived" and not SHA256_RE.fullmatch(
             str(item.get("waiver_target_sha256", ""))
         ):
             raise CaseFlowError(f"{item_id} waived without target fingerprint")
+        if status == "waived" and not item.get("resolved_at"):
+            raise CaseFlowError(f"{item_id} waived without closure timestamp")
     return payload
 
 
@@ -735,15 +739,27 @@ def command_append_item(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def closed_target_expectations(case_root: Path, pool: dict[str, Any]) -> dict[Path, str]:
-    expected: dict[Path, str] = {}
-    for item in pool["items"]:
+    ordered: dict[Path, tuple[datetime, int, str]] = {}
+    for index, item in enumerate(pool["items"]):
         if item["status"] == "verified":
             expected_hash = item["verification_receipt"]["target_sha256"]
+            closed_at = item["verified_at"]
         elif item["status"] == "waived":
             expected_hash = item["waiver_target_sha256"]
+            closed_at = item["resolved_at"]
         else:
             continue
-        expected[normalized_target_path(case_root, item["target"])] = expected_hash
+        try:
+            closed_moment = datetime.fromisoformat(str(closed_at))
+        except ValueError as exc:
+            raise CaseFlowError(f"diff item has invalid closure timestamp: {item['id']}") from exc
+        if closed_moment.tzinfo is None:
+            raise CaseFlowError(f"diff item closure timestamp has no timezone: {item['id']}")
+        path = normalized_target_path(case_root, item["target"])
+        candidate = (closed_moment.astimezone(timezone.utc), index, expected_hash)
+        if path not in ordered or candidate[:2] > ordered[path][:2]:
+            ordered[path] = candidate
+    expected = {path: candidate[2] for path, candidate in ordered.items()}
     for path, expected_hash in expected.items():
         if digest(path) != expected_hash:
             raise CaseFlowError(f"diff target changed after verification or waiver: {path}")
@@ -824,6 +840,7 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
     require_state(payload, "revmux_remediation", "revmux_pending")
+    closed_targets: dict[Path, str] = {}
     if payload["state"] == "revmux_remediation":
         if not payload["review_rounds"] or not payload["review_rounds"][-1].get("diff_pool"):
             raise CaseFlowError("current revmux round has no registered diff pool")
@@ -834,8 +851,14 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if unresolved:
             raise CaseFlowError(f"unverified review diff items remain: {', '.join(unresolved)}")
-        closed_target_expectations(case_root, pool)
+        closed_targets = closed_target_expectations(case_root, pool)
     article = resolve_artifact(case_root, args.article)
+    if payload["state"] == "revmux_remediation":
+        current_article = resolve_artifact(case_root, payload["article"]["path"])
+        if article != current_article:
+            raise CaseFlowError("review remediation cannot change the registered article path")
+        if article not in closed_targets and digest(article) != payload["article"]["sha256"]:
+            raise CaseFlowError("article changed without a closed review diff target")
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
         "sha256": digest(article),
@@ -1237,9 +1260,11 @@ def command_delivery_verify(args: argparse.Namespace) -> dict[str, Any]:
     if args.result == "pass":
         item["verification_receipt"] = verification
         item["status"] = "verified"
+        item["verified_at"] = now()
     else:
         item.pop("verification_receipt", None)
         item["status"] = "open"
+        item["reopened_at"] = now()
     atomic_json(pool_path, pool)
     record = delivery_stage_record(payload)
     record["diff_pool"]["sha256"] = digest(pool_path)
@@ -1263,6 +1288,7 @@ def command_delivery_waive(args: argparse.Namespace) -> dict[str, Any]:
     item["decision_ref"] = args.decision_ref.strip()
     item["waiver_target_sha256"] = target_snapshot(case_root, item)["target_sha256"]
     item["status"] = "waived"
+    item["resolved_at"] = now()
     atomic_json(pool_path, pool)
     record = delivery_stage_record(payload)
     record["diff_pool"]["sha256"] = digest(pool_path)

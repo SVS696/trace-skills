@@ -256,6 +256,70 @@ class CaseFlowTests(unittest.TestCase):
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after registration"):
             caseflow.command_status(argparse.Namespace(case_root=self.case_root))
 
+    def test_shared_target_uses_the_last_closed_diff_item(self) -> None:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 1,
+                    "items": [
+                        {
+                            "id": "D1-001",
+                            "target": "blocks/B01/stage-01.md",
+                            "change": "Apply the final boundary correction",
+                            "reason": "Second correction to the same artifact",
+                            "status": "open",
+                        },
+                        {
+                            "id": "D1-002",
+                            "target": "blocks/B01/stage-01.md",
+                            "change": "Apply the initial boundary correction",
+                            "reason": "First correction to the same artifact",
+                            "status": "open",
+                        },
+                    ],
+                }
+            ),
+        )
+        caseflow.command_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        artifact = self.write("blocks/B01/stage-01.md", "initial correction\n")
+        first_receipt = self.write("receipts/D1-002.md")
+        caseflow.command_resolve(
+            argparse.Namespace(case_root=self.case_root, item="D1-002", receipt=str(first_receipt))
+        )
+        first_verification = self.write("receipts/D1-002-verification.md")
+        caseflow.command_verify(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D1-002",
+                receipt=str(first_verification),
+                result="pass",
+            )
+        )
+        artifact.write_text("final correction\n", encoding="utf-8")
+        final_receipt = self.write("receipts/D1-001.md")
+        caseflow.command_resolve(
+            argparse.Namespace(case_root=self.case_root, item="D1-001", receipt=str(final_receipt))
+        )
+        final_verification = self.write("receipts/D1-001-verification.md")
+        caseflow.command_verify(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D1-001",
+                receipt=str(final_verification),
+                result="pass",
+            )
+        )
+        advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(advanced["rebound"], ["blocks/B01/stage-01.md"])
+        self.assertEqual(advanced["stage"], 2)
+
     def test_unpooled_stage_output_drift_blocks_advance(self) -> None:
         self.submit_stage_one()
         caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
@@ -517,6 +581,11 @@ class CaseFlowTests(unittest.TestCase):
                 argparse.Namespace(case_root=self.case_root, article=str(article))
             )
         article.write_text("# Fixed article\n", encoding="utf-8")
+        alternate = self.write("article-renamed.md", "# Fixed article\n")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "cannot change the registered article path"):
+            caseflow.command_article_updated(
+                argparse.Namespace(case_root=self.case_root, article=str(alternate))
+            )
         updated = caseflow.command_article_updated(
             argparse.Namespace(case_root=self.case_root, article=str(article))
         )
