@@ -21,7 +21,10 @@ TRACE наследует знания Vigers, Delivery Engineering & Co., но �
 `rules/process-kernel.md`: порядок источников, no-invention и gaps, solution boundary,
 декомпозиция, трассировка, reader projection, AC/DoD, exact diff, независимость review,
 честные lifecycle-статусы, external-write boundary, project ownership, bounded context
-и impact recheck.
+и impact recheck. После эксплуатационного наблюдения длинных TRACE-turn добавлен
+`P23 COURSE-CHECK`: Smoke Break даёт только временной trigger, а kernel требует
+проверить outcome, frontier, измеримый progress, drift и следующий falsifier без новой
+стадии или state machine.
 
 Старые machine transitions, эпохи, профили и команды не переносятся как правила
 предметного качества. Они остаются в архивных Git-репозиториях для истории. Их

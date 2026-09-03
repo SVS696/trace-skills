@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "trace-smoke-break",
+  "description": "Claude Code runtime adapter for TRACE course checks",
+  "owner": {
+    "name": "SVS"
+  },
+  "plugins": [
+    {
+      "name": "smoke-break",
+      "description": "Periodically triggers TRACE course checks in long-running turns.",
+      "author": {
+        "name": "Daniel S / SVS TRACE adapter"
+      },
+      "category": "productivity",
+      "source": "./integrations/smoke-break/claude-marketplace/plugins/smoke-break",
+      "homepage": "https://github.com/SVS696/trace-skills/tree/main/integrations/smoke-break"
+    }
+  ]
+}

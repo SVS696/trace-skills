@@ -1,0 +1,16 @@
+{
+  "scenario_a_verdict": "CONTINUE",
+  "scenario_a_required_next_property": "cheapest falsifying next step",
+  "scenario_b_continue_allowed": false,
+  "scenario_b_allowed_verdicts": [
+    "BACKTRACK",
+    "ASK",
+    "STOP"
+  ],
+  "scenario_c_verdict": "ASK",
+  "scenario_c_new_stage_created": false,
+  "scenario_d_reminder_during_tool_call": false,
+  "scenario_d_checkpoint_timing": "first available checkpoint after the tool call ends",
+  "scenario_e_verification_allowed": false,
+  "scenario_e_required_authority": "explicit user decision"
+}

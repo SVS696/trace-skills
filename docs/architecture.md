@@ -27,6 +27,8 @@ stage 4: one article -> simplicity-spec + humanizer reports -> one diff -> verif
         |
         +-- stop
         `-- delivery workflow
+
+event-driven runtime signal: Smoke Break -> P23 COURSE-CHECK after a tool call
 ```
 
 ## Контекстная модель
@@ -59,6 +61,8 @@ projection до завершения review.
 | `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
 | `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |
 | `process-timer` | наблюдаемыми событиями времени | оценками и выводом о качестве |
+| `Smoke Break` | началом turn и периодическим model-visible reminder после tool call | workflow-state и решением о продолжении |
+| `P23 COURSE-CHECK` | сверкой outcome, frontier, progress, drift и следующего falsifier | новой стадией, артефактом или independent verdict |
 | `simplicity-spec` / `simplicity-code` | отдельным проходом против переусложнения решения или реализации | стилем прозы и формальной приёмкой |
 | `humanizer` | отдельным reader-language проходом по проектному профилю | логикой требований и formal review |
 | `revmux` | независимым review и его ограниченными раундами | авторством статьи и внешней приёмкой |
@@ -158,7 +162,10 @@ finding-классов: более узкий профиль не может о�
 `caseflow status` отдельно считает только завершённые non-degraded review cycles и
 возвращает остаток от hard cap `5`. `record-review` не принимает следующий раунд после
 исчерпания cap без точного `--cap-decision-ref`; технический retry деградировавшего или
-не состоявшегося запуска счётчик не расходует. До первого `revmux` статья проходит
+не состоявшегося запуска счётчик не расходует. Состоявшийся post-fix review или
+verification после пятого раунда требует явного решения пользователя; переименование
+его в recovery и собственный decision-файл агента эту границу не меняют. До первого
+`revmux` статья проходит
 `simplicity-spec`, поэтому reviewer не становится первым барьером против лишней
 сложности. Закрытый stage-4 readiness gate также не позволяет использовать `revmux`
 как поздний сбор базовых продуктовых решений: к первому раунду требования, сценарии и
@@ -199,3 +206,15 @@ read-set. Исторические Vigers/Delivery агенты остаются
 Таймер отделён от процессной state machine. Он пишет только наблюдаемые `state_marker`
 и `activity_pulse`, совместимые с event source Work Metrics. Planning estimates,
 review gates и handoff state больше не смешиваются с измерением времени.
+
+Smoke Break также не входит в state machine. Он хранит только время текущего turn и
+подаёт reminder после завершения tool call. На reminder parent выполняет
+`P23 COURSE-CHECK` по `rules/course-check.md`; verdict остаётся кратким commentary и не
+создаёт workflow-artifact. Поэтому измерение времени, рефлексия о направлении и
+формальные lifecycle gates остаются тремя разными обязанностями.
+
+`caseflow.py` хранит переданный `--cap-decision-ref`, но не может аутентифицировать
+авторство сообщения в Codex или Claude. Поэтому требование явного ответа пользователя
+для post-cap review/verification остаётся обязательной authority-нормой parent, а не
+криптографически доказанным caseflow gate. Receipt не должен создавать ложного
+ощущения, что произвольный файл агента подтверждает согласие пользователя.

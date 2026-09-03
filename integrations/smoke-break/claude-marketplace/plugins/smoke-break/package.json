@@ -1,0 +1,9 @@
+{
+  "name": "trace-smoke-break-claude-adapter",
+  "version": "0.1.0-trace.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

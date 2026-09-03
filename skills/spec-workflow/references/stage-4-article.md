@@ -37,7 +37,10 @@ stage `4`.
    decision and must never be inferred from “fixes require confirmation”. Read
    `review_cycles_used` and `review_cycles_remaining` from `caseflow.py status` before
    preparing a round. `record-review` rejects a substantive round beyond the cap unless
-   the exact user decision is supplied as `--cap-decision-ref`.
+   the exact user decision is supplied as `--cap-decision-ref`. After the fifth
+   completed round, a bounded post-fix `revmux` verification is still a completed review
+   and needs the same user decision; only a failed or degraded technical retry is free.
+   A decision artifact written by the agent without a preceding user answer is invalid.
 8. After a complete non-degraded result, send the exact receipt and only the evidence
    needed for its findings to a fresh `quality-pass-reviewer` run. It applies
    `simplicity-spec` with `purpose: revmux-finding-adjudication`: confirm the reported

@@ -29,6 +29,9 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 - Перед финальным review статьи отдельные узкие роли выполняют `simplicity-spec` и
   `humanizer`; перед независимой проверкой реализации — `simplicity-code`. Чтение
   файла скилла или упоминание его имени не считается выполненным проходом.
+- Длинный turn получает от Smoke Break временной trigger для короткого `P23 COURSE-CHECK`:
+  исходный outcome, активный frontier, измеримый progress, drift и следующий falsifier.
+  Это проверка внутри текущей стадии, а не новая state machine.
 - Разработка запускается отдельно только после явного решения `delivery`; иначе процесс
   заканчивается на готовой постановке.
 
@@ -41,6 +44,7 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 | `spec-workflow` | Четыре стадии постановки и сборка единой статьи |
 | `delivery-workflow` | Опциональная разработка с теми же integration barriers |
 | `process-timer` | Независимый журнал времени и событий для Work Metrics |
+| external `Smoke Break` | Runtime-зависимость для `P23 COURSE-CHECK` в длинном turn |
 | `legacy-case-migration` | Пересмотр незавершённых кейсов старого процесса |
 | `scripts/caseflow.py` | Машинное состояние стадий, diff-pool и переходы |
 | `scripts/work_timer.py` | Append-only события времени без зависимости от Vigers |
@@ -55,6 +59,13 @@ Peer-gates `simplicity-spec`, `humanizer` и `simplicity-code` остаются 
 Каждый проход оставляет наблюдаемый отчёт по
 [контракту quality-pass](rules/quality-pass.md). Это один
 отчёт на проход, а не новая стадия workflow.
+
+Автоматический временной course check зависит от
+[Smoke Break](https://github.com/ElKornacio/agent-plugins/tree/511e18062c95d746bed7ff0ca300fbcbd31fc57f/plugins/smoke-break).
+Codex использует upstream-плагин, а для Claude Code репозиторий содержит совместимый
+[адаптер](integrations/smoke-break/README.md). Рекомендуемый интервал TRACE — 15 минут;
+общий файл конфигурации — `~/.smoke-break.env`. Без плагина остальные gates TRACE
+работают, но автоматического временного trigger нет.
 
 Подробное решение описано в [архитектуре](docs/architecture.md). Сравнение блочной
 работы и article-first подхода находится в [исследовании](research/block-vs-article.md),
@@ -75,6 +86,7 @@ python3 scripts/caseflow.py init \
 
 python3 scripts/caseflow.py status --case-root .workflow/cases/CASE-123
 python3 scripts/caseflow.py context --case-root .workflow/cases/CASE-123
+python3 scripts/smoke_break_dependency.py verify
 ```
 
 Команда `context` возвращает ограниченный read-set текущей стадии. Модель не должна

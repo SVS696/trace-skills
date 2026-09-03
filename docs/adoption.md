@@ -15,6 +15,29 @@
 Дополнительный release gate: `python3 scripts/rule_library.py validate` должен
 подтвердить hash всех зеркал и routing всех 100 native method rules.
 
+## Runtime-зависимость Smoke Break
+
+Автоматический `P23 COURSE-CHECK` требует Smoke Break в том runtime, где выполняется
+TRACE. Для Codex используется upstream marketplace; для Claude Code — совместимый
+адаптер из этого репозитория. Установка и проверка описаны в
+[`integrations/smoke-break/README.md`](../integrations/smoke-break/README.md).
+
+Рекомендуемый общий интервал:
+
+```dotenv
+SMOKE_BREAK_INTERVAL_MS=900000
+```
+
+После установки проверить оба runtime и конфигурацию:
+
+```bash
+python3 scripts/smoke_break_dependency.py verify --runtime codex --runtime claude
+```
+
+Проверка fail-closed только для автоматического временного trigger. Отсутствие плагина
+не делает ложными уже существующие TRACE receipts, но должно быть явно видно до начала
+длинного пилотного хода.
+
 `python3 scripts/install.py install` восстанавливает незавершённую собственную копию
 агента и удаляет устаревшую копию только когда ownership manifest и hash подтверждают,
 что файл принадлежит этой экосистеме. Чужой или локально изменённый файл блокирует

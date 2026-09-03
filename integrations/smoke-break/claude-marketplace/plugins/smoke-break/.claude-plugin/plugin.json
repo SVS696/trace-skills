@@ -1,0 +1,16 @@
+{
+  "name": "smoke-break",
+  "version": "0.1.0-trace.2",
+  "description": "Adds elapsed-time reflection prompts to long-running Claude Code turns.",
+  "author": {
+    "name": "Daniel S / SVS TRACE adapter"
+  },
+  "homepage": "https://github.com/SVS696/trace-skills/tree/main/integrations/smoke-break",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "reflection",
+    "trace"
+  ]
+}

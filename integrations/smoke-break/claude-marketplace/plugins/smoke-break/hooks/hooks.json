@@ -1,0 +1,28 @@
+{
+  "description": "Track turn duration and add a reflection prompt after the configured interval.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/smoke-break.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/smoke-break.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

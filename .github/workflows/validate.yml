@@ -15,8 +15,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - name: Unit tests
         run: python3 -m unittest discover -s tests -v
+      - name: Claude Smoke Break adapter tests
+        working-directory: integrations/smoke-break/claude-marketplace/plugins/smoke-break
+        run: npm test
       - name: Method library provenance and coverage
         run: python3 scripts/rule_library.py validate
       - name: Compile Python

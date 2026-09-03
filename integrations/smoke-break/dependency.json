@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "name": "smoke-break",
+  "purpose": "automatic time-triggered P23 COURSE-CHECK",
+  "upstream": "https://github.com/ElKornacio/agent-plugins/tree/511e18062c95d746bed7ff0ca300fbcbd31fc57f/plugins/smoke-break",
+  "default_interval_ms": 300000,
+  "recommended_interval_ms": 900000,
+  "config_file": "~/.smoke-break.env",
+  "runtimes": {
+    "codex": {
+      "plugin_id": "smoke-break@agent-plugins",
+      "distribution": "upstream-marketplace",
+      "source_ref": "511e18062c95d746bed7ff0ca300fbcbd31fc57f",
+      "expected_version_prefix": "0.1.0",
+      "marker_path": "src/turn-tracker.mjs",
+      "reminder_prefix": "Smoke break:"
+    },
+    "claude": {
+      "plugin_id": "smoke-break@trace-smoke-break",
+      "distribution": "bundled-adapter",
+      "expected_version": "0.1.0-trace.2",
+      "marker_path": "hooks/smoke-break.mjs",
+      "reminder_prefix": "Smoke break:",
+      "plugin_path": "integrations/smoke-break/claude-marketplace/plugins/smoke-break"
+    }
+  }
+}
