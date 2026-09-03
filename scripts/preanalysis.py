@@ -12,6 +12,7 @@ from typing import Any
 
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
 BLOCK_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
+UNKNOWN_DISPOSITIONS = {"researchable", "user-decision", "external-owner", "implementation-only"}
 
 
 class DecisionError(RuntimeError):
@@ -107,6 +108,31 @@ def validate_brief(payload: Any) -> dict[str, Any]:
         for field in ("scope_in", "scope_out", "unknowns", "assumptions", "dependencies"):
             if not isinstance(payload.get(field), list):
                 raise BriefError(f"brief.{field} must be an array")
+        unknown_ids: set[str] = set()
+        for index, unknown in enumerate(payload["unknowns"], start=1):
+            label = f"unknowns[{index}]"
+            if not isinstance(unknown, dict):
+                raise BriefError(f"{label} must be a classified object")
+            unknown_id = required_text(unknown, "id", label)
+            required_text(unknown, "statement", label)
+            required_text(unknown, "reason", label)
+            disposition = unknown.get("disposition")
+            if disposition not in UNKNOWN_DISPOSITIONS:
+                raise BriefError(f"{label}.disposition is invalid")
+            blocking = unknown.get("blocks_specification")
+            if not isinstance(blocking, bool):
+                raise BriefError(f"{label}.blocks_specification must be boolean")
+            if disposition in {"researchable", "user-decision"} and not blocking:
+                raise BriefError(f"{label} {disposition} must block specification completeness")
+            if disposition == "implementation-only" and blocking:
+                raise BriefError(f"{label} implementation-only cannot block specification completeness")
+            if disposition == "user-decision":
+                required_text(unknown, "question", label)
+            if disposition == "external-owner":
+                required_text(unknown, "owner_ref", label)
+            if unknown_id in unknown_ids:
+                raise BriefError(f"duplicate unknown id: {unknown_id}")
+            unknown_ids.add(unknown_id)
         estimate = payload.get("estimate")
         if not isinstance(estimate, dict):
             raise BriefError("brief.estimate must be an object")

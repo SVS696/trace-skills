@@ -54,7 +54,9 @@ the Vigers reference corpus.
 **Entry:** A task brief and current template are available.
 
 1. Build a source index and inspect only material needed to answer the preliminary
-   questions. Classify facts, contradictions, assumptions and unknowns.
+   questions. Classify facts, contradictions and assumptions. For every unknown,
+   choose exactly one disposition: continue research, ask the user a direct question,
+   request evidence from a named external owner, or prove that it is implementation-only.
 2. Materialize the applicable requirements method route, normally `scope-users` or
    `elicitation`, and pass its path/hash to `spec-preanalyst`.
 3. Form a preliminary problem, goal, solution hypothesis, scope and dependencies.
@@ -67,7 +69,8 @@ the Vigers reference corpus.
 7. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
 8. Validate with `scripts/preanalysis.py validate-brief`.
 
-**Exit:** A validated preliminary brief exists; facts and hypotheses are distinguishable.
+**Exit:** A validated preliminary brief exists; facts and hypotheses are distinguishable,
+and no unknown remains an unclassified free-form note.
 
 ### Phase 2: Decide one specification or several
 
@@ -101,7 +104,9 @@ Do not choose pure independent blocks with only a final stitch.
 2. Write `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
 3. Validate all three artifacts.
 4. Present the problem framing, recommendation, estimate range, plan and material
-   trade-offs to the user, including the visible `simplicity-spec` result.
+   trade-offs to the user, including the visible `simplicity-spec` result. Batch and ask
+   every direct `user-decision` question that can change problem, goal, scope,
+   decomposition or acceptance before requesting approval.
 5. After the user's choice, approve the decision and plan with exact `decision_ref`.
 6. If separately authorized, sync the approved plan through the project's planning
    adapter (for example `singularity-app`) and record the exact read-back receipt.
@@ -129,3 +134,8 @@ and performs any separately authorized external synchronization.
 - The approved decision initializes cases without manual reinterpretation.
 - The proposed solution and decomposition passed `simplicity-spec`; its simplifications
   or clean result were shown to the user.
+- Every unknown has a disposition. Researchable items are investigated before handoff;
+  user decisions are direct questions; external inputs name their owner; only details
+  that cannot change observable requirements or AC are `implementation-only`.
+- Any still-open content input is carried into the earliest applicable stage diff and
+  cannot disappear merely because it has an owner.

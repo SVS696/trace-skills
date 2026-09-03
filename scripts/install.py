@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install and verify Workflow Skills without overwriting unrelated entries."""
+"""Install and verify TRACE without overwriting unrelated entries."""
 
 from __future__ import annotations
 

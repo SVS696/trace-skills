@@ -26,6 +26,14 @@ into `method-basis/stage-NN-BLOCK.md`.
    references, old drafts, agent contracts, or project documents at once.
 5. **Review is not acceptance.** A green local check or revmux round does not prove
    publication, handoff, merge, deploy, or formal acceptance.
+6. **A named skill is not an executed pass.** Stage 4 requires observable reports from
+   separate `simplicity-spec` and `humanizer` runs bound to the submitted article.
+7. **An owned gap is still a gap.** Every unresolved input is classified. If it can
+   change requirements, scenarios or AC, it is a blocking item in the current stage
+   diff until its answer/evidence is incorporated and verified.
+8. **Separate layers without splitting the outcome.** When behavior crosses BE/FE or
+   other technical surfaces, name one owner for every guarantee, the handoff contract
+   and each surface's evidence. Do not create separate specifications merely by layer.
 
 ## When to use
 
@@ -69,7 +77,12 @@ a case root exists or the user authorized its initialization.
 
 Follow the selected stage file. Do not preload the other three.
 
-**Exit:** The stage has a stitch report and a registered `required-diff.json`.
+For `article-first`, initialization opens stage 4 directly. Do not create stage 1–3
+submissions, stitches, or diff receipts for a single `ARTICLE` block. `hybrid` retains
+all four stages.
+
+**Exit:** The stage has a stitch report and a registered `required-diff.json`; its
+`deferred_inputs` register is present, and every content-blocking input is a diff item.
 
 ### Phase 3: Apply the pooled diff
 
@@ -77,6 +90,9 @@ Follow the selected stage file. Do not preload the other three.
 
 1. Read [diff-pool.md](references/diff-pool.md).
 2. Apply only open items, preferably as one correction batch.
+   For a `user-decision` item, the parent asks its exact question and uses the answer
+   reference in the correction receipt. For `researchable` or `external-owner`, obtain
+   the named evidence first. In every case, update the target artifact before verification.
 3. If correction or verification reveals another defect, register it with
    `caseflow.py append-item --item-file`; never edit the fingerprinted pool manually.
 4. Record one receipt per item with `caseflow.py resolve`.
@@ -93,14 +109,25 @@ Use only the role needed by the current assignment:
 - `spec-evidence-analyst` for bounded source analysis;
 - `spec-block-analyst` for one block at one stage;
 - `spec-integration-editor` for stitch report and diff-pool;
-- `spec-article-editor` for stage 4 article projection.
+- `spec-article-editor` for stage 4 article projection;
+- `quality-pass-reviewer` in one run for the full read-only `simplicity-spec` pass;
+- `quality-pass-reviewer` in a different run for the full read-only `humanizer` and
+  project reader pass.
 
 Never give an agent the whole case when one block plus the previous stitch is enough.
 
 ## Success criteria
 
 - The template was not changed.
-- Each completed stage has every block submission, one stitch and one diff-pool.
+- Each completed hybrid stage has every block submission, one stitch and one diff-pool;
+  article-first starts at stage 4.
+- Stage 4 has hash-bound observable `simplicity-spec` and `humanizer` reports from
+  separate runs, and every finding is covered by the one stage diff-pool.
 - Every applied item was separately verified; every waived item has a decision reference.
+- No diff item carrying a blocking `input` was waived; every such item was verified.
+- A multi-layer article identifies the owner and consumer of each shared guarantee,
+  exact interface direction, and separate BE/FE/E2E acceptance evidence.
+- `revmux` began only after the stage-4 article was substantively complete, not as a
+  substitute for research or direct questions.
 - The final article exists as one file and revmux is not degraded.
 - The final route is explicitly `stop` or `delivery`.

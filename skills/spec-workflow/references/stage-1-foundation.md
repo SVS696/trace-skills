@@ -8,8 +8,11 @@
 3. Register every artifact with `caseflow.py submit-block`.
 4. After all submissions, run `open-stitch`.
 5. The integration editor compares goals, terms, actors, boundaries and dependencies.
-6. Write one stitch report and one stage `required-diff.json`; register both with
+6. Classify every remaining input. Anything that can alter goal, scope, vocabulary or
+   dependencies is a blocking diff item; do not pass it merely because an owner exists.
+7. Write one stitch report and one stage `required-diff.json`; register both with
    `record-stitch`.
 
 **Exit:** All block foundations agree on goal, scope, vocabulary and dependency edges,
-or every disagreement is an open diff item.
+and every blocking input has been incorporated and verified. Only explicit
+implementation-only or non-contract external readiness may remain deferred.

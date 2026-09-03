@@ -25,7 +25,9 @@ it never returns specification block drafts as the active delivery context.
 **Entry:** Approved article and route=`delivery`.
 
 1. Create bounded backend/frontend/test lanes with exact paths, requirements and tests.
-2. Stitch lane plans for API contracts, sequencing, ownership and shared files.
+2. Stitch lane plans for API contracts, sequencing, ownership and shared files. For
+   every cross-layer guarantee, name its authoritative lane, consumer duty, data
+   direction and separate BE/FE/E2E check.
 3. Resolve one planning diff-pool before code changes.
 
 **Exit:** Lanes are independently executable and their contracts compose.
@@ -35,10 +37,13 @@ it never returns specification block drafts as the active delivery context.
 **Entry:** Stage 1 pool closed.
 
 1. Implement lanes with developer tests.
-2. Integrate once, then run `simplicity-code` against the whole changed implementation.
-   Classify every smell as `KEEP/SIMPLIFY/REMOVE/DEFER/ASK`; put accepted code changes
-   into the same stage 2 diff-pool and preserve the protected minimum.
-3. Run build/tests and collect all remaining defects into that one stage pool.
+2. Integrate once and freeze one diff snapshot. A separate
+   `quality-pass-reviewer` runs `simplicity-code` and writes the
+   [observable report](../../../rules/quality-pass.md) bound to that
+   snapshot and the exact skill bytes.
+3. Run build/tests, then create one stage pool covering accepted simplicity findings
+   and all remaining defects. Register it with `delivery-record-stitch
+   --simplicity-report ...` and preserve the protected minimum.
 4. Apply only pooled corrections and repeat the same checks. The handoff must show the
    simplicity result, including a clean line when nothing was removed.
 
@@ -49,7 +54,9 @@ it never returns specification block drafts as the active delivery context.
 **Entry:** Integrated developer checks pass.
 
 1. Independent verifier traces requirements to code and tests.
-2. Run project conformance and risk-proportional regression checks.
+2. Run project conformance and risk-proportional regression checks. Verify provider
+   enforcement directly, consumer behavior separately, then their E2E composition;
+   do not let one contour stand in for another.
 3. Put accepted defects into one verification pool and recheck the exact changed diff.
 
 **Exit:** Independent evidence has no gating defect; developer and verifier receipts

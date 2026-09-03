@@ -45,7 +45,7 @@ bounded route hints второй повтор дал PASS; остальные п
 | `02-diff-lifecycle.md` | `applied` не равно `verified`, один diff-pool, отсутствие скрытых правок | PASS |
 | `03-delivery-boundary.md` | route `stop`, узкая backend ownership, разделение self-check и independent verification | PASS |
 | `04-method-library.md` | выбор книжного route, project-first и запрет полной/чужой библиотеки | PASS |
-| `05-simplicity-and-review-cap.md` | обязательные simplicity gates, запрет скрытой чистки и hard cap после пяти раундов | PASS |
+| `05-simplicity-and-review-cap.md` | исполнимые simplicity/humanizer gates, непрерывность review sources и hard cap после пяти раундов | PASS |
 
 Модель без дополнительных пояснений восстановила три артефакта предварительного
 анализа в правильном порядке, сначала выбрала число постановок, затем режим композиции
@@ -66,7 +66,10 @@ gate 70 + 30 native rules.
 В пятом тесте модель поставила `simplicity-spec` до preanalysis brief и первого
 `revmux`, `simplicity-code` — до independent verification, направила все изменения в
 текущий diff-pool и запретила шестой содержательный review без явного решения
-пользователя. Технический retry деградировавшего запуска в cap не включается.
+пользователя. После усиления тест также отказался принимать простое упоминание
+`simplicity-spec`/`humanizer` без hash-bound отчётов и не разрешил clean-round,
+который потерял source `reader`. Технический retry деградировавшего запуска в cap не
+включается.
 
 Нормализованные ответы сохранены в `research/evidence/model-forward/`. Идентификаторы
 внешних запусков: `8304983a-4d81-442a-85d9-230ee78e1510`,
@@ -84,7 +87,9 @@ boundary снова дали PASS в `64581fde-8e9c-43f3-bd77-f16dafc6a0d9`,
 `14de3b6a-1a23-483d-b52e-b4a4bf0f333a`.
 Новый самостоятельный forward-тест simplicity/cap также дал PASS 2 сентября 2026 года.
 После встраивания simplicity-gates повторные запуски preanalysis и delivery boundary
-снова дали PASS 2 сентября 2026 года; нормализованные ответы обновлены.
+снова дали PASS 2 сентября 2026 года; нормализованные ответы обновлены. Усиленный
+simplicity/cap тест повторно дал PASS 3 сентября 2026 года; wrapper не вернул
+идентификатор внешней сессии, поэтому зафиксирован только нормализованный ответ.
 
 ## Вывод и ограничение
 

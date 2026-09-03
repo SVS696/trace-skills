@@ -1,4 +1,4 @@
-# Workflow Skills contributor instructions
+# TRACE contributor instructions
 
 These instructions apply to Codex and other repository agents.
 

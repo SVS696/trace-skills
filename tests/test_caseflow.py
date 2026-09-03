@@ -109,6 +109,8 @@ class CaseFlowTests(unittest.TestCase):
         payload = caseflow.load_case(self.case_root)
         payload["stage"] = 4
         payload["state"] = "revmux_pending"
+        payload["stages"]["4"]["state"] = "complete"
+        payload["stages"]["4"]["content_ready_at"] = caseflow.now()
         payload["article"] = {
             "path": "article.md",
             "sha256": caseflow.digest(article),
@@ -116,6 +118,33 @@ class CaseFlowTests(unittest.TestCase):
         }
         caseflow.save_case(self.case_root, payload, "test_review_setup")
         return payload["article"]["sha256"]
+
+    def test_revmux_rejects_a_migrated_case_without_content_readiness(self) -> None:
+        article_sha256 = self.prepare_review()
+        payload = caseflow.load_case(self.case_root)
+        payload["stages"]["4"].pop("content_ready_at")
+        caseflow.save_case(self.case_root, payload, "test_legacy_stage_four_without_readiness")
+        receipt = self.write(
+            "reviews/legacy-clean.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {
+                        "ids": ["logic"],
+                        "expected": 1,
+                        "reported": 1,
+                        "degraded": [],
+                    },
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "content readiness"):
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=None)
+            )
 
     def test_stitch_requires_every_block(self) -> None:
         self.write("method-basis/stage-01-B01.md", "# Method basis\n")
@@ -136,6 +165,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -179,13 +209,117 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(advanced["stage"], 2)
         self.assertEqual(advanced["state"], "blocks")
 
-    def test_registered_diff_pool_accepts_only_valid_appended_items(self) -> None:
+    def test_stitch_requires_an_explicit_deferred_input_register(self) -> None:
         self.submit_stage_one()
         caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
         report = self.write("stitches/stage-01.md")
         pool = self.write(
             "diffs/stage-01-required.json",
             json.dumps({"schema": 1, "stage": 1, "items": []}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "declare deferred_inputs"):
+            caseflow.command_record_stitch(
+                argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+            )
+
+    def test_blocking_user_decision_must_be_answered_and_verified(self) -> None:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 1,
+                    "deferred_inputs": [],
+                    "items": [
+                        {
+                            "id": "D1-001",
+                            "target": "blocks/B01/stage-01.md",
+                            "change": "Record the chosen product boundary",
+                            "reason": "The scope cannot be completed without the choice",
+                            "status": "open",
+                            "input": {
+                                "id": "U-001",
+                                "disposition": "user-decision",
+                                "question": "Which product boundary should the specification use?",
+                            },
+                        }
+                    ],
+                }
+            ),
+        )
+        result = caseflow.command_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        self.assertEqual(result["state"], "remediation")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "cannot be waived"):
+            caseflow.command_waive(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    item="D1-001",
+                    decision_ref="skip-the-question",
+                )
+            )
+        artifact = self.write("blocks/B01/stage-01.md", "Chosen boundary\n")
+        caseflow.command_resolve(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D1-001",
+                receipt=str(self.write("receipts/D1-001-decision.md")),
+            )
+        )
+        caseflow.command_verify(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D1-001",
+                receipt=str(self.write("receipts/D1-001-decision-check.md")),
+                result="pass",
+            )
+        )
+        advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(advanced["stage"], 2)
+        recorded = caseflow.load_case(self.case_root)["stages"]["1"]["submissions"]["B01"]
+        self.assertEqual(caseflow.digest(artifact), recorded["sha256"])
+
+    def test_implementation_only_input_can_be_explicitly_deferred(self) -> None:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 1,
+                    "deferred_inputs": [
+                        {
+                            "id": "U-IMPL-001",
+                            "statement": "Internal helper name is not selected",
+                            "disposition": "implementation-only",
+                            "reason": "It changes neither observable behavior nor acceptance",
+                        }
+                    ],
+                    "items": [],
+                }
+            ),
+        )
+        result = caseflow.command_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        self.assertEqual(result["state"], "ready")
+        status = caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(status["blocking_inputs"], 0)
+        self.assertEqual(status["deferred_inputs"], 1)
+
+    def test_registered_diff_pool_accepts_only_valid_appended_items(self) -> None:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
         )
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
@@ -221,6 +355,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -266,6 +401,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -326,7 +462,7 @@ class CaseFlowTests(unittest.TestCase):
         report = self.write("stitches/stage-01.md")
         pool = self.write(
             "diffs/stage-01-required.json",
-            json.dumps({"schema": 1, "stage": 1, "items": []}),
+            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
         )
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
@@ -345,6 +481,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -398,6 +535,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -443,6 +581,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -499,7 +638,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 1, "degraded": ["docs"]},
+                    "sources": {
+                        "ids": ["source-1"],
+                        "expected": 2,
+                        "reported": 1,
+                        "degraded": ["docs"],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -519,7 +663,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 1, "degraded": ["adversarial"]},
+                    "sources": {
+                        "ids": ["source-1"],
+                        "expected": 2,
+                        "reported": 1,
+                        "degraded": ["adversarial"],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -540,7 +689,12 @@ class CaseFlowTests(unittest.TestCase):
                     {
                         "schema": 1,
                         "article_sha256": article_sha256,
-                        "sources": {"expected": 2, "reported": 2, "degraded": []},
+                        "sources": {
+                            "ids": ["source-1", "source-2"],
+                            "expected": 2,
+                            "reported": 2,
+                            "degraded": [],
+                        },
                         "findings": [],
                         "open_questions": [],
                     }
@@ -564,7 +718,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -594,8 +753,15 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
-                    "findings": [{"id": "f1", "severity": "major"}],
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {"id": "f1", "severity": "major", "sources": ["source-1"]}
+                    ],
                     "open_questions": [],
                 }
             ),
@@ -678,8 +844,15 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
-                    "findings": [{"id": "f1", "severity": "major"}],
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {"id": "f1", "severity": "major", "sources": ["source-1"]}
+                    ],
                     "open_questions": [],
                 }
             ),
@@ -724,6 +897,117 @@ class CaseFlowTests(unittest.TestCase):
         )
         self.assertEqual(appended["state"], "revmux_remediation")
 
+    def test_revmux_recheck_keeps_sources_that_raised_accepted_findings(self) -> None:
+        article_sha256 = self.prepare_review()
+        receipt = self.write(
+            "reviews/round-01.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {
+                        "ids": ["logic", "reader"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {
+                            "id": "reader-1",
+                            "severity": "minor",
+                            "sources": ["reader"],
+                        }
+                    ],
+                    "open_questions": [],
+                }
+            ),
+        )
+        pool = self.write(
+            "article-diffs/round-source-continuity.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "stage": 4,
+                    "items": [
+                        {
+                            "id": "D4-001",
+                            "source_finding_id": "reader-1",
+                            "target": "article.md#reader",
+                            "change": "Rewrite the unreadable passage",
+                            "reason": "reader-1",
+                            "status": "open",
+                        }
+                    ],
+                }
+            ),
+        )
+        caseflow.command_record_review(
+            argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=str(pool))
+        )
+        article = self.write("article.md", "# Readable article\n")
+        caseflow.command_resolve_review(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D4-001",
+                receipt=str(self.write("receipts/D4-001-source-continuity.md")),
+            )
+        )
+        caseflow.command_verify_review(
+            argparse.Namespace(
+                case_root=self.case_root,
+                item="D4-001",
+                receipt=str(self.write("receipts/D4-001-source-continuity-verification.md")),
+                result="pass",
+            )
+        )
+        updated = caseflow.command_article_updated(
+            argparse.Namespace(case_root=self.case_root, article=str(article))
+        )
+        narrowed = self.write(
+            "reviews/round-02-narrowed.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": updated["article"]["sha256"],
+                    "sources": {
+                        "ids": ["logic"],
+                        "expected": 1,
+                        "reported": 1,
+                        "degraded": [],
+                    },
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "without sources: reader"):
+            caseflow.command_record_review(
+                argparse.Namespace(case_root=self.case_root, receipt=str(narrowed), diff_pool=None)
+            )
+
+        complete = self.write(
+            "reviews/round-02-complete.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": updated["article"]["sha256"],
+                    "sources": {
+                        "ids": ["logic", "reader"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [],
+                    "open_questions": [],
+                }
+            ),
+        )
+        result = caseflow.command_record_review(
+            argparse.Namespace(case_root=self.case_root, receipt=str(complete), diff_pool=None)
+        )
+        self.assertEqual(result["state"], "spec_ready")
+        self.assertEqual(result["required_source_ids"], ["reader"])
+
     def test_revmux_open_question_blocks_spec_ready_until_decided(self) -> None:
         article_sha256 = self.prepare_review()
         receipt = self.root / "revmux-question.json"
@@ -732,7 +1016,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
                     "findings": [],
                     "open_questions": [{"id": "q1", "body": "Which owner is canonical?"}],
                 }
@@ -783,6 +1072,7 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "stage": 1,
+                    "deferred_inputs": [],
                     "items": [
                         {
                             "id": "D1-001",
@@ -816,7 +1106,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": "0" * len(article_sha256),
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -836,10 +1131,15 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
                     "findings": [
-                        {"id": "same", "severity": "minor"},
-                        {"id": "same", "severity": "major"},
+                        {"id": "same", "severity": "minor", "sources": ["source-1"]},
+                        {"id": "same", "severity": "major", "sources": ["source-2"]},
                     ],
                     "open_questions": [],
                 }
@@ -863,7 +1163,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": updated["article"]["sha256"],
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -886,8 +1191,15 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": article_sha256,
-                    "sources": {"expected": 2, "reported": 2, "degraded": []},
-                    "findings": [{"id": "f1", "severity": "major"}],
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {"id": "f1", "severity": "major", "sources": ["source-1"]}
+                    ],
                     "open_questions": [{"id": "q1", "body": "Choose a boundary"}],
                 }
             ),
@@ -941,7 +1253,7 @@ class CaseFlowTests(unittest.TestCase):
         report = self.write("stitches/custom-stage-one.md")
         pool = self.write(
             "diffs/stage-01-required.json",
-            json.dumps({"schema": 1, "stage": 1, "items": []}),
+            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
         )
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
@@ -1023,7 +1335,7 @@ class CaseFlowTests(unittest.TestCase):
         decision_payload["articles"][0]["blocks"] = [{"id": "ARTICLE", "title": "Article"}]
         decision = self.root / "article-first-decision.json"
         decision.write_text(json.dumps(decision_payload), encoding="utf-8")
-        caseflow.command_init(
+        initialized = caseflow.command_init(
             argparse.Namespace(
                 case_root=article_case,
                 template=self.template,
@@ -1032,6 +1344,10 @@ class CaseFlowTests(unittest.TestCase):
                 article_id="CASE-1",
             )
         )
+        self.assertEqual(initialized["stage"], 4)
+        self.assertEqual(initialized["stages"]["1"]["state"], "skipped")
+        self.assertEqual(initialized["stages"]["2"]["state"], "skipped")
+        self.assertEqual(initialized["stages"]["3"]["state"], "skipped")
 
         def write(relative: str, text: str = "ok\n") -> Path:
             path = article_case / relative
@@ -1039,32 +1355,96 @@ class CaseFlowTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             return path
 
-        article = article_case / "article.md"
-        for stage in caseflow.STAGES:
-            write(f"method-basis/stage-{stage:02d}-ARTICLE.md", "# Method basis\n")
-            artifact = (
-                write("article.md", "# Initial article\n")
-                if stage == 4
-                else write(f"blocks/ARTICLE/stage-{stage:02d}.md")
+        write("method-basis/stage-04-ARTICLE.md", "# Method basis\n")
+        article = write("article.md", "# Initial article\n")
+        caseflow.command_submit_block(
+            argparse.Namespace(
+                case_root=article_case,
+                stage=4,
+                block="ARTICLE",
+                artifact=str(article),
             )
-            caseflow.command_submit_block(
-                argparse.Namespace(
-                    case_root=article_case,
-                    stage=stage,
-                    block="ARTICLE",
-                    artifact=str(artifact),
-                )
-            )
-            caseflow.command_open_stitch(argparse.Namespace(case_root=article_case))
-            report = write(f"stitches/stage-{stage:02d}.md")
-            pool = write(
-                f"diffs/stage-{stage:02d}-required.json",
-                json.dumps({"schema": 1, "stage": stage, "items": []}),
-            )
+        )
+        caseflow.command_open_stitch(argparse.Namespace(case_root=article_case))
+        report = write("stitches/stage-04.md")
+        pool = write(
+            "diffs/stage-04-required.json",
+            json.dumps({"schema": 1, "stage": 4, "deferred_inputs": [], "items": []}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "requires simplicity-spec"):
             caseflow.command_record_stitch(
                 argparse.Namespace(case_root=article_case, report=str(report), diff_pool=str(pool))
             )
-            caseflow.command_advance(argparse.Namespace(case_root=article_case))
+        simplicity_skill = write("quality/simplicity-spec/SKILL.md")
+        humanizer_skill = write("quality/humanizer/SKILL.md")
+        style_profile = write("quality/svs-work.md")
+        label_only = write(
+            "quality/label-only.json",
+            json.dumps({"schema": 1, "gate": "simplicity-spec", "outcome": "clean"}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "assigned role/run_id"):
+            caseflow.validate_quality_pass(article_case, label_only, "simplicity-spec")
+        subject = {"path": "article.md", "sha256": caseflow.digest(article)}
+        simplicity_report = write(
+            "quality/simplicity-spec.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "gate": "simplicity-spec",
+                    "actor": {"role": "quality-pass-reviewer", "run_id": "simplicity-run"},
+                    "subject": subject,
+                    "skill": {
+                        "path": str(simplicity_skill),
+                        "sha256": caseflow.digest(simplicity_skill),
+                    },
+                    "outcome": "clean",
+                    "checks": [
+                        "minimum-core",
+                        "seven-step-ladder",
+                        "element-classification",
+                        "rewritten-result",
+                    ],
+                    "findings": [],
+                }
+            ),
+        )
+        humanizer_report = write(
+            "quality/humanizer.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "gate": "humanizer",
+                    "actor": {"role": "quality-pass-reviewer", "run_id": "reader-run"},
+                    "subject": subject,
+                    "skill": {
+                        "path": str(humanizer_skill),
+                        "sha256": caseflow.digest(humanizer_skill),
+                    },
+                    "style_profile": {
+                        "path": str(style_profile),
+                        "sha256": caseflow.digest(style_profile),
+                    },
+                    "outcome": "clean",
+                    "checks": ["draft-rewrite", "anti-ai-audit", "final-rewrite"],
+                    "findings": [],
+                }
+            ),
+        )
+        caseflow.command_record_stitch(
+            argparse.Namespace(
+                case_root=article_case,
+                report=str(report),
+                diff_pool=str(pool),
+                simplicity_report=str(simplicity_report),
+                humanizer_report=str(humanizer_report),
+            )
+        )
+        caseflow.command_advance(argparse.Namespace(case_root=article_case))
+        self.assertTrue(
+            caseflow.command_status(argparse.Namespace(case_root=article_case))[
+                "content_ready_for_review"
+            ]
+        )
         caseflow.command_finalize_article(
             argparse.Namespace(case_root=article_case, article=str(article))
         )
@@ -1078,8 +1458,15 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": updated["article"]["sha256"],
-                    "sources": {"expected": 1, "reported": 1, "degraded": []},
-                    "findings": [{"id": "f1", "severity": "major"}],
+                    "sources": {
+                        "ids": ["source-1"],
+                        "expected": 1,
+                        "reported": 1,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {"id": "f1", "severity": "major", "sources": ["source-1"]}
+                    ],
                     "open_questions": [],
                 }
             ),
@@ -1129,7 +1516,12 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "article_sha256": reviewed["article"]["sha256"],
-                    "sources": {"expected": 1, "reported": 1, "degraded": []},
+                    "sources": {
+                        "ids": ["source-1"],
+                        "expected": 1,
+                        "reported": 1,
+                        "degraded": [],
+                    },
                     "findings": [],
                     "open_questions": [],
                 }
@@ -1143,6 +1535,78 @@ class CaseFlowTests(unittest.TestCase):
             caseflow.command_status(argparse.Namespace(case_root=article_case))["state"],
             "spec_ready",
         )
+
+    def test_delivery_stage_two_requires_bound_simplicity_code_report(self) -> None:
+        payload = caseflow.load_case(self.case_root)
+        payload["stage"] = 4
+        payload["state"] = "spec_ready"
+        article = self.write("article.md", "# Reviewed article\n")
+        payload["article"] = {
+            "path": "article.md",
+            "sha256": caseflow.digest(article),
+            "recorded_at": caseflow.now(),
+        }
+        caseflow.save_case(self.case_root, payload, "test_spec_ready_for_delivery_quality")
+        caseflow.command_route(
+            argparse.Namespace(case_root=self.case_root, decision="delivery", lane=["BACKEND"])
+        )
+        payload = caseflow.load_case(self.case_root)
+        payload["delivery"]["stage"] = 2
+        payload["delivery"]["state"] = "stitching"
+        payload["delivery"]["stages"]["1"]["state"] = "complete"
+        payload["delivery"]["stages"]["2"]["state"] = "stitching"
+        caseflow.save_case(self.case_root, payload, "test_delivery_stage_two_stitching")
+
+        stitch = self.write("delivery/stitch-02.md")
+        pool = self.write(
+            "delivery/diff-02.json",
+            json.dumps({"schema": 1, "stage": 2, "items": []}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "requires a simplicity-code"):
+            caseflow.command_delivery_record_stitch(
+                argparse.Namespace(case_root=self.case_root, report=str(stitch), diff_pool=str(pool))
+            )
+
+        diff_snapshot = self.write("delivery/integrated.diff", "diff --git a/a b/a\n")
+        skill = self.write("delivery/simplicity-code/SKILL.md")
+        quality = self.write(
+            "delivery/simplicity-code.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "gate": "simplicity-code",
+                    "actor": {
+                        "role": "quality-pass-reviewer",
+                        "run_id": "code-simplicity-run",
+                    },
+                    "subject": {
+                        "path": "delivery/integrated.diff",
+                        "sha256": caseflow.digest(diff_snapshot),
+                    },
+                    "skill": {"path": str(skill), "sha256": caseflow.digest(skill)},
+                    "outcome": "clean",
+                    "checks": [
+                        "minimum-core",
+                        "real-flow",
+                        "seven-step-ladder",
+                        "element-classification",
+                        "runnable-result",
+                    ],
+                    "findings": [],
+                }
+            ),
+        )
+        result = caseflow.command_delivery_record_stitch(
+            argparse.Namespace(
+                case_root=self.case_root,
+                report=str(stitch),
+                diff_pool=str(pool),
+                simplicity_report=str(quality),
+            )
+        )
+        self.assertEqual(result["delivery_state"], "ready")
+        recorded = caseflow.load_case(self.case_root)["delivery"]["stages"]["2"]
+        self.assertEqual(recorded["quality_gates"]["simplicity-code"]["outcome"], "clean")
 
     def test_delivery_registered_pool_accepts_new_item(self) -> None:
         payload = caseflow.load_case(self.case_root)

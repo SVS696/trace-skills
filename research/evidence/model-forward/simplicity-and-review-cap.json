@@ -1,11 +1,15 @@
 {
   "scenario_a_gate": "simplicity-spec",
-  "scenario_a_default_disposition": "Remove or defer the generic mechanism that lacks a current requirement, preserving only its protected minimum; any extension becomes a separate decision (P04, P19).",
+  "scenario_a_default_disposition": "Remove or defer the generic mechanism because it lacks a current requirement, preserving only the protected minimum; any extension becomes a separate decision with an owner.",
   "scenario_b_gate_before_revmux": "simplicity-spec",
-  "scenario_b_finding_destination": "The same stage 4 article diff-pool: every accepted SIMPLIFY/REMOVE/DEFER goes into that pool, is applied before the pool is closed, and the simplicity table or clean line is shown with the article result.",
+  "scenario_b_finding_destination": "The single stage 4 stitch diff-pool registered via record-stitch --simplicity-report, where each accepted change names its exact source_finding_id and no hidden edits are allowed.",
   "scenario_c_start_round_six_without_user_decision": false,
-  "scenario_c_retry_counts": "No. A technical retry of a degraded or failed round does not consume the cap; only completed non-degraded substantive rounds count.",
-  "scenario_c_required_action": "Stop and get an explicit user decision; pass it to record-review as --cap-decision-ref for any sixth round, or close the remainder as accepted risk, deferred diff, or blocker.",
+  "scenario_c_retry_counts": "No. A technical retry of a degraded or failed round does not consume the five-round cap; only completed non-degraded substantive rounds do.",
+  "scenario_c_required_action": "Stop and obtain an explicit user decision, supplying it to record-review as --cap-decision-ref, or close the residual as accepted risk, deferred diff or blocker.",
   "scenario_d_gate_before_independent_verification": "simplicity-code",
-  "scenario_d_hidden_cleanup_allowed": false
+  "scenario_d_hidden_cleanup_allowed": false,
+  "scenario_e_stage_four_may_close": false,
+  "scenario_e_missing_evidence": "Each gate lacks its standard observable output: fingerprints of the exact subject bytes and the skill SKILL.md, a separate narrow-role run_id, and the prescribed check list.",
+  "scenario_f_clean_round_may_close": false,
+  "scenario_f_required_source": "reader"
 }

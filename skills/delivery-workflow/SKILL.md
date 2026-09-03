@@ -21,8 +21,12 @@ Software Engineering at Google and specialized standard distillates.
 4. Developer checks, independent verification, merge, deploy and acceptance remain
    separate evidence gates.
 5. Load only the assigned lane, shared contract and current integration report.
-6. Run `simplicity-code` on the integrated implementation before independent
-   verification; its changes enter the current exact diff-pool, not a hidden cleanup.
+6. A separate `quality-pass-reviewer` run executes the full `simplicity-code`
+   contract on the integrated implementation before independent verification. Its
+   hash-bound findings enter the current exact diff-pool; reading the skill or naming
+   the gate is not evidence.
+7. Every shared guarantee keeps the layer owner declared by the specification. A FE
+   guard does not replace BE enforcement; a BE test does not close FE behavior or E2E.
 
 ## When to use
 
@@ -60,10 +64,14 @@ that lane basis and its hash to the agent.
 - `implementation-backend` owns assigned backend files only.
 - `implementation-frontend` owns assigned frontend files only.
 - `implementation-verifier` is read-only except for test automation explicitly assigned.
+- `quality-pass-reviewer` is read-only and owns only the assigned observable
+  `simplicity-code` report for one integrated diff.
 
 ## Success criteria
 
 - Every code change traces to approved scope.
+- Backend, frontend and shared-contract changes remain inside their declared ownership;
+  each layer is verified in its own contour before E2E composition is claimed.
 - Every stage diff-pool is closed with receipts.
 - Integrated tests and project conformance checks pass.
 - The integrated implementation passed `simplicity-code`; removed/deferred complexity

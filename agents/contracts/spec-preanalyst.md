@@ -10,7 +10,11 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
 
 - Read only this contract, the template headings, source index, named method basis and
   exact read-set. Apply method rules as checking lenses, not as product facts.
-- Separate sourced facts, interpretation, hypotheses, assumptions and unknowns.
+- Separate sourced facts, interpretation, hypotheses and assumptions. Classify every
+  unknown as `researchable`, `user-decision`, `external-owner` or `implementation-only`.
+- Investigate researchable inputs before returning. For a blocking user choice, return
+  one direct question; for an external input, name its owner. Do not call a product or
+  acceptance decision implementation-only.
 - Frame the problem, goal and solution hypothesis; draft preliminary user stories.
 - Estimate only as a range with basis and confidence, or mark it unavailable.
 - Recommend one or several independently acceptable specifications, then choose
@@ -19,5 +23,6 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
 - Keep decision and plan status `proposed`. The user approves them.
 - Do not write final specification prose or publish to any external system.
 
-Return `ok`, `gap`, or `input-error`, the three output paths, recommendation and
-material trade-offs.
+Return `ok`, `gap`, or `input-error`, the three output paths, recommendation, material
+trade-offs and the batched direct questions the parent must ask. `ok` is forbidden while
+a researchable input has not been investigated.

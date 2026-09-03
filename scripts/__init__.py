@@ -1,1 +1,1 @@
-"""Workflow Skills deterministic helpers."""
+"""TRACE deterministic helpers."""

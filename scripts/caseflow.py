@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic state for the Workflow Skills specification process."""
+"""Deterministic state for the TRACE specification process."""
 
 from __future__ import annotations
 
@@ -26,6 +26,29 @@ STAGES = (1, 2, 3, 4)
 ITEM_STATUSES = {"open", "applied", "verified", "waived"}
 GATING_SEVERITIES = {"critical", "major"}
 MAX_REVIEW_CYCLES = 5
+QUALITY_PASS_CHECKS = {
+    "simplicity-spec": {
+        "minimum-core",
+        "seven-step-ladder",
+        "element-classification",
+        "rewritten-result",
+    },
+    "humanizer": {
+        "draft-rewrite",
+        "anti-ai-audit",
+        "final-rewrite",
+    },
+    "simplicity-code": {
+        "minimum-core",
+        "real-flow",
+        "seven-step-ladder",
+        "element-classification",
+        "runnable-result",
+    },
+}
+QUALITY_PASS_ROLE = "quality-pass-reviewer"
+BLOCKING_INPUT_DISPOSITIONS = {"researchable", "user-decision", "external-owner"}
+DEFERRED_INPUT_DISPOSITIONS = {"external-owner", "implementation-only"}
 ITEM_RE = re.compile(r"^D([1-4])-\d{3}$")
 LANE_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -154,6 +177,8 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
                     verify_record(case_root, submission, f"stage {stage} block {block}")
         if record.get("state") == "complete" and record.get("stitch"):
             verify_record(case_root, record["stitch"], f"stage {stage} stitch")
+        for gate, quality_record in record.get("quality_gates", {}).items():
+            verify_record(case_root, quality_record, f"stage {stage} {gate} report")
         if record.get("diff_pool"):
             verify_record(case_root, record["diff_pool"], f"stage {stage} diff pool")
     for index, round_record in enumerate(payload.get("review_rounds", []), start=1):
@@ -173,6 +198,8 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
                     verify_record(case_root, submission, f"delivery stage {stage} lane {lane}")
             if record.get("state") == "complete" and record.get("stitch"):
                 verify_record(case_root, record["stitch"], f"delivery stage {stage} stitch")
+            for gate, quality_record in record.get("quality_gates", {}).items():
+                verify_record(case_root, quality_record, f"delivery stage {stage} {gate} report")
             if record.get("diff_pool"):
                 verify_record(case_root, record["diff_pool"], f"delivery stage {stage} diff pool")
     if payload.get("article") and payload.get("state") in {
@@ -207,7 +234,40 @@ def stage_record(payload: dict[str, Any], stage: int | None = None) -> dict[str,
     return payload["stages"][str(stage)]
 
 
-def validate_diff_payload(payload: Any, stage: int, *, initial: bool = False) -> dict[str, Any]:
+def validate_input(
+    value: Any,
+    label: str,
+    *,
+    allowed_dispositions: set[str],
+    require_description: bool = False,
+) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise CaseFlowError(f"{label} must be an object")
+    fields = ("id", "statement", "reason") if require_description else ("id",)
+    for field in fields:
+        if not isinstance(value.get(field), str) or not value[field].strip():
+            raise CaseFlowError(f"{label}.{field} is required")
+    disposition = value.get("disposition")
+    if disposition not in allowed_dispositions:
+        raise CaseFlowError(f"{label}.disposition is invalid")
+    if disposition == "user-decision":
+        question = value.get("question")
+        if not isinstance(question, str) or not question.strip():
+            raise CaseFlowError(f"{label}.question is required for user-decision")
+    if disposition == "external-owner":
+        owner_ref = value.get("owner_ref")
+        if not isinstance(owner_ref, str) or not owner_ref.strip():
+            raise CaseFlowError(f"{label}.owner_ref is required for external-owner")
+    return value
+
+
+def validate_diff_payload(
+    payload: Any,
+    stage: int,
+    *,
+    initial: bool = False,
+    require_readiness: bool = False,
+) -> dict[str, Any]:
     if not isinstance(payload, dict) or payload.get("schema") != 1:
         raise CaseFlowError("required diff must use schema 1")
     if payload.get("stage") != stage:
@@ -215,6 +275,23 @@ def validate_diff_payload(payload: Any, stage: int, *, initial: bool = False) ->
     items = payload.get("items")
     if not isinstance(items, list):
         raise CaseFlowError("required diff items must be an array")
+    deferred_inputs = payload.get("deferred_inputs")
+    if require_readiness and not isinstance(deferred_inputs, list):
+        raise CaseFlowError("specification stage diff must declare deferred_inputs")
+    if deferred_inputs is not None and not isinstance(deferred_inputs, list):
+        raise CaseFlowError("required diff deferred_inputs must be an array")
+    input_ids: set[str] = set()
+    for index, deferred_input in enumerate(deferred_inputs or [], start=1):
+        validated = validate_input(
+            deferred_input,
+            f"deferred_inputs[{index}]",
+            allowed_dispositions=DEFERRED_INPUT_DISPOSITIONS,
+            require_description=True,
+        )
+        input_id = validated["id"]
+        if input_id in input_ids:
+            raise CaseFlowError(f"duplicate input id: {input_id}")
+        input_ids.add(input_id)
     seen: set[str] = set()
     for item in items:
         if not isinstance(item, dict):
@@ -252,11 +329,37 @@ def validate_diff_payload(payload: Any, stage: int, *, initial: bool = False) ->
             raise CaseFlowError(f"{item_id} waived without target fingerprint")
         if status == "waived" and not item.get("resolved_at"):
             raise CaseFlowError(f"{item_id} waived without closure timestamp")
+        input_value = item.get("input")
+        if input_value is not None:
+            validated = validate_input(
+                input_value,
+                f"{item_id}.input",
+                allowed_dispositions=BLOCKING_INPUT_DISPOSITIONS,
+            )
+            input_id = validated["id"]
+            if input_id in input_ids:
+                raise CaseFlowError(f"duplicate input id: {input_id}")
+            input_ids.add(input_id)
+            if status == "waived":
+                raise CaseFlowError(
+                    f"{item_id} blocks specification completeness and cannot be waived"
+                )
     return payload
 
 
-def validate_diff_pool(path: Path, stage: int, *, initial: bool = False) -> dict[str, Any]:
-    return validate_diff_payload(read_json(path), stage, initial=initial)
+def validate_diff_pool(
+    path: Path,
+    stage: int,
+    *,
+    initial: bool = False,
+    require_readiness: bool = False,
+) -> dict[str, Any]:
+    return validate_diff_payload(
+        read_json(path),
+        stage,
+        initial=initial,
+        require_readiness=require_readiness,
+    )
 
 
 def append_open_item(pool: dict[str, Any], item_payload: Any, stage: int) -> dict[str, Any]:
@@ -269,6 +372,7 @@ def append_open_item(pool: dict[str, Any], item_payload: Any, stage: int) -> dic
     if candidate["id"] in existing:
         raise CaseFlowError(f"duplicate diff item id: {candidate['id']}")
     pool["items"].append(candidate)
+    validate_diff_payload(pool, stage)
     return candidate
 
 
@@ -289,6 +393,7 @@ def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]
     expected = sources.get("expected")
     reported = sources.get("reported")
     degraded = sources.get("degraded")
+    source_ids = sources.get("ids")
     if (
         not isinstance(expected, int)
         or isinstance(expected, bool)
@@ -298,6 +403,10 @@ def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]
         or reported < 0
         or not isinstance(degraded, list)
         or not all(isinstance(item, str) and item.strip() for item in degraded)
+        or not isinstance(source_ids, list)
+        or len(source_ids) != reported
+        or len(set(source_ids)) != len(source_ids)
+        or not all(isinstance(item, str) and item.strip() for item in source_ids)
     ):
         raise CaseFlowError("revmux receipt source accounting is invalid")
     findings = receipt.get("findings")
@@ -315,6 +424,14 @@ def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]
             raise CaseFlowError("revmux receipt contains an invalid finding")
         if finding["id"] in finding_ids:
             raise CaseFlowError(f"duplicate revmux finding id: {finding['id']}")
+        finding_sources = finding.get("sources")
+        if (
+            not isinstance(finding_sources, list)
+            or not finding_sources
+            or len(set(finding_sources)) != len(finding_sources)
+            or not all(source in source_ids for source in finding_sources)
+        ):
+            raise CaseFlowError(f"revmux finding has invalid sources: {finding['id']}")
         finding_ids.add(finding["id"])
     question_ids: set[str] = set()
     for question in questions:
@@ -328,6 +445,134 @@ def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]
             raise CaseFlowError(f"duplicate revmux open question id: {question['id']}")
         question_ids.add(question["id"])
     return receipt
+
+
+def required_review_sources(case_root: Path, payload: dict[str, Any]) -> set[str]:
+    """Return the reviewer/lens ids that must verify the latest accepted finding classes."""
+    for round_record in reversed(payload.get("review_rounds", [])):
+        diff_pool = round_record.get("diff_pool")
+        if not diff_pool:
+            continue
+        receipt = validate_review_receipt(
+            read_json(resolve_artifact(case_root, round_record["path"])),
+            round_record["article_sha256"],
+        )
+        pool = validate_diff_pool(resolve_artifact(case_root, diff_pool["path"]), 4)
+        accepted = {
+            item.get("source_finding_id")
+            for item in pool["items"]
+            if isinstance(item.get("source_finding_id"), str)
+        }
+        return {
+            source
+            for finding in receipt["findings"]
+            if finding["id"] in accepted
+            for source in finding["sources"]
+        }
+    return set()
+
+
+def validate_quality_pass(
+    case_root: Path,
+    report_path: Path,
+    gate: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    report = read_json(report_path)
+    if not isinstance(report, dict) or report.get("schema") != 1:
+        raise CaseFlowError(f"{gate} report must be a schema 1 JSON object")
+    if report.get("gate") != gate:
+        raise CaseFlowError(f"quality report gate must be {gate}")
+    actor = report.get("actor")
+    if (
+        not isinstance(actor, dict)
+        or actor.get("role") != QUALITY_PASS_ROLE
+        or not isinstance(actor.get("run_id"), str)
+        or not actor["run_id"].strip()
+    ):
+        raise CaseFlowError(f"{gate} report has no independent assigned role/run_id")
+    subject = report.get("subject")
+    if (
+        not isinstance(subject, dict)
+        or not isinstance(subject.get("path"), str)
+        or not SHA256_RE.fullmatch(str(subject.get("sha256", "")))
+    ):
+        raise CaseFlowError(f"{gate} report subject is invalid")
+    subject_path = resolve_artifact(case_root, subject["path"])
+    if digest(subject_path) != subject["sha256"]:
+        raise CaseFlowError(f"{gate} report is not bound to current subject bytes")
+    skill = report.get("skill")
+    if (
+        not isinstance(skill, dict)
+        or not isinstance(skill.get("path"), str)
+        or not SHA256_RE.fullmatch(str(skill.get("sha256", "")))
+    ):
+        raise CaseFlowError(f"{gate} report skill fingerprint is invalid")
+    skill_path = Path(skill["path"]).expanduser().resolve()
+    if skill_path.name != "SKILL.md" or skill_path.parent.name != gate:
+        raise CaseFlowError(f"{gate} report does not name the selected skill entrypoint")
+    if digest(skill_path) != skill["sha256"]:
+        raise CaseFlowError(f"{gate} report skill fingerprint does not match")
+    checks = report.get("checks")
+    if not isinstance(checks, list) or not all(isinstance(item, str) for item in checks):
+        raise CaseFlowError(f"{gate} report checks must be an array of strings")
+    missing_checks = sorted(QUALITY_PASS_CHECKS[gate] - set(checks))
+    if missing_checks:
+        raise CaseFlowError(f"{gate} report missing checks: {', '.join(missing_checks)}")
+    findings = report.get("findings")
+    if not isinstance(findings, list):
+        raise CaseFlowError(f"{gate} report findings must be an array")
+    finding_ids: set[str] = set()
+    for finding in findings:
+        if not isinstance(finding, dict):
+            raise CaseFlowError(f"{gate} report contains an invalid finding")
+        for field in ("id", "target", "change", "reason"):
+            if not isinstance(finding.get(field), str) or not finding[field].strip():
+                raise CaseFlowError(f"{gate} finding.{field} is required")
+        if finding["id"] in finding_ids:
+            raise CaseFlowError(f"duplicate {gate} finding id: {finding['id']}")
+        finding_ids.add(finding["id"])
+    expected_outcome = "changes-required" if findings else "clean"
+    if report.get("outcome") != expected_outcome:
+        raise CaseFlowError(f"{gate} report outcome must be {expected_outcome}")
+    if gate == "humanizer":
+        profile = report.get("style_profile")
+        if (
+            not isinstance(profile, dict)
+            or not isinstance(profile.get("path"), str)
+            or not SHA256_RE.fullmatch(str(profile.get("sha256", "")))
+        ):
+            raise CaseFlowError("humanizer report style_profile is invalid")
+        profile_path = Path(profile["path"]).expanduser().resolve()
+        if digest(profile_path) != profile["sha256"]:
+            raise CaseFlowError("humanizer report style_profile fingerprint does not match")
+    record = {
+        "path": relative_or_absolute(case_root, report_path),
+        "sha256": digest(report_path),
+        "subject": subject,
+        "actor": actor,
+        "outcome": report["outcome"],
+        "recorded_at": now(),
+    }
+    return report, record
+
+
+def require_quality_findings_in_pool(
+    reports: list[dict[str, Any]],
+    pool: dict[str, Any],
+) -> None:
+    covered = {
+        item.get("source_finding_id")
+        for item in pool["items"]
+        if isinstance(item.get("source_finding_id"), str)
+    }
+    missing = sorted(
+        finding["id"]
+        for report in reports
+        for finding in report["findings"]
+        if finding["id"] not in covered
+    )
+    if missing:
+        raise CaseFlowError(f"quality findings missing from required diff: {', '.join(missing)}")
 
 
 def command_init(args: argparse.Namespace) -> dict[str, Any]:
@@ -372,9 +617,16 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     (case_root / "diffs").mkdir(exist_ok=True)
     (case_root / "method-basis").mkdir(exist_ok=True)
     created = now()
+    first_stage = 4 if article["composition"] == "article-first" else 1
     stages = {
         str(stage): {
-            "state": "pending" if stage > 1 else "blocks",
+            "state": (
+                "blocks"
+                if stage == first_stage
+                else "skipped"
+                if article["composition"] == "article-first" and stage < first_stage
+                else "pending"
+            ),
             "submissions": {},
             "stitch": None,
             "diff_pool": None,
@@ -398,7 +650,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         },
         "template": str(template),
         "template_sha256": digest(template),
-        "stage": 1,
+        "stage": first_stage,
         "state": "blocks",
         "route": None,
         "article": None,
@@ -407,7 +659,16 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         "stages": stages,
         "created_at": created,
         "updated_at": created,
-        "events": [{"at": created, "event": "case_initialized"}],
+        "events": [
+            {
+                "at": created,
+                "event": (
+                    "case_initialized_article_first_stage_4"
+                    if first_stage == 4
+                    else "case_initialized"
+                ),
+            }
+        ],
     }
     atomic_json(manifest_path(case_root), payload)
     return payload
@@ -420,10 +681,14 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
     current = delivery_stage_record(payload) if delivery else stage_record(payload)
     current_stage = delivery["stage"] if delivery else payload["stage"]
     open_count = None
+    blocking_input_count = None
+    deferred_input_count = None
     if current.get("diff_pool"):
         pool_path = resolve_artifact(args.case_root.resolve(), current["diff_pool"]["path"])
         pool = validate_diff_pool(pool_path, int(current_stage))
         open_count = sum(item["status"] in {"open", "applied"} for item in pool["items"])
+        blocking_input_count = sum(item.get("input") is not None for item in pool["items"])
+        deferred_input_count = len(pool.get("deferred_inputs", []))
     result = {
         "case_id": payload["case_id"],
         "stage": payload["stage"],
@@ -432,6 +697,9 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
         "submitted_blocks": sorted(current["submissions"]),
         "required_blocks": delivery["lanes"] if delivery else [block["id"] for block in payload["blocks"]],
         "open_diff_items": open_count,
+        "blocking_inputs": blocking_input_count,
+        "deferred_inputs": deferred_input_count,
+        "content_ready_for_review": bool(stage_record(payload, 4).get("content_ready_at")),
         "next_skill": "delivery-workflow" if payload["route"] == "delivery" else "spec-workflow",
         "review_cycles_used": review_cycles,
         "review_cycles_remaining": max(0, MAX_REVIEW_CYCLES - review_cycles),
@@ -504,6 +772,19 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     if args.block:
         read_set.append(str(case_root / "method-basis" / f"stage-{stage:02d}-{args.block}.md"))
     source_index = case_root / "sources.md"
+    if payload["composition"] == "article-first" and stage == 4:
+        read_set.extend(
+            [
+                str(resolve_artifact(case_root, payload["decomposition_decision"]["path"])),
+                str(resolve_artifact(case_root, payload["execution_plan"]["path"])),
+            ]
+        )
+        if source_index.exists():
+            read_set.append(str(source_index))
+        if args.block:
+            source_map = case_root / "blocks" / args.block / "source-map.md"
+            if source_map.exists():
+                read_set.append(str(source_map))
     if stage == 1:
         if source_index.exists():
             read_set.append(str(source_index))
@@ -597,8 +878,42 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     stage = int(payload["stage"])
     report = resolve_artifact(case_root, args.report)
     pool_path = resolve_artifact(case_root, args.diff_pool)
-    pool = validate_diff_pool(pool_path, stage, initial=True)
+    pool = validate_diff_pool(pool_path, stage, initial=True, require_readiness=True)
     record = stage_record(payload)
+    if stage == 4:
+        simplicity_arg = getattr(args, "simplicity_report", None)
+        humanizer_arg = getattr(args, "humanizer_report", None)
+        if not simplicity_arg or not humanizer_arg:
+            raise CaseFlowError("stage 4 requires simplicity-spec and humanizer reports")
+        simplicity_path = resolve_artifact(case_root, simplicity_arg)
+        humanizer_path = resolve_artifact(case_root, humanizer_arg)
+        simplicity, simplicity_record = validate_quality_pass(
+            case_root, simplicity_path, "simplicity-spec"
+        )
+        humanizer, humanizer_record = validate_quality_pass(case_root, humanizer_path, "humanizer")
+        if simplicity["actor"]["run_id"] == humanizer["actor"]["run_id"]:
+            raise CaseFlowError("simplicity-spec and humanizer require separate assigned runs")
+        simplicity_subject = (
+            resolve_artifact(case_root, simplicity["subject"]["path"]),
+            simplicity["subject"]["sha256"],
+        )
+        humanizer_subject = (
+            resolve_artifact(case_root, humanizer["subject"]["path"]),
+            humanizer["subject"]["sha256"],
+        )
+        if simplicity_subject != humanizer_subject:
+            raise CaseFlowError("stage 4 quality reports must inspect the same article bytes")
+        submitted = {
+            (resolve_artifact(case_root, entry["path"]), entry["sha256"])
+            for entry in record["submissions"].values()
+        }
+        if simplicity_subject not in submitted:
+            raise CaseFlowError("stage 4 quality reports do not target a submitted article")
+        require_quality_findings_in_pool([simplicity, humanizer], pool)
+        record["quality_gates"] = {
+            "simplicity-spec": simplicity_record,
+            "humanizer": humanizer_record,
+        }
     record["stitch"] = {
         "path": relative_or_absolute(case_root, report),
         "sha256": digest(report),
@@ -638,6 +953,8 @@ def mutate_pool_item(
     item = matching[0]
     if item["status"] != "open":
         raise CaseFlowError(f"diff item is already {item['status']}: {item_id}")
+    if status == "waived" and item.get("input") is not None:
+        raise CaseFlowError(f"{item_id} blocks specification completeness and cannot be waived")
     if evidence_field == "receipt":
         receipt = resolve_artifact(case_root, evidence)
         receipt_record = {
@@ -820,6 +1137,15 @@ def command_advance(args: argparse.Namespace) -> dict[str, Any]:
     unresolved = [item["id"] for item in pool["items"] if item["status"] in {"open", "applied"}]
     if unresolved:
         raise CaseFlowError(f"unverified diff items remain: {', '.join(unresolved)}")
+    incomplete_inputs = [
+        item["id"]
+        for item in pool["items"]
+        if item.get("input") is not None and item["status"] != "verified"
+    ]
+    if incomplete_inputs:
+        raise CaseFlowError(
+            "specification-blocking inputs are not verified: " + ", ".join(incomplete_inputs)
+        )
     rebound = rebind_stage_outputs(case_root, record, pool, label=f"stage {stage}")
     record["state"] = "complete"
     if stage < 4:
@@ -828,6 +1154,7 @@ def command_advance(args: argparse.Namespace) -> dict[str, Any]:
         stage_record(payload)["state"] = "blocks"
         event = f"stage_{stage}_completed_stage_{stage + 1}_opened"
     else:
+        record["content_ready_at"] = now()
         payload["state"] = "article_pending"
         event = "stage_4_completed_article_pending"
     save_case(case_root, payload, event)
@@ -838,6 +1165,8 @@ def command_finalize_article(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
     require_state(payload, "article_pending")
+    if not stage_record(payload, 4).get("content_ready_at"):
+        raise CaseFlowError("stage 4 has no verified content-readiness marker")
     article = resolve_artifact(case_root, args.article)
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
@@ -886,6 +1215,10 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
     require_state(payload, "revmux_pending")
+    if not stage_record(payload, 4).get("content_ready_at"):
+        raise CaseFlowError(
+            "revmux cannot start before verified stage 4 content readiness"
+        )
     receipt_path = resolve_artifact(case_root, args.receipt)
     if not payload.get("article"):
         raise CaseFlowError("case has no finalized article")
@@ -896,6 +1229,13 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     expected = sources["expected"]
     reported = sources["reported"]
     source_count_mismatch = expected != reported
+    required_sources = required_review_sources(case_root, payload)
+    missing_required_sources = required_sources - set(sources["ids"])
+    if not degraded and not source_count_mismatch and missing_required_sources:
+        raise CaseFlowError(
+            "revmux round cannot close accepted finding classes without sources: "
+            + ", ".join(sorted(missing_required_sources))
+        )
     cap_decision_ref = getattr(args, "cap_decision_ref", None)
     if review_cycles_used(payload) >= MAX_REVIEW_CYCLES and not (
         isinstance(cap_decision_ref, str) and cap_decision_ref.strip()
@@ -948,6 +1288,8 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         "article_sha256": payload["article"]["sha256"],
         "degraded": degraded,
         "source_count_mismatch": source_count_mismatch,
+        "source_ids": sources["ids"],
+        "required_source_ids": sorted(required_sources),
         "gating_findings": len(gating),
         "findings": len(findings),
         "open_questions": len(open_questions),
@@ -971,6 +1313,7 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         "state": payload["state"],
         "degraded": degraded,
         "source_count_mismatch": source_count_mismatch,
+        "required_source_ids": sorted(required_sources),
         "gating_findings": gating,
         "review_cycles_used": review_cycles_used(payload),
         "review_cycles_remaining": max(0, MAX_REVIEW_CYCLES - review_cycles_used(payload)),
@@ -1201,6 +1544,16 @@ def command_delivery_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     pool_path = resolve_artifact(case_root, args.diff_pool)
     pool = validate_diff_pool(pool_path, stage, initial=True)
     record = delivery_stage_record(payload)
+    if stage == 2:
+        simplicity_arg = getattr(args, "simplicity_report", None)
+        if not simplicity_arg:
+            raise CaseFlowError("delivery stage 2 requires a simplicity-code report")
+        simplicity_path = resolve_artifact(case_root, simplicity_arg)
+        simplicity, simplicity_record = validate_quality_pass(
+            case_root, simplicity_path, "simplicity-code"
+        )
+        require_quality_findings_in_pool([simplicity], pool)
+        record["quality_gates"] = {"simplicity-code": simplicity_record}
     record["stitch"] = {
         "path": relative_or_absolute(case_root, report),
         "sha256": digest(report),
@@ -1431,6 +1784,8 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--case-root", type=Path, required=True)
     record.add_argument("--report", required=True)
     record.add_argument("--diff-pool", required=True)
+    record.add_argument("--simplicity-report")
+    record.add_argument("--humanizer-report")
     record.set_defaults(handler=command_record_stitch)
 
     append_item = subparsers.add_parser("append-item")
@@ -1524,6 +1879,7 @@ def build_parser() -> argparse.ArgumentParser:
     delivery_record.add_argument("--case-root", type=Path, required=True)
     delivery_record.add_argument("--report", required=True)
     delivery_record.add_argument("--diff-pool", required=True)
+    delivery_record.add_argument("--simplicity-report")
     delivery_record.set_defaults(handler=command_delivery_record_stitch)
 
     delivery_append = subparsers.add_parser("delivery-append-item")

@@ -77,6 +77,38 @@ class PreanalysisTests(unittest.TestCase):
         brief["estimate"] = {"status": "unavailable", "reason": "No implementation contour"}
         self.assertEqual(preanalysis.validate_brief(brief)["subject_id"], "TASK-1")
 
+    def test_unknowns_require_disposition_and_direct_user_question(self) -> None:
+        brief = {
+            "schema": 1,
+            "subject_id": "TASK-1",
+            "sources": [],
+            "problem": {"statement": "Problem", "evidence_refs": []},
+            "goal": {"statement": "Goal", "evidence_refs": []},
+            "solution_hypothesis": {"statement": "Hypothesis", "evidence_refs": []},
+            "preliminary_user_stories": [],
+            "scope_in": [],
+            "scope_out": [],
+            "unknowns": ["Which boundary?"],
+            "assumptions": [],
+            "dependencies": [],
+            "estimate": {"status": "unavailable", "reason": "No implementation contour"},
+        }
+        with self.assertRaisesRegex(preanalysis.BriefError, "classified object"):
+            preanalysis.validate_brief(brief)
+        brief["unknowns"] = [
+            {
+                "id": "U-001",
+                "statement": "The product boundary is unknown",
+                "disposition": "user-decision",
+                "blocks_specification": True,
+                "reason": "Evidence cannot choose a product policy",
+            }
+        ]
+        with self.assertRaisesRegex(preanalysis.BriefError, "question is required"):
+            preanalysis.validate_brief(brief)
+        brief["unknowns"][0]["question"] = "Which product boundary should be used?"
+        self.assertEqual(preanalysis.validate_brief(brief)["unknowns"][0]["id"], "U-001")
+
     def test_plan_requires_acyclic_tasks_and_sync_readback(self) -> None:
         plan = {
             "schema": 1,
