@@ -133,10 +133,20 @@ input требует именно `verified` и waiver не допускает. 
 новым id.
 
 У каждого actionable-раунда `revmux` свой article diff-pool, связанный с исходными
-finding id. Все critical/major обязаны попасть в него; принятые minor могут быть
-добавлены в ту же партию. Новый review-round нельзя запустить, пока пункты прошлого
+finding id. Каждый принятый finding обязан попасть в него независимо от severity;
+отклонённый остаётся в adjudication с причиной и evidence. Новый review-round нельзя
+запустить, пока пункты прошлого
 пула не `verified`/`waived` и новая версия статьи не зарегистрирована. Degraded-run
 не создаёт diff: сначала восстанавливается источник и повторяется сам review.
+
+Перед correction diff найденные проблемы проходят отдельный adjudication. Для статьи
+`quality-pass-reviewer` применяет `simplicity-spec` только к findings и минимальному
+evidence их достижимости; для code review действует тот же инвариант с
+`simplicity-code`. Отчёт привязан к receipt, покрывает каждый finding и разделяет
+подтверждённые и отклонённые. Профиль `revmux` калибрует reviewer, но не заменяет этот
+gate: он не исполняет внешний skill и не оставляет его observable output. В correction
+diff входят только подтверждённые findings.
+
 Receipt обязан быть schema 1, содержать полную source accounting с устойчивыми
 `sources.ids` и SHA текущей статьи. Каждый finding перечисляет поднявшие его source
 ids. Следующий clean-round обязан повторно включить sources принятых в прошлый diff

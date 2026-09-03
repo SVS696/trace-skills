@@ -119,6 +119,67 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.save_case(self.case_root, payload, "test_review_setup")
         return payload["article"]["sha256"]
 
+    def write_review_adjudication(
+        self,
+        receipt: Path,
+        *,
+        accepted: set[str],
+    ) -> Path:
+        review = json.loads(receipt.read_text(encoding="utf-8"))
+        finding_ids = [finding["id"] for finding in review["findings"]]
+        skill = self.root / "skills" / "simplicity-spec" / "SKILL.md"
+        skill.parent.mkdir(parents=True, exist_ok=True)
+        if not skill.exists():
+            skill.write_text("# Simplicity spec\n", encoding="utf-8")
+        return self.write(
+            f"reviews/{receipt.stem}-adjudication.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "gate": "simplicity-spec",
+                    "purpose": "revmux-finding-adjudication",
+                    "actor": {
+                        "role": "quality-pass-reviewer",
+                        "run_id": f"adjudicate-{receipt.stem}",
+                    },
+                    "subject": {
+                        "path": str(receipt),
+                        "sha256": caseflow.digest(receipt),
+                    },
+                    "skill": {
+                        "path": str(skill),
+                        "sha256": caseflow.digest(skill),
+                    },
+                    "outcome": "changes-required" if accepted else "clean",
+                    "checks": [
+                        "minimum-core",
+                        "seven-step-ladder",
+                        "element-classification",
+                        "rewritten-result",
+                    ],
+                    "dismissed_findings": [
+                        {
+                            "id": finding_id,
+                            "reason": "The reported risk is not material in the current flow",
+                            "evidence": "The current requirement and reachable path do not trigger it",
+                        }
+                        for finding_id in finding_ids
+                        if finding_id not in accepted
+                    ],
+                    "findings": [
+                        {
+                            "id": finding_id,
+                            "target": f"article.md#{finding_id}",
+                            "change": f"Apply the smallest correction for {finding_id}",
+                            "reason": f"Finding {finding_id} is reachable and material",
+                        }
+                        for finding_id in finding_ids
+                        if finding_id in accepted
+                    ],
+                }
+            ),
+        )
+
     def test_revmux_rejects_a_migrated_case_without_content_readiness(self) -> None:
         article_sha256 = self.prepare_review()
         payload = caseflow.load_case(self.case_root)
@@ -767,9 +828,19 @@ class CaseFlowTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        with self.assertRaises(caseflow.CaseFlowError):
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "adjudication-report"):
             caseflow.command_record_review(
                 argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=None)
+            )
+        adjudication = self.write_review_adjudication(receipt, accepted={"f1"})
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "accepted revmux findings"):
+            caseflow.command_record_review(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    receipt=str(receipt),
+                    adjudication_report=str(adjudication),
+                    diff_pool=None,
+                )
             )
         pool = self.write(
             "article-diffs/round-01.json",
@@ -794,6 +865,7 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(
                 case_root=self.case_root,
                 receipt=str(receipt),
+                adjudication_report=str(adjudication),
                 diff_pool=str(pool),
             )
         )
@@ -877,8 +949,14 @@ class CaseFlowTests(unittest.TestCase):
                 }
             ),
         )
+        adjudication = self.write_review_adjudication(receipt, accepted={"f1"})
         caseflow.command_record_review(
-            argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=str(pool))
+            argparse.Namespace(
+                case_root=self.case_root,
+                receipt=str(receipt),
+                adjudication_report=str(adjudication),
+                diff_pool=str(pool),
+            )
         )
         item = self.write(
             "article-diffs/new-item.json",
@@ -896,6 +974,42 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(case_root=self.case_root, item_file=str(item))
         )
         self.assertEqual(appended["state"], "revmux_remediation")
+
+    def test_revmux_simplicity_adjudication_can_dismiss_model_paranoia(self) -> None:
+        article_sha256 = self.prepare_review()
+        receipt = self.write(
+            "reviews/speculative-major.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "article_sha256": article_sha256,
+                    "sources": {
+                        "ids": ["source-1", "source-2"],
+                        "expected": 2,
+                        "reported": 2,
+                        "degraded": [],
+                    },
+                    "findings": [
+                        {"id": "f-paranoia", "severity": "major", "sources": ["source-1"]}
+                    ],
+                    "open_questions": [],
+                }
+            ),
+        )
+        adjudication = self.write_review_adjudication(receipt, accepted=set())
+
+        recorded = caseflow.command_record_review(
+            argparse.Namespace(
+                case_root=self.case_root,
+                receipt=str(receipt),
+                adjudication_report=str(adjudication),
+                diff_pool=None,
+            )
+        )
+
+        self.assertEqual(recorded["state"], "spec_ready")
+        self.assertEqual(recorded["accepted_finding_ids"], [])
+        self.assertEqual(recorded["dismissed_finding_ids"], ["f-paranoia"])
 
     def test_revmux_recheck_keeps_sources_that_raised_accepted_findings(self) -> None:
         article_sha256 = self.prepare_review()
@@ -941,8 +1055,14 @@ class CaseFlowTests(unittest.TestCase):
                 }
             ),
         )
+        adjudication = self.write_review_adjudication(receipt, accepted={"reader-1"})
         caseflow.command_record_review(
-            argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=str(pool))
+            argparse.Namespace(
+                case_root=self.case_root,
+                receipt=str(receipt),
+                adjudication_report=str(adjudication),
+                diff_pool=str(pool),
+            )
         )
         article = self.write("article.md", "# Readable article\n")
         caseflow.command_resolve_review(
@@ -1206,7 +1326,14 @@ class CaseFlowTests(unittest.TestCase):
             encoding="utf-8",
         )
         recorded = caseflow.command_record_review(
-            argparse.Namespace(case_root=self.case_root, receipt=str(receipt), diff_pool=None)
+            argparse.Namespace(
+                case_root=self.case_root,
+                receipt=str(receipt),
+                adjudication_report=str(
+                    self.write_review_adjudication(receipt, accepted={"f1"})
+                ),
+                diff_pool=None,
+            )
         )
         self.assertEqual(recorded["state"], "revmux_decision_pending")
         pool = self.write(
@@ -1491,7 +1618,14 @@ class CaseFlowTests(unittest.TestCase):
             ),
         )
         caseflow.command_record_review(
-            argparse.Namespace(case_root=article_case, receipt=str(receipt), diff_pool=str(pool))
+            argparse.Namespace(
+                case_root=article_case,
+                receipt=str(receipt),
+                adjudication_report=str(
+                    self.write_review_adjudication(receipt, accepted={"f1"})
+                ),
+                diff_pool=str(pool),
+            )
         )
         article.write_text("# Review correction\n", encoding="utf-8")
         correction = write("receipts/D4-001.md")

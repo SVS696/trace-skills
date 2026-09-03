@@ -183,6 +183,12 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
             verify_record(case_root, record["diff_pool"], f"stage {stage} diff pool")
     for index, round_record in enumerate(payload.get("review_rounds", []), start=1):
         verify_record(case_root, round_record, f"review round {index}")
+        if round_record.get("adjudication"):
+            verify_record(
+                case_root,
+                round_record["adjudication"],
+                f"review round {index} finding adjudication",
+            )
         if round_record.get("diff_pool"):
             verify_record(case_root, round_record["diff_pool"], f"review round {index} diff pool")
     delivery = payload.get("delivery")
@@ -554,6 +560,49 @@ def validate_quality_pass(
         "recorded_at": now(),
     }
     return report, record
+
+
+def validate_review_adjudication(
+    case_root: Path,
+    report_path: Path,
+    receipt_path: Path,
+    receipt: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], set[str], set[str]]:
+    report, record = validate_quality_pass(case_root, report_path, "simplicity-spec")
+    if report.get("purpose") != "revmux-finding-adjudication":
+        raise CaseFlowError("simplicity report purpose must be revmux-finding-adjudication")
+    subject_path = resolve_artifact(case_root, report["subject"]["path"])
+    if subject_path != receipt_path.resolve():
+        raise CaseFlowError("revmux finding adjudication must target the exact review receipt")
+
+    receipt_ids = {finding["id"] for finding in receipt["findings"]}
+    dismissed_findings = report.get("dismissed_findings")
+    if (
+        not isinstance(dismissed_findings, list)
+        or not all(
+            isinstance(item, dict)
+            and isinstance(item.get("id"), str)
+            and item["id"].strip()
+            and isinstance(item.get("reason"), str)
+            and item["reason"].strip()
+            and isinstance(item.get("evidence"), str)
+            and item["evidence"].strip()
+            for item in dismissed_findings
+        )
+    ):
+        raise CaseFlowError("revmux finding adjudication dismissed_findings is invalid")
+
+    accepted_ids = {finding["id"] for finding in report["findings"]}
+    dismissed = {finding["id"] for finding in dismissed_findings}
+    if len(dismissed) != len(dismissed_findings):
+        raise CaseFlowError("revmux finding adjudication has duplicate dismissed finding ids")
+    if accepted_ids & dismissed:
+        raise CaseFlowError("revmux finding cannot be both accepted and dismissed")
+    if accepted_ids | dismissed != receipt_ids:
+        raise CaseFlowError("revmux finding adjudication must accept or dismiss every finding")
+    if not accepted_ids <= receipt_ids:
+        raise CaseFlowError("revmux finding adjudication contains an unknown finding id")
+    return report, record, accepted_ids, dismissed
 
 
 def require_quality_findings_in_pool(
@@ -1245,9 +1294,31 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         )
     findings = receipt["findings"]
     open_questions = receipt["open_questions"]
+    accepted_ids = {finding["id"] for finding in findings}
+    dismissed_ids: set[str] = set()
+    adjudication_record = None
+    adjudication_arg = getattr(args, "adjudication_report", None)
+    if degraded or source_count_mismatch:
+        if adjudication_arg:
+            raise CaseFlowError("degraded revmux round must be rerun before finding adjudication")
+    elif findings:
+        if not adjudication_arg:
+            raise CaseFlowError(
+                "complete revmux round with findings requires --adjudication-report"
+            )
+        adjudication_path = resolve_artifact(case_root, adjudication_arg)
+        _, adjudication_record, accepted_ids, dismissed_ids = validate_review_adjudication(
+            case_root,
+            adjudication_path,
+            receipt_path,
+            receipt,
+        )
+    elif adjudication_arg:
+        raise CaseFlowError("finding adjudication is unnecessary when revmux reported no findings")
+    accepted_findings = [finding for finding in findings if finding["id"] in accepted_ids]
     gating = [
         finding
-        for finding in findings
+        for finding in accepted_findings
         if isinstance(finding, dict) and finding.get("severity") in GATING_SEVERITIES
     ]
     diff_pool_arg = getattr(args, "diff_pool", None)
@@ -1262,25 +1333,26 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         pool = validate_diff_pool(pool_path, 4, initial=True)
         if not pool["items"]:
             raise CaseFlowError("review diff pool cannot be empty")
-        finding_ids = {
-            finding.get("id") for finding in findings if isinstance(finding, dict)
-        }
+        finding_ids = set(accepted_ids)
         covered_ids = {item.get("source_finding_id") for item in pool["items"]}
         if None in covered_ids:
             raise CaseFlowError("every review diff item requires source_finding_id")
         unknown_ids = covered_ids - finding_ids
         if unknown_ids:
-            raise CaseFlowError(f"review diff has unknown finding ids: {sorted(unknown_ids)}")
-        gating_ids = {finding.get("id") for finding in gating}
-        missing_gating = gating_ids - covered_ids
-        if missing_gating:
-            raise CaseFlowError(f"review diff does not cover gating findings: {sorted(missing_gating)}")
+            raise CaseFlowError(
+                f"review diff has unaccepted or unknown finding ids: {sorted(unknown_ids)}"
+            )
+        missing_accepted = finding_ids - covered_ids
+        if missing_accepted:
+            raise CaseFlowError(
+                f"review diff does not cover accepted findings: {sorted(missing_accepted)}"
+            )
         diff_pool_record = {
             "path": relative_or_absolute(case_root, pool_path),
             "sha256": digest(pool_path),
         }
-    elif gating and not open_questions:
-        raise CaseFlowError("gating revmux findings require an exact review diff pool")
+    elif accepted_findings and not open_questions:
+        raise CaseFlowError("accepted revmux findings require an exact review diff pool")
 
     round_record = {
         "path": relative_or_absolute(case_root, receipt_path),
@@ -1292,9 +1364,13 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         "required_source_ids": sorted(required_sources),
         "gating_findings": len(gating),
         "findings": len(findings),
+        "accepted_finding_ids": sorted(accepted_ids),
+        "dismissed_finding_ids": sorted(dismissed_ids),
         "open_questions": len(open_questions),
         "recorded_at": now(),
     }
+    if adjudication_record:
+        round_record["adjudication"] = adjudication_record
     if diff_pool_record:
         round_record["diff_pool"] = diff_pool_record
     if isinstance(cap_decision_ref, str) and cap_decision_ref.strip():
@@ -1315,6 +1391,8 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         "source_count_mismatch": source_count_mismatch,
         "required_source_ids": sorted(required_sources),
         "gating_findings": gating,
+        "accepted_finding_ids": sorted(accepted_ids),
+        "dismissed_finding_ids": sorted(dismissed_ids),
         "review_cycles_used": review_cycles_used(payload),
         "review_cycles_remaining": max(0, MAX_REVIEW_CYCLES - review_cycles_used(payload)),
     }
@@ -1331,24 +1409,18 @@ def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
         read_json(resolve_artifact(case_root, round_record["path"])),
         payload["article"]["sha256"],
     )
-    findings = receipt["findings"]
     questions = receipt["open_questions"]
-    gating = [
-        finding
-        for finding in findings
-        if isinstance(finding, dict) and finding.get("severity") in GATING_SEVERITIES
-    ]
+    if "accepted_finding_ids" not in round_record:
+        raise CaseFlowError("review round has no recorded finding adjudication")
+    accepted_ids = set(round_record["accepted_finding_ids"])
     diff_pool_arg = getattr(args, "diff_pool", None)
-    if gating and not diff_pool_arg:
-        raise CaseFlowError("gating findings still require an exact review diff pool")
+    if accepted_ids and not diff_pool_arg:
+        raise CaseFlowError("accepted findings still require an exact review diff pool")
     if diff_pool_arg:
         pool_path = resolve_artifact(case_root, diff_pool_arg)
         pool = validate_diff_pool(pool_path, 4, initial=True)
         if not pool["items"]:
             raise CaseFlowError("review decision diff pool cannot be empty")
-        finding_ids = {
-            finding.get("id") for finding in findings if isinstance(finding, dict)
-        }
         question_ids = {
             question.get("id") for question in questions if isinstance(question, dict)
         }
@@ -1361,14 +1433,18 @@ def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
                     "review decision diff item requires exactly one source_finding_id or source_question_id"
                 )
             if finding_id:
-                if finding_id not in finding_ids:
-                    raise CaseFlowError(f"review diff has unknown finding id: {finding_id}")
+                if finding_id not in accepted_ids:
+                    raise CaseFlowError(
+                        f"review diff has unaccepted or unknown finding id: {finding_id}"
+                    )
                 covered_findings.add(finding_id)
             elif question_id not in question_ids:
                 raise CaseFlowError(f"review diff has unknown question id: {question_id}")
-        missing_gating = {finding.get("id") for finding in gating} - covered_findings
-        if missing_gating:
-            raise CaseFlowError(f"review diff does not cover gating findings: {sorted(missing_gating)}")
+        missing_accepted = accepted_ids - covered_findings
+        if missing_accepted:
+            raise CaseFlowError(
+                f"review diff does not cover accepted findings: {sorted(missing_accepted)}"
+            )
         round_record["diff_pool"] = {
             "path": relative_or_absolute(case_root, pool_path),
             "sha256": digest(pool_path),
@@ -1829,6 +1905,7 @@ def build_parser() -> argparse.ArgumentParser:
     review = subparsers.add_parser("record-review")
     review.add_argument("--case-root", type=Path, required=True)
     review.add_argument("--receipt", required=True)
+    review.add_argument("--adjudication-report")
     review.add_argument("--diff-pool")
     review.add_argument("--cap-decision-ref")
     review.set_defaults(handler=command_record_review)

@@ -27,6 +27,10 @@ Software Engineering at Google and specialized standard distillates.
    the gate is not evidence.
 7. Every shared guarantee keeps the layer owner declared by the specification. A FE
    guard does not replace BE enforcement; a BE test does not close FE behavior or E2E.
+8. If `revmux` reviews an implementation diff, its findings are candidates until a
+   receipt-bound narrow run applies `simplicity-code` to their real execution paths.
+   Only confirmed findings enter a correction pool; speculative or unreachable cases
+   remain dismissed evidence, not implementation work.
 
 ## When to use
 
@@ -76,6 +80,7 @@ that lane basis and its hash to the agent.
 - Integrated tests and project conformance checks pass.
 - The integrated implementation passed `simplicity-code`; removed/deferred complexity
   and the resulting runnable check are recorded in the build-stage evidence.
+- Any `revmux` code findings were screened with `simplicity-code` before correction.
 - Independent verification is recorded separately from developer self-checks.
 - Final report states what is implemented, committed, merged, deployed and accepted
   without collapsing those statuses.

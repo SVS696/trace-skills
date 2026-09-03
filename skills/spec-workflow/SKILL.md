@@ -34,6 +34,9 @@ into `method-basis/stage-NN-BLOCK.md`.
 8. **Separate layers without splitting the outcome.** When behavior crosses BE/FE or
    other technical surfaces, name one owner for every guarantee, the handoff contract
    and each surface's evidence. Do not create separate specifications merely by layer.
+9. **Review findings are candidates, not work orders.** After a healthy `revmux`
+   result, a separate narrow run applies `simplicity-spec` to the receipt findings.
+   Only confirmed, material findings enter the correction diff.
 
 ## When to use
 
@@ -129,5 +132,7 @@ Never give an agent the whole case when one block plus the previous stitch is en
   exact interface direction, and separate BE/FE/E2E acceptance evidence.
 - `revmux` began only after the stage-4 article was substantively complete, not as a
   substitute for research or direct questions.
+- Every non-degraded `revmux` result with findings has a receipt-bound
+  `simplicity-spec` adjudication; its accepted set exactly matches the correction pool.
 - The final article exists as one file and revmux is not degraded.
 - The final route is explicitly `stop` or `delivery`.

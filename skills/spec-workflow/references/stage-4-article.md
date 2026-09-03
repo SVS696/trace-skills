@@ -38,32 +38,40 @@ stage `4`.
    `review_cycles_used` and `review_cycles_remaining` from `caseflow.py status` before
    preparing a round. `record-review` rejects a substantive round beyond the cap unless
    the exact user decision is supplied as `--cap-decision-ref`.
-8. Triage every finding before correction using `P17`: record reachability in the
-   normal workflow, likelihood, impact and complexity cost. Severity alone does not
-   make a finding actionable. Put accepted corrections and explicitly waived gating
-   findings into one article diff-pool. Every item names the exact
-   `source_finding_id`; every critical/major finding must be covered by one of those
-   dispositions.
-9. The normalized receipt must use schema 1 and bind `article_sha256` to the current
+8. After a complete non-degraded result, send the exact receipt and only the evidence
+   needed for its findings to a fresh `quality-pass-reviewer` run. It applies
+   `simplicity-spec` with `purpose: revmux-finding-adjudication`: confirm the reported
+   problem against the current requirement, reachable scenario and protected minimum,
+   then propose the smallest sufficient correction. It must account for every finding
+   as accepted or dismissed with evidence; it must not re-review the whole article.
+   Revmux verification remains the factual check, while this pass prevents severity or
+   model paranoia from becoming work automatically.
+9. Triage the confirmed set using `P17`: record likelihood, impact and correction
+   cost. Put every accepted correction into one article diff-pool; dismissed findings
+   do not enter it. Every item names the exact `source_finding_id`.
+10. The normalized receipt must use schema 1 and bind `article_sha256` to the current
    article; it also carries exact `sources.ids`, `sources.expected`,
    `sources.reported`, `sources.degraded`, `findings`, and `open_questions`.
    Every finding names the reviewer/lens ids that raised it. A later clean round must
    include every source behind a finding accepted into the previous diff-pool; changing
    to a narrower profile cannot silently close that finding class.
-10. Register each actionable round with `record-review --diff-pool`. Apply and verify
-   only that pool through `resolve-review` and `verify-review`; register any defect
+11. Register each round with `record-review --adjudication-report ... [--diff-pool ...]`.
+   A healthy round with findings is rejected without the adjudication report; a diff
+   is rejected unless it covers every accepted finding and none of the dismissed set.
+   Apply and verify only that pool through `resolve-review` and `verify-review`;
+   register any defect
    discovered during correction with `append-review-item`. Then call
    `article-updated` and re-review with the profile selected by `revmux` rules only
    while the cap and `P19` simplicity brake remain open.
-11. A failed verification reopens the same item. A waived item is recorded with
+12. A failed verification reopens the same item. A waived item is recorded with
    `waive-review --decision-ref`. A degraded round forms no diff-pool:
    restore the missing source and rerun it because partial silence is not evidence.
-12. If revmux returns open questions, `record-review` moves to
+13. If revmux returns open questions, `record-review` moves to
     `revmux_decision_pending`. Present the questions to the user, then record the answer
     with `record-review-decisions --decision-ref <ref> [--diff-pool <pool>]`. When the
     same round also has gating findings, that pool must cover them and any accepted
     question-driven changes.
-13. When state becomes `spec_ready`, record route `stop` or `delivery`; a delivery route
+14. When state becomes `spec_ready`, record route `stop` or `delivery`; a delivery route
     also declares stable lane ids with repeated `--lane` arguments.
 
 **Exit:** One substantively complete reader-facing article exists before the first

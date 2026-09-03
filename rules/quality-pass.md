@@ -19,9 +19,31 @@ one JSON report bound to the exact subject bytes and the exact `SKILL.md` bytes.
 }
 ```
 
-`style_profile` is required only for `humanizer`. Empty findings require `clean`;
-non-empty findings require `changes-required`. Every finding must appear in the current
-single diff-pool through the same `source_finding_id`.
+`purpose` and `dismissed_findings` are present only for
+post-`revmux` adjudication. `style_profile` is required only for `humanizer`. Empty
+findings require `clean`; non-empty findings require `changes-required`.
+
+For ordinary subject passes, every reported finding must appear in the current single
+diff-pool through the same `source_finding_id`. For post-`revmux` adjudication, the
+subject is the exact review receipt. Confirmed findings remain in `findings` with the
+smallest proposed change;
+the rest are listed in `dismissed_findings` with reason and evidence and do not enter
+the correction diff. The two sets must be disjoint and exhaustive.
+
+The adjudication report adds:
+
+```json
+{
+  "purpose": "revmux-finding-adjudication",
+  "dismissed_findings": [
+    {
+      "id": "revmux-finding-id",
+      "reason": "why it is dismissed",
+      "evidence": "exact requirement or execution evidence"
+    }
+  ]
+}
+```
 
 Required checks:
 
