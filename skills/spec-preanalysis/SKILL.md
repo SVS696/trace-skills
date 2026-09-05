@@ -3,7 +3,7 @@ name: spec-preanalysis
 description: >-
   Use before specification authoring to collect preliminary evidence, frame the
   problem, goal and solution hypothesis, draft user stories, estimate a range, build
-  a plan, decide one or several specifications, and choose article-first or hybrid.
+  a plan, decide one or several specifications, and design semantic analysis blocks.
   Not for writing the final specification or implementing it.
 allowed-tools: Read Glob Grep Write Bash AskUserQuestion
 ---
@@ -22,9 +22,9 @@ the Vigers reference corpus.
    one independently acceptable result or several. Blocks cannot answer that question.
 3. **Split by outcome, not implementation layer.** Backend/frontend, screens, teams or
    convenient agent assignments are not enough to create separate specifications.
-4. **Choose composition per article.** Small or tightly coupled articles use
-   `article-first`; decomposable medium/large articles use `hybrid`. Pure late-stitch
-   block authoring is excluded.
+4. **Start from the whole, then descend.** Every specification first gets a complete
+   working pass through the unchanged template. Semantic blocks are chosen only as
+   later depth lenses; they never become the starting deliverables.
 5. **Keep the template unchanged.** The decision maps work to the existing template;
    it does not redesign it.
 6. **Separate forecast from fact.** Estimates are ranges with basis and confidence;
@@ -83,18 +83,21 @@ the shared context once.
 
 **Exit:** Every proposed article has its own goal, outcome and acceptance boundary.
 
-### Phase 3: Choose composition per article
+### Phase 3: Design the block descent
 
 **Entry:** Article boundaries are known.
 
-Choose:
+Set `composition: article-led` for every article. Then define one or more semantic
+blocks for the later focused passes. A block represents a coherent risk, rule set,
+journey, data lifecycle or interface surface. It does not have to match one template
+heading, and it must not exist merely because the implementation has BE and FE parts.
 
-- `article-first`: one working surface, represented as block `ARTICLE`;
-- `hybrid`: two or more semantic blocks with integration after every stage.
+The block map is allowed to be revised after the first whole-template draft exposes a
+wrong boundary. Record that as an explicit new decomposition decision; do not silently
+change agent assignments inside an active case.
 
-Do not choose pure independent blocks with only a final stitch.
-
-**Exit:** Every article has a composition mode and stable block map.
+**Exit:** Every article uses `article-led` composition and has a justified semantic
+block map for the depth passes.
 
 ### Phase 4: Record and approve
 
@@ -129,7 +132,7 @@ and performs any separately authorized external synchronization.
 - Estimate is a justified range or an explicit gap, never an invented deadline.
 - The plan is acyclic and external publication is separately authorized and read back.
 - Implementation layers did not become article boundaries by default.
-- Each article explicitly selects `article-first` or `hybrid`.
+- Each article uses `article-led`: whole-template baseline first, semantic blocks later.
 - Dependencies are acyclic and shared rules have one owner.
 - The approved decision initializes cases without manual reinterpretation.
 - The proposed solution and decomposition passed `simplicity-spec`; its simplifications

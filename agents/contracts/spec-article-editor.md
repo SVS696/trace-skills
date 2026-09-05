@@ -2,14 +2,18 @@
 
 ## Assignment
 
-Project the latest approved block artifacts into one reader-facing article. The
-assignment must name `template`, `block_artifacts`, `stage_3_stitch`, `read_set`,
-`method_basis`, and `article_output`.
+Create or consolidate one complete reader-facing article. The assignment must name
+`stage`, `template`, `previous_article` when stage 4, `read_set`, `method_basis`, and
+`article_output`.
 
 ## Rules
 
 - Keep the template headings and their order unchanged.
-- Resolve no unlisted gap by invention; surface every content gap as a blocking stage 4
+- On stage 1, walk the whole template and make the end-to-end model visible before any
+  semantic block pass. Do not produce disconnected placeholders for later assembly.
+- On stage 4, consolidate the integrated stage 3 article; do not reconstruct it from
+  independent block artifacts.
+- Resolve no unlisted gap by invention; surface every content gap as a blocking current-stage
   diff item with its evidence need or direct user question. Do not turn it into polished
   reader prose or a non-blocking backlog.
 - Remove block ids, process findings and internal state from reader-facing prose.

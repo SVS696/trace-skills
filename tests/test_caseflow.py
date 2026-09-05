@@ -38,7 +38,7 @@ class CaseFlowTests(unittest.TestCase):
                             "outcome": "Outcome",
                             "acceptance_boundary": "Boundary",
                             "dependencies": [],
-                            "composition": "hybrid",
+                            "composition": "article-led",
                             "blocks": [
                                 {"id": "B01", "title": "One"},
                                 {"id": "B02", "title": "Two"},
@@ -92,17 +92,30 @@ class CaseFlowTests(unittest.TestCase):
         return path
 
     def submit_stage_one(self) -> None:
-        for block in ("B01", "B02"):
-            self.write(f"method-basis/stage-01-{block}.md", "# Method basis\n")
-            artifact = self.write(f"blocks/{block}/stage-01.md")
-            caseflow.command_submit_block(
-                argparse.Namespace(
-                    case_root=self.case_root,
-                    stage=1,
-                    block=block,
-                    artifact=str(artifact),
-                )
+        self.write("method-basis/stage-01-ARTICLE.md", "# Method basis\n")
+        artifact = self.write("articles/stage-01.md", "# Whole-template baseline\n")
+        caseflow.command_submit_block(
+            argparse.Namespace(
+                case_root=self.case_root,
+                stage=1,
+                block="ARTICLE",
+                artifact=str(artifact),
             )
+        )
+
+    def complete_stage_one(self) -> Path:
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
+        )
+        caseflow.command_record_stitch(
+            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+        )
+        caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        return self.case_root / "articles/stage-01.md"
 
     def prepare_review(self) -> str:
         article = self.write("article.md", "# Article\n")
@@ -208,13 +221,85 @@ class CaseFlowTests(unittest.TestCase):
             )
 
     def test_stitch_requires_every_block(self) -> None:
-        self.write("method-basis/stage-01-B01.md", "# Method basis\n")
-        artifact = self.write("blocks/B01/stage-01.md")
+        self.complete_stage_one()
+        self.write("method-basis/stage-02-B01.md", "# Method basis\n")
+        artifact = self.write("blocks/B01/stage-02.md")
         caseflow.command_submit_block(
-            argparse.Namespace(case_root=self.case_root, stage=1, block="B01", artifact=str(artifact))
+            argparse.Namespace(case_root=self.case_root, stage=2, block="B01", artifact=str(artifact))
         )
         with self.assertRaises(caseflow.CaseFlowError):
             caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+
+    def test_article_led_case_requires_whole_template_before_semantic_blocks(self) -> None:
+        status = caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(status["stage"], 1)
+        self.assertEqual(status["required_blocks"], ["ARTICLE"])
+        self.write("method-basis/stage-01-B01.md", "# Wrong basis\n")
+        artifact = self.write("blocks/B01/stage-01.md")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "unknown block"):
+            caseflow.command_submit_block(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    stage=1,
+                    block="B01",
+                    artifact=str(artifact),
+                )
+            )
+
+    def test_pre_article_led_case_requires_explicit_rebaseline(self) -> None:
+        payload = caseflow.load_case(self.case_root)
+        payload["composition"] = "hybrid"
+        caseflow.atomic_json(caseflow.manifest_path(self.case_root), payload)
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "legacy-case-migration"):
+            caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+
+    def test_block_stage_requires_a_new_integrated_article_projection(self) -> None:
+        baseline = self.complete_stage_one()
+        for block in ("B01", "B02"):
+            self.write(f"method-basis/stage-02-{block}.md", "# Method basis\n")
+            artifact = self.write(f"blocks/{block}/stage-02.md", f"# {block} delta\n")
+            caseflow.command_submit_block(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    stage=2,
+                    block=block,
+                    artifact=str(artifact),
+                )
+            )
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-02.md")
+        pool = self.write(
+            "diffs/stage-02-required.json",
+            json.dumps({"schema": 1, "stage": 2, "deferred_inputs": [], "items": []}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "requires --article"):
+            caseflow.command_record_stitch(
+                argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+            )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "new immutable"):
+            caseflow.command_record_stitch(
+                argparse.Namespace(
+                    case_root=self.case_root,
+                    report=str(report),
+                    diff_pool=str(pool),
+                    article=str(baseline),
+                )
+            )
+        projection = self.write("articles/stage-02.md", "# Integrated stage 2\n")
+        recorded = caseflow.command_record_stitch(
+            argparse.Namespace(
+                case_root=self.case_root,
+                report=str(report),
+                diff_pool=str(pool),
+                article=str(projection),
+            )
+        )
+        self.assertEqual(recorded["state"], "ready")
+        advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(advanced["stage"], 3)
+        payload = caseflow.load_case(self.case_root)
+        self.assertEqual(payload["stages"]["2"]["article_projection"]["path"], "articles/stage-02.md")
+        self.assertEqual(baseline.read_text(encoding="utf-8"), "# Whole-template baseline\n")
 
     def test_diff_pool_blocks_advance_until_correction_is_verified(self) -> None:
         self.submit_stage_one()
@@ -230,7 +315,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Add missing boundary",
                             "reason": "B02 depends on it",
                             "status": "open",
@@ -261,11 +346,11 @@ class CaseFlowTests(unittest.TestCase):
                 result="pass",
             )
         )
-        artifact = self.case_root / "blocks/B01/stage-01.md"
+        artifact = self.case_root / "articles/stage-01.md"
         artifact.write_text("changed after independent verification\n", encoding="utf-8")
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after verification"):
             caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
-        artifact.write_text("ok\n", encoding="utf-8")
+        artifact.write_text("# Whole-template baseline\n", encoding="utf-8")
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
         self.assertEqual(advanced["stage"], 2)
         self.assertEqual(advanced["state"], "blocks")
@@ -297,7 +382,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Record the chosen product boundary",
                             "reason": "The scope cannot be completed without the choice",
                             "status": "open",
@@ -323,7 +408,7 @@ class CaseFlowTests(unittest.TestCase):
                     decision_ref="skip-the-question",
                 )
             )
-        artifact = self.write("blocks/B01/stage-01.md", "Chosen boundary\n")
+        artifact = self.write("articles/stage-01.md", "Chosen boundary\n")
         caseflow.command_resolve(
             argparse.Namespace(
                 case_root=self.case_root,
@@ -341,7 +426,7 @@ class CaseFlowTests(unittest.TestCase):
         )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
         self.assertEqual(advanced["stage"], 2)
-        recorded = caseflow.load_case(self.case_root)["stages"]["1"]["submissions"]["B01"]
+        recorded = caseflow.load_case(self.case_root)["stages"]["1"]["submissions"]["ARTICLE"]
         self.assertEqual(caseflow.digest(artifact), recorded["sha256"])
 
     def test_implementation_only_input_can_be_explicitly_deferred(self) -> None:
@@ -390,7 +475,7 @@ class CaseFlowTests(unittest.TestCase):
             json.dumps(
                 {
                     "id": "D1-002",
-                    "target": "blocks/B02/stage-01.md",
+                    "target": "articles/stage-01.md",
                     "change": "Add the newly found dependency",
                     "reason": "Found during correction",
                     "status": "open",
@@ -420,7 +505,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md#boundary",
+                            "target": "articles/stage-01.md#boundary",
                             "change": "Correct the boundary",
                             "reason": "Stitch found a contradiction",
                             "status": "open",
@@ -432,7 +517,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        artifact = self.write("blocks/B01/stage-01.md", "corrected\n")
+        artifact = self.write("articles/stage-01.md", "corrected\n")
         correction = self.write("receipts/D1-001.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-001", receipt=str(correction))
@@ -447,7 +532,7 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
-        self.assertEqual(advanced["rebound"], ["blocks/B01/stage-01.md"])
+        self.assertEqual(advanced["rebound"], ["articles/stage-01.md"])
         artifact.write_text("drift after close\n", encoding="utf-8")
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after registration"):
             caseflow.command_status(argparse.Namespace(case_root=self.case_root))
@@ -466,14 +551,14 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Apply the final boundary correction",
                             "reason": "Second correction to the same artifact",
                             "status": "open",
                         },
                         {
                             "id": "D1-002",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Apply the initial boundary correction",
                             "reason": "First correction to the same artifact",
                             "status": "open",
@@ -485,7 +570,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        artifact = self.write("blocks/B01/stage-01.md", "initial correction\n")
+        artifact = self.write("articles/stage-01.md", "initial correction\n")
         first_receipt = self.write("receipts/D1-002.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-002", receipt=str(first_receipt))
@@ -514,7 +599,7 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
-        self.assertEqual(advanced["rebound"], ["blocks/B01/stage-01.md"])
+        self.assertEqual(advanced["rebound"], ["articles/stage-01.md"])
         self.assertEqual(advanced["stage"], 2)
 
     def test_unpooled_stage_output_drift_blocks_advance(self) -> None:
@@ -528,7 +613,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        self.write("blocks/B01/stage-01.md", "unregistered change\n")
+        self.write("articles/stage-01.md", "unregistered change\n")
         with self.assertRaisesRegex(caseflow.CaseFlowError, "outside a closed diff item"):
             caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
 
@@ -546,7 +631,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Try the proposed correction",
                             "reason": "Stitch finding",
                             "status": "open",
@@ -558,7 +643,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        artifact = self.write("blocks/B01/stage-01.md", "rejected correction\n")
+        artifact = self.write("articles/stage-01.md", "rejected correction\n")
         correction = self.write("receipts/D1-001.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-001", receipt=str(correction))
@@ -600,7 +685,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "method-basis/stage-01-B01.md",
+                            "target": "method-basis/stage-01-ARTICLE.md",
                             "change": "Select the corrected method route",
                             "reason": "Initial route did not cover the assigned surface",
                             "status": "open",
@@ -612,7 +697,7 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
-        basis = self.write("method-basis/stage-01-B01.md", "# Corrected method basis\n")
+        basis = self.write("method-basis/stage-01-ARTICLE.md", "# Corrected method basis\n")
         correction = self.write("receipts/D1-001.md")
         caseflow.command_resolve(
             argparse.Namespace(case_root=self.case_root, item="D1-001", receipt=str(correction))
@@ -627,7 +712,7 @@ class CaseFlowTests(unittest.TestCase):
             )
         )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
-        self.assertIn("method-basis/stage-01-B01.md", advanced["rebound"])
+        self.assertIn("method-basis/stage-01-ARTICLE.md", advanced["rebound"])
         basis.write_text("# Drift after close\n", encoding="utf-8")
         with self.assertRaisesRegex(caseflow.CaseFlowError, "method basis changed"):
             caseflow.command_status(argparse.Namespace(case_root=self.case_root))
@@ -646,7 +731,7 @@ class CaseFlowTests(unittest.TestCase):
                     "items": [
                         {
                             "id": "D1-001",
-                            "target": "blocks/B01/stage-01.md",
+                            "target": "articles/stage-01.md",
                             "change": "Add missing boundary",
                             "reason": "B02 depends on it",
                             "status": "open",
@@ -1365,32 +1450,13 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(decided["state"], "revmux_remediation")
 
     def test_context_uses_recorded_submission_path(self) -> None:
-        for block in ("B01", "B02"):
-            self.write(f"method-basis/stage-01-{block}.md", "# Method basis\n")
-            artifact = self.write(f"blocks/{block}/custom-foundation.md")
-            caseflow.command_submit_block(
-                argparse.Namespace(
-                    case_root=self.case_root,
-                    stage=1,
-                    block=block,
-                    artifact=str(artifact),
-                )
-            )
-        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
-        report = self.write("stitches/custom-stage-one.md")
-        pool = self.write(
-            "diffs/stage-01-required.json",
-            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
-        )
-        caseflow.command_record_stitch(
-            argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
-        )
-        caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
+        baseline = self.complete_stage_one()
         context = caseflow.command_context(
             argparse.Namespace(case_root=self.case_root, block="B01")
         )
-        self.assertIn(
-            str((self.case_root / "blocks/B01/custom-foundation.md").resolve()),
+        self.assertIn(str(baseline.resolve()), context["read_set"])
+        self.assertNotIn(
+            str((self.case_root / "blocks/B02/stage-02.md").resolve()),
             context["read_set"],
         )
 
@@ -1455,12 +1521,10 @@ class CaseFlowTests(unittest.TestCase):
             context["read_set"],
         )
 
-    def test_article_first_stage_four_can_share_the_mutable_article_path(self) -> None:
-        article_case = self.root / "article-first-case"
+    def test_stage_four_projection_can_share_the_mutable_review_article_path(self) -> None:
+        article_case = self.root / "article-led-case"
         decision_payload = json.loads(self.decision.read_text(encoding="utf-8"))
-        decision_payload["articles"][0]["composition"] = "article-first"
-        decision_payload["articles"][0]["blocks"] = [{"id": "ARTICLE", "title": "Article"}]
-        decision = self.root / "article-first-decision.json"
+        decision = self.root / "article-led-decision.json"
         decision.write_text(json.dumps(decision_payload), encoding="utf-8")
         initialized = caseflow.command_init(
             argparse.Namespace(
@@ -1471,16 +1535,27 @@ class CaseFlowTests(unittest.TestCase):
                 article_id="CASE-1",
             )
         )
-        self.assertEqual(initialized["stage"], 4)
-        self.assertEqual(initialized["stages"]["1"]["state"], "skipped")
-        self.assertEqual(initialized["stages"]["2"]["state"], "skipped")
-        self.assertEqual(initialized["stages"]["3"]["state"], "skipped")
+        self.assertEqual(initialized["stage"], 1)
 
         def write(relative: str, text: str = "ok\n") -> Path:
             path = article_case / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
             return path
+
+        payload = caseflow.load_case(article_case)
+        for stage in (1, 2, 3):
+            projection = write(f"articles/stage-{stage:02d}.md", f"# Stage {stage}\n")
+            payload["stages"][str(stage)]["state"] = "complete"
+            payload["stages"][str(stage)]["article_projection"] = {
+                "path": f"articles/stage-{stage:02d}.md",
+                "sha256": caseflow.digest(projection),
+                "recorded_at": caseflow.now(),
+            }
+        payload["stage"] = 4
+        payload["state"] = "blocks"
+        payload["stages"]["4"]["state"] = "blocks"
+        caseflow.save_case(article_case, payload, "test_stage_four_setup")
 
         write("method-basis/stage-04-ARTICLE.md", "# Method basis\n")
         article = write("article.md", "# Initial article\n")
@@ -1819,11 +1894,12 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(advanced["delivery_stage"], 2)
 
     def test_cli_serializes_concurrent_case_mutations(self) -> None:
+        self.complete_stage_one()
         script = Path(caseflow.__file__).resolve()
         commands: list[list[str]] = []
         for block in ("B01", "B02"):
-            self.write(f"method-basis/stage-01-{block}.md", "# Method basis\n")
-            artifact = self.write(f"blocks/{block}/stage-01.md")
+            self.write(f"method-basis/stage-02-{block}.md", "# Method basis\n")
+            artifact = self.write(f"blocks/{block}/stage-02.md")
             commands.append(
                 [
                     sys.executable,
@@ -1832,7 +1908,7 @@ class CaseFlowTests(unittest.TestCase):
                     "--case-root",
                     str(self.case_root),
                     "--stage",
-                    "1",
+                    "2",
                     "--block",
                     block,
                     "--artifact",

@@ -2,12 +2,18 @@
 
 **Entry:** Stage 1 diff-pool is closed and case stage is `2`.
 
-1. Each block reads its own stage 1 artifact and the stage 1 stitch, then describes
-   user/system scenarios, rules, states, data, interfaces and errors for that block.
+1. Each block reads the stage 1 article projection, its bounded sources and source map,
+   then challenges and deepens user/system scenarios, rules, states, data, interfaces
+   and errors for that semantic concern. It returns exact article targets and proposed
+   normative changes, not a standalone mini-specification.
 2. Register all `stage-02.md` artifacts.
-3. At the stitch barrier, compare cross-block state transitions, shared data ownership,
-   terminology, interface direction, error behavior and duplicate rules.
-4. Put all required corrections into the one stage 2 diff-pool.
+3. The integration editor applies compatible block contributions to a new immutable
+   stage 2 article projection. At the stitch barrier, compare cross-block state
+   transitions, shared data ownership, terminology, interface direction, error behavior
+   and duplicate rules against the whole article.
+4. Put all required corrections into the one stage 2 diff-pool and register the gate
+   with `record-stitch --article articles/stage-02.md`. Reusing or overwriting the stage 1
+   projection is rejected.
 5. If behavior depends on missing evidence or a product choice, classify it and put it
    in that pool as a blocking input. Ask the direct question instead of drafting around it.
 6. When behavior crosses technical layers, record in the existing template sections:
@@ -18,6 +24,7 @@
    - error, retry/read-back and stale-response behavior at the boundary.
    Do not invent a layer, endpoint or UI surface that current evidence does not support.
 
-**Exit:** Cross-block behavior composes into one system model; no requirement-relevant
+**Exit:** The stage 2 article projection contains the integrated behavioral depth;
+cross-block behavior composes into one system model; no requirement-relevant
 input remains unresolved outside the pool, every blocking input is verified before
 advance, and every cross-layer guarantee has one owner plus an explicit consumer duty.

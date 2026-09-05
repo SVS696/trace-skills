@@ -4,10 +4,11 @@
     "decomposition-decision.json",
     "execution-plan.json"
   ],
-  "first_decision": "single or split before block design",
-  "composition_decision": "article-first or hybrid per resulting article",
+  "first_decision": "Whether the subject yields one independently acceptable outcome or several — the `single` vs `split` decomposition decision (Phase 2), taken before any block design; blocks cannot answer that question, and outcomes must be independently acceptable/handoffable without duplicating the same normative rules, not split by BE/FE, screens, teams or agent count. Here two potentially independent outcomes are only apparent, so `single` stands unless independent acceptance is proven.",
+  "composition_decision": "article-led for every resulting article — fixed; there is no `article-first | hybrid` route choice.",
+  "authoring_order": "A complete working pass through the unchanged template must exist first: each article's whole-template baseline draft is the starting deliverable, and semantic blocks are defined only afterwards as focused depth lenses, each block stage integrated into a new article projection (no final-only stitch).",
   "agent_may_approve": false,
   "agent_may_publish_plan": false,
   "parent_may_publish_without_authorization": false,
-  "next_gate": "validated artifacts plus a visible simplicity-spec result and a user-approved decision and plan with matching subject_id and decision_ref; unauthorized external sync remains not_requested"
+  "next_gate": "All three artifacts validated and presented with framing, recommendation, estimate range, trade-offs and the visible `simplicity-spec` result; every batched direct `user-decision` question asked and answered; the user's choice recorded so the decomposition decision and plan move from `proposed` to `approved` with the same `subject_id` and exact `decision_ref`. Only then may `caseflow.py init` initialize each specification. In this scenario the external write is unauthorized, so `external_sync` stays `not_requested` and no Singularity publication or read-back receipt is part of the gate; if it were separately authorized, `synced` would additionally require `system`, `target_ref` and `readback_ref`."
 }

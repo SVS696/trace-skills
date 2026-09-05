@@ -2,7 +2,8 @@
 name: spec-workflow
 description: >-
   Use when starting, continuing, or reviewing a requirements specification that
-  must produce one article from several semantic blocks with staged integration.
+  must start as one whole-template article and then deepen through semantic blocks
+  with staged integration.
   Not for implementation work or migration of an existing Vigers case.
 allowed-tools: Read Glob Grep Write Edit Bash Task AskUserQuestion
 ---
@@ -15,13 +16,14 @@ Read [the process kernel](../../rules/process-kernel.md) once for the task. Befo
 block submission, use `method-library` to materialize one applicable requirements route
 into `method-basis/stage-NN-BLOCK.md`.
 
-1. **The article template is the immutable spine.** Blocks are working views mapped
-   to template sections, not separate deliverables. This prevents local completeness
-   from replacing reader coherence.
-2. **Every stage ends with one integration barrier.** No block enters the next stage
-   before all blocks are stitched against each other.
-3. **Every defect enters one stage diff-pool.** Do not make hidden improvements.
-   Every edit must name a `required-diff.json` item and produce a receipt.
+1. **Work from the whole to the parts.** Stage 1 fills the entire immutable template
+   before focused block work begins. Blocks challenge and deepen a visible system model;
+   they do not independently invent fragments that will be assembled later.
+2. **Every stage ends with one integration barrier.** A focused block stage cannot
+   advance before all contributions are reconciled into the whole article.
+3. **Every detected defect enters one stage diff-pool.** Normal stage authoring produces
+   the candidate projection; after the integration barrier, every corrective edit must
+   name a `required-diff.json` item and produce a receipt.
 4. **Load only the current read-set.** Use `caseflow.py context`; do not read all
    references, old drafts, agent contracts, or project documents at once.
 5. **Review is not acceptance.** A green local check or revmux round does not prove
@@ -73,16 +75,16 @@ a case root exists or the user authorized its initialization.
 
 | Stage | Required reference | Output |
 |---|---|---|
-| 1 | [stage-1-foundation.md](references/stage-1-foundation.md) | evidence, goal and boundaries |
-| 2 | [stage-2-behavior.md](references/stage-2-behavior.md) | scenarios, rules, data and interfaces |
-| 3 | [stage-3-acceptance.md](references/stage-3-acceptance.md) | AC, DoD and traceability |
-| 4 | [stage-4-article.md](references/stage-4-article.md) | one article and revmux receipts |
+| 1 | [stage-1-foundation.md](references/stage-1-foundation.md) | whole-template baseline article |
+| 2 | [stage-2-behavior.md](references/stage-2-behavior.md) | block depth plus integrated article projection |
+| 3 | [stage-3-acceptance.md](references/stage-3-acceptance.md) | acceptance depth plus integrated article projection |
+| 4 | [stage-4-article.md](references/stage-4-article.md) | consolidated article and revmux receipts |
 
 Follow the selected stage file. Do not preload the other three.
 
-For `article-first`, initialization opens stage 4 directly. Do not create stage 1–3
-submissions, stitches, or diff receipts for a single `ARTICLE` block. `hybrid` retains
-all four stages.
+Stages 1 and 4 use the reserved `ARTICLE` subject. Stages 2 and 3 use the semantic
+blocks approved in preanalysis. Stage 2 and 3 stitches must write a new immutable
+article projection instead of mutating the previous snapshot.
 
 **Exit:** The stage has a stitch report and a registered `required-diff.json`; its
 `deferred_inputs` register is present, and every content-blocking input is a diff item.
@@ -112,18 +114,21 @@ Use only the role needed by the current assignment:
 - `spec-evidence-analyst` for bounded source analysis;
 - `spec-block-analyst` for one block at one stage;
 - `spec-integration-editor` for stitch report and diff-pool;
-- `spec-article-editor` for stage 4 article projection;
+- `spec-article-editor` for the stage 1 baseline and stage 4 consolidation;
 - `quality-pass-reviewer` in one run for the full read-only `simplicity-spec` pass;
 - `quality-pass-reviewer` in a different run for the full read-only `humanizer` and
   project reader pass.
 
-Never give an agent the whole case when one block plus the previous stitch is enough.
+The article editor receives the complete current article because its assignment is the
+whole. A block analyst receives the previous article projection, its bounded sources and
+its own method basis, not every source or every other block artifact.
 
 ## Success criteria
 
 - The template was not changed.
-- Each completed hybrid stage has every block submission, one stitch and one diff-pool;
-  article-first starts at stage 4.
+- Stage 1 completed a full pass through the template before any semantic block submission.
+- Stages 2 and 3 have every semantic block submission, one stitch, one new article
+  projection and one diff-pool.
 - Stage 4 has hash-bound observable `simplicity-spec` and `humanizer` reports from
   separate runs, and every finding is covered by the one stage diff-pool.
 - Every applied item was separately verified; every waived item has a decision reference.

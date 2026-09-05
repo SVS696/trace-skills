@@ -2,10 +2,10 @@
 
 ## Решение
 
-Используется гибрид: неизменяемый шаблон статьи задаёт каркас с первого шага, а
-блоки служат ограниченными рабочими пакетами внутри этого каркаса. Чисто независимые
-блоки создают слишком высокий integration tax. Чистая работа сразу в одной статье
-перегружает контекст и мешает параллельной проработке.
+Используется нисходящий article-led процесс. Неизменяемый шаблон сначала заполняется
+целиком, чтобы причинно-следственная модель, границы и пробелы были видны одновременно.
+Только затем работа делится на ограниченные семантические блоки. Они углубляют уже
+существующую статью, а после каждой волны интегрируются в новый неизменяемый snapshot.
 
 ```text
 preliminary sources + template headings
@@ -13,16 +13,17 @@ preliminary sources + template headings
 spec-preanalysis: problem/goal/hypothesis + stories + estimate + plan
         | simplicity-spec on solution and decomposition
         |
-single/split + article-first/hybrid + optional plan sync
+single/split + semantic descent map + optional plan sync
         |
-approved decomposition decision + case manifest
+approved decomposition decision + article-led case manifest
         |
-        +-- article-first -> stage 4: one article
+stage 1: whole template -> one baseline article -> one required diff -> verify
         |
-        `-- hybrid -> stage 1 foundation -> stage 2 behavior -> stage 3 acceptance
-                         each stage: blocks -> stitch -> one required diff -> verify
+stage 2: semantic blocks -> integrate into article snapshot -> one diff -> verify
         |
-stage 4: one article -> simplicity-spec + humanizer reports -> one diff -> verify
+stage 3: acceptance blocks -> integrate into article snapshot -> one diff -> verify
+        |
+stage 4: consolidate article -> simplicity-spec + humanizer reports -> one diff -> verify
                     -> deterministic checks -> revmux convergence
         |
         +-- stop
@@ -40,24 +41,23 @@ event-driven runtime signal: Smoke Break -> P23 COURSE-CHECK after a tool call
 3. одна инструкция текущей стадии;
 4. один материализованный method basis из книжной библиотеки;
 5. read-set из `caseflow context`;
-6. назначенный агенту блок и общий stitch предыдущей стадии.
+6. предыдущая целостная article projection и только назначенный агенту блок источников.
 
-Предыдущие черновики не перечитываются целиком. Их зарегистрированные версии
-представлены последним block artifact, stitch report и snapshot fingerprints в
-`case.json`. Изменённый block artifact, его method basis или stitch перепривязывается
+Предыдущие версии статьи не переписываются: каждая стадия создаёт новый snapshot, а
+`caseflow context` отдаёт только последний. Зарегистрированные версии представлены
+article projection, block artifact, stitch report и fingerprints в `case.json`.
+Изменённый block artifact, article projection, его method basis или stitch перепривязывается
 на `advance` только когда его путь назван `verified`- или явно `waived`-пунктом
 diff-pool, а текущие bytes совпадают с fingerprint проверки или решения. После закрытия
 стадии fingerprints снова неизменяемы. Финальная статья после чистого review также
-замораживается. В `article-first` stage-4 projection может быть тем же файлом, что и
-статья: тогда mutable review fingerprint статьи заменяет исторический fingerprint
-projection до завершения review.
+замораживается. Финальный review работает только с проверенной stage-4 projection.
 
 ## Границы компонентов
 
 | Компонент | Владеет | Не владеет |
 |---|---|---|
-| `spec-preanalysis` | preliminary brief, оценкой, планом, числом постановок и composition route | финальным текстом постановки |
-| `spec-workflow` | стадиями постановки, article projection | кодом и внешними статусами |
+| `spec-preanalysis` | preliminary brief, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
+| `spec-workflow` | целостной статьёй, блоками углубления и article projections | кодом и внешними статусами |
 | `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
 | `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |
 | `process-timer` | наблюдаемыми событиями времени | оценками и выводом о качестве |
@@ -75,19 +75,20 @@ projection до завершения review.
 acceptance boundary. Деление по backend/frontend, экрану или агенту не считается
 достаточным основанием.
 
-Затем для каждой постановки выбирается `article-first` или `hybrid`. В первом случае
-кейс сразу открывает стадию 4 с одним `ARTICLE`; стадии 1–3 помечаются `skipped` и не
-создают фиктивных stitch-барьеров. Во втором есть несколько семантических блоков и
-обязательное сшивание после каждой стадии.
+Затем для каждой постановки выбираются семантические линзы углубления. Это не выбор
+между article-first и hybrid: article-first является обязательным первым проходом для
+каждой постановки. Малой задаче достаточно одного блока, сложной — нескольких, если у
+них действительно разные источники, правила, жизненные циклы или интерфейсные риски.
+Stage 1 и 4 используют служебный subject `ARTICLE`; stage 2 и 3 — утверждённые блоки.
 
 ## Почему четыре стадии
 
 Четыре стадии находятся внутри заданного диапазона 3–5 и дают отдельные точки для
 разных видов ошибок:
 
-1. неверные источники, цель или границы;
-2. противоречивые сценарии, правила, данные и интерфейсы;
-3. непроверяемые AC, DoD и трассировка;
+1. неполная или ложная сквозная модель по всему шаблону;
+2. недостаточно проработанные сценарии, правила, данные и интерфейсы внутри блоков;
+3. непроверяемые AC, DoD и трассировка после интеграции блоков;
 4. ошибки общей статьи и reader projection.
 
 Добавление новых обязательных стадий требует доказанного повторяемого дефекта. Иначе

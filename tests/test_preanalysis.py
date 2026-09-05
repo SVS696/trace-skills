@@ -24,18 +24,24 @@ def decision() -> dict:
                 "outcome": "Outcome",
                 "acceptance_boundary": "Boundary",
                 "dependencies": [],
-                "composition": "article-first",
-                "blocks": [{"id": "ARTICLE", "title": "Whole article"}],
+                "composition": "article-led",
+                "blocks": [{"id": "B01", "title": "Primary semantic concern"}],
             }
         ],
     }
 
 
 class PreanalysisTests(unittest.TestCase):
-    def test_article_first_requires_one_article_block(self) -> None:
+    def test_article_led_reserves_article_for_whole_document_stages(self) -> None:
         payload = decision()
-        payload["articles"][0]["blocks"] = [{"id": "B01", "title": "Wrong"}]
-        with self.assertRaises(preanalysis.DecisionError):
+        payload["articles"][0]["blocks"] = [{"id": "ARTICLE", "title": "Wrong"}]
+        with self.assertRaisesRegex(preanalysis.DecisionError, "reserved"):
+            preanalysis.validate_decision(payload, require_approved=True)
+
+    def test_article_led_requires_a_semantic_depth_block(self) -> None:
+        payload = decision()
+        payload["articles"][0]["blocks"] = []
+        with self.assertRaisesRegex(preanalysis.DecisionError, "at least one semantic block"):
             preanalysis.validate_decision(payload, require_approved=True)
 
     def test_split_dependencies_must_be_acyclic(self) -> None:

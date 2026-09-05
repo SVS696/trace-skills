@@ -1,18 +1,23 @@
-# Stage 1: Foundation
+# Stage 1: Whole-template baseline
 
-**Entry:** Case stage is `1` and the template plus block map are fixed.
+**Entry:** Case stage is `1`; the template, article boundary and preliminary evidence
+are fixed.
 
-1. Give each block analyst only its source subset, template section mapping and case goal.
-2. Each block writes `stage-01.md` with facts, source links, unknowns, exclusions and
-   dependencies on other blocks. Do not write AC or implementation.
-3. Register every artifact with `caseflow.py submit-block`.
-4. After all submissions, run `open-stitch`.
-5. The integration editor compares goals, terms, actors, boundaries and dependencies.
-6. Classify every remaining input. Anything that can alter goal, scope, vocabulary or
-   dependencies is a blocking diff item; do not pass it merely because an owner exists.
-7. Write one stitch report and one stage `required-diff.json`; register both with
-   `record-stitch`.
+1. Give `spec-article-editor` the unchanged template, approved preanalysis artifacts,
+   source index, bounded evidence and the stage-1 method basis.
+2. Write one complete working article at `articles/stage-01.md`. Walk every template
+   section. State the current end-to-end model, requirements, scenarios, boundaries,
+   data/interfaces and preliminary acceptance where evidence supports them. Mark a
+   section explicitly not applicable only with a reason.
+3. Do not disguise missing product decisions as polished prose. Surface every gap that
+   can change requirements, scenarios or AC.
+4. Register the article as reserved block `ARTICLE`, then run `open-stitch`.
+5. The integration editor checks template coverage, one coherent vocabulary, actors,
+   scope, causal chain and visible cross-layer ownership across the whole draft.
+6. Write one gate report and one stage `required-diff.json`; register them with
+   `record-stitch`. The ARTICLE submission is the stage article projection.
 
-**Exit:** All block foundations agree on goal, scope, vocabulary and dependency edges,
-and every blocking input has been incorporated and verified. Only explicit
-implementation-only or non-contract external readiness may remain deferred.
+**Exit:** A complete article-shaped system model exists before block work. Every template
+section is populated or justified, and every content-blocking input has been incorporated
+and verified. Only implementation-only or non-contract external readiness may remain
+deferred.

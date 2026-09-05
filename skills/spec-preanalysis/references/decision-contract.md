@@ -18,7 +18,7 @@
       "outcome": "Observable result",
       "acceptance_boundary": "What can be accepted independently",
       "dependencies": [],
-      "composition": "hybrid",
+      "composition": "article-led",
       "blocks": [
         {"id": "B01", "title": "First semantic concern"},
         {"id": "B02", "title": "Second semantic concern"}
@@ -32,6 +32,7 @@ The preanalysis agent always emits `proposed` with an empty `decision_ref`. Only
 parent records `approved` and the real user or project decision reference after the
 user has chosen the decomposition.
 
-`single` requires exactly one article; `split` requires at least two. `article-first`
-requires the sole block `ARTICLE`; `hybrid` requires at least two blocks. Dependencies
-refer to article ids and must be acyclic.
+`single` requires exactly one article; `split` requires at least two. Every article uses
+`article-led` composition and has at least one semantic block for the focused depth
+passes. `ARTICLE` is reserved by `caseflow` for the whole-template stages and cannot be
+a semantic block id. Dependencies refer to article ids and must be acyclic.

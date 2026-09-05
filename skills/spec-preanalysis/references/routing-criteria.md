@@ -11,18 +11,21 @@
 Do not split only because work has backend/frontend parts, several screens, several
 agents, many requirements, or different implementation repositories.
 
-## Choose article-first when
+## Design the later block descent
 
-- there is one dominant end-to-end journey;
-- most rules or terms are shared across all sections;
-- the working article fits comfortably in one bounded context;
-- parallel work would create more coordination than useful independence.
+Every article starts with a complete working pass through the unchanged template.
+There is no `article-first | hybrid` route choice.
 
-## Choose hybrid when
+Use one semantic block when the article has one dominant journey and one tightly coupled
+rule set. Use several only when they expose genuinely different analysis surfaces, for
+example:
 
-- at least two semantic concerns can be analyzed from bounded source subsets;
-- their interfaces can be stated explicitly;
-- parallel work shortens real analysis rather than duplicating common context;
-- integration after each of four stages is affordable.
+- bounded source sets or actors;
+- independent business-rule clusters;
+- distinct data lifecycles or state machines;
+- interfaces whose provider and consumer duties can be checked separately.
 
-Pure block-first with only a final stitch is not a supported route.
+Do not create blocks from template headings, BE/FE layers, screens, repositories or
+agent count alone. Blocks deepen and challenge the already visible whole article. Their
+results are integrated into a new article projection at every block stage; a final-only
+stitch is not supported.

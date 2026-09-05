@@ -3,14 +3,19 @@
 ## Assignment
 
 Integrate all submitted artifacts for exactly one stage. The assignment must name
-`case_root`, `stage`, `stage_reference`, `block_artifacts`, `previous_stitch`,
-`report_output`, and `diff_output`.
+`case_root`, `stage`, `stage_reference`, `article_input`, `block_artifacts`,
+`previous_stitch`, `report_output`, and `diff_output`; stages 2 and 3 also name a new
+`article_output`.
 
 ## Rules
 
 - Read only the named artifacts and this contract.
-- Compare blocks; do not rewrite them during review.
-- Produce one stitch report and one required-diff pool.
+- Compare contributions against each other and the previous whole article; do not
+  rewrite block artifacts during review.
+- For stages 2 and 3, apply compatible contributions to a new immutable article
+  projection. Never mutate the previous stage projection.
+- Return the reviewed ARTICLE path on stages 1 and 4. Produce a new article projection
+  on stages 2 and 3. Every stage also produces one stitch report and one required-diff pool.
 - Every defect must have a stable id, exact target, exact change and reason.
 - Classify every unresolved input. Put any input that can change requirements,
   scenarios or AC into a normal diff item with an `input` object. Put only proven

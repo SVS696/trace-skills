@@ -1,16 +1,16 @@
 # Stage 4: Article and review
 
-**Entry:** A hybrid case has closed stage 3, or an article-first case opened directly at
-stage `4`.
+**Entry:** Stage 3 is closed and its integrated article projection is immutable.
 
-1. The article editor projects the latest block artifacts into the unchanged template.
+1. The article editor consolidates the stage 3 article projection in the unchanged template.
    The public article contains no block-process ids, findings or internal state. If a
    requirement, scenario or AC still lacks a decision/evidence, return it as a blocking
    stage-4 diff item; do not publish a polished backlog of unknowns. For a multi-layer
    change, preserve the layer scopes, responsibility boundary, handoff contract,
    requirement owners and separate BE/FE/E2E evidence in the closest existing template
    sections; do not add a new template structure.
-2. Register the stage 4 article projection and method basis. Dispatch two separate
+2. Register the consolidated article as reserved block `ARTICLE` with its method basis.
+   Dispatch two separate
    narrow runs on the exact submitted article bytes:
    - `quality-pass-reviewer` executes `simplicity-spec`;
    - a different `quality-pass-reviewer` run executes `humanizer` with the project

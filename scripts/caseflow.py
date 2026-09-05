@@ -23,6 +23,7 @@ except ImportError:  # Direct script execution.
 
 SCHEMA = 1
 STAGES = (1, 2, 3, 4)
+ARTICLE_SUBJECT = "ARTICLE"
 ITEM_STATUSES = {"open", "applied", "verified", "waived"}
 GATING_SEVERITIES = {"critical", "major"}
 MAX_REVIEW_CYCLES = 5
@@ -177,6 +178,15 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
                     verify_record(case_root, submission, f"stage {stage} block {block}")
         if record.get("state") == "complete" and record.get("stitch"):
             verify_record(case_root, record["stitch"], f"stage {stage} stitch")
+        if record.get("state") == "complete" and record.get("article_projection"):
+            projection_path = resolve_artifact(case_root, record["article_projection"]["path"])
+            shared_review_path = stage == "4" and projection_path == article_path
+            if not shared_review_path:
+                verify_record(
+                    case_root,
+                    record["article_projection"],
+                    f"stage {stage} article projection",
+                )
         for gate, quality_record in record.get("quality_gates", {}).items():
             verify_record(case_root, quality_record, f"stage {stage} {gate} report")
         if record.get("diff_pool"):
@@ -223,6 +233,10 @@ def load_case(case_root: Path) -> dict[str, Any]:
         raise CaseFlowError("unsupported case schema")
     if payload.get("stage") not in STAGES:
         raise CaseFlowError("case stage is invalid")
+    if payload.get("composition") != "article-led":
+        raise CaseFlowError(
+            "case uses the pre-article-led TRACE process; re-baseline it with legacy-case-migration"
+        )
     if not isinstance(payload.get("blocks"), list) or not payload["blocks"]:
         raise CaseFlowError("case has no blocks")
     verify_case_integrity(case_root, payload)
@@ -238,6 +252,14 @@ def save_case(case_root: Path, payload: dict[str, Any], event: str) -> None:
 def stage_record(payload: dict[str, Any], stage: int | None = None) -> dict[str, Any]:
     stage = stage or int(payload["stage"])
     return payload["stages"][str(stage)]
+
+
+def required_spec_subjects(payload: dict[str, Any], stage: int | None = None) -> list[str]:
+    """Return the subjects authored at one article-led specification stage."""
+    stage = stage or int(payload["stage"])
+    if stage in {1, 4}:
+        return [ARTICLE_SUBJECT]
+    return [block["id"] for block in payload["blocks"]]
 
 
 def validate_input(
@@ -662,22 +684,17 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     (case_root / ".caseflow.lock").touch(exist_ok=True)
     for block_id in ids:
         (case_root / "blocks" / block_id).mkdir(parents=True, exist_ok=True)
+    (case_root / "articles").mkdir(exist_ok=True)
     (case_root / "stitches").mkdir(exist_ok=True)
     (case_root / "diffs").mkdir(exist_ok=True)
     (case_root / "method-basis").mkdir(exist_ok=True)
     created = now()
-    first_stage = 4 if article["composition"] == "article-first" else 1
     stages = {
         str(stage): {
-            "state": (
-                "blocks"
-                if stage == first_stage
-                else "skipped"
-                if article["composition"] == "article-first" and stage < first_stage
-                else "pending"
-            ),
+            "state": "blocks" if stage == 1 else "pending",
             "submissions": {},
             "stitch": None,
+            "article_projection": None,
             "diff_pool": None,
         }
         for stage in STAGES
@@ -699,7 +716,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         },
         "template": str(template),
         "template_sha256": digest(template),
-        "stage": first_stage,
+        "stage": 1,
         "state": "blocks",
         "route": None,
         "article": None,
@@ -708,16 +725,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         "stages": stages,
         "created_at": created,
         "updated_at": created,
-        "events": [
-            {
-                "at": created,
-                "event": (
-                    "case_initialized_article_first_stage_4"
-                    if first_stage == 4
-                    else "case_initialized"
-                ),
-            }
-        ],
+        "events": [{"at": created, "event": "case_initialized_article_led"}],
     }
     atomic_json(manifest_path(case_root), payload)
     return payload
@@ -744,7 +752,7 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
         "state": payload["state"],
         "route": payload["route"],
         "submitted_blocks": sorted(current["submissions"]),
-        "required_blocks": delivery["lanes"] if delivery else [block["id"] for block in payload["blocks"]],
+        "required_blocks": delivery["lanes"] if delivery else required_spec_subjects(payload),
         "open_diff_items": open_count,
         "blocking_inputs": blocking_input_count,
         "deferred_inputs": deferred_input_count,
@@ -815,13 +823,14 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     stage = int(payload["stage"])
     if lane:
         raise CaseFlowError("specification context uses --block, not --lane")
-    if args.block and args.block not in {item["id"] for item in payload["blocks"]}:
+    required_subjects = set(required_spec_subjects(payload, stage))
+    if args.block and args.block not in required_subjects:
         raise CaseFlowError(f"unknown block: {args.block}")
     read_set: list[str] = [str(PROCESS_KERNEL), payload["template"]]
     if args.block:
         read_set.append(str(case_root / "method-basis" / f"stage-{stage:02d}-{args.block}.md"))
     source_index = case_root / "sources.md"
-    if payload["composition"] == "article-first" and stage == 4:
+    if stage == 1:
         read_set.extend(
             [
                 str(resolve_artifact(case_root, payload["decomposition_decision"]["path"])),
@@ -830,39 +839,33 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
         )
         if source_index.exists():
             read_set.append(str(source_index))
-        if args.block:
-            source_map = case_root / "blocks" / args.block / "source-map.md"
-            if source_map.exists():
-                read_set.append(str(source_map))
-    if stage == 1:
-        if source_index.exists():
-            read_set.append(str(source_index))
-        if args.block:
-            source_map = case_root / "blocks" / args.block / "source-map.md"
-            if source_map.exists():
-                read_set.append(str(source_map))
     elif stage in (2, 3):
-        previous = stage - 1
+        previous = stage_record(payload, stage - 1)
+        previous_article = previous.get("article_projection")
+        if previous_article:
+            read_set.append(str(resolve_artifact(case_root, previous_article["path"])))
         if args.block:
-            submission = stage_record(payload, previous)["submissions"].get(args.block)
+            source_map = case_root / "blocks" / args.block / "source-map.md"
+            if source_map.exists():
+                read_set.append(str(source_map))
+        if stage == 3 and args.block:
+            submission = stage_record(payload, 2)["submissions"].get(args.block)
             if submission:
                 read_set.append(str(resolve_artifact(case_root, submission["path"])))
-        else:
-            for item in payload["blocks"]:
-                submission = stage_record(payload, previous)["submissions"].get(item["id"])
-                if submission:
-                    read_set.append(str(resolve_artifact(case_root, submission["path"])))
-        previous_stitch = stage_record(payload, previous).get("stitch")
+        previous_stitch = previous.get("stitch")
         if previous_stitch:
             read_set.append(str(resolve_artifact(case_root, previous_stitch["path"])))
     else:
-        for item in payload["blocks"]:
-            submission = stage_record(payload, 3)["submissions"].get(item["id"])
-            if submission:
-                read_set.append(str(resolve_artifact(case_root, submission["path"])))
-        previous_stitch = stage_record(payload, 3).get("stitch")
+        previous = stage_record(payload, 3)
+        previous_article = previous.get("article_projection")
+        if previous_article:
+            read_set.append(str(resolve_artifact(case_root, previous_article["path"])))
+        previous_stitch = previous.get("stitch")
         if previous_stitch:
             read_set.append(str(resolve_artifact(case_root, previous_stitch["path"])))
+    if not args.block:
+        for submission in stage_record(payload)["submissions"].values():
+            read_set.append(str(resolve_artifact(case_root, submission["path"])))
     existing = [path for path in read_set if Path(path).exists()]
     missing = [path for path in read_set if not Path(path).exists()]
     return {
@@ -883,7 +886,7 @@ def command_submit_block(args: argparse.Namespace) -> dict[str, Any]:
     stage = int(payload["stage"])
     if args.stage != stage:
         raise CaseFlowError(f"current stage is {stage}")
-    known = {item["id"] for item in payload["blocks"]}
+    known = set(required_spec_subjects(payload, stage))
     if args.block not in known:
         raise CaseFlowError(f"unknown block: {args.block}")
     method_basis = case_root / "method-basis" / f"stage-{stage:02d}-{args.block}.md"
@@ -909,7 +912,7 @@ def command_open_stitch(args: argparse.Namespace) -> dict[str, Any]:
     payload = load_case(case_root)
     require_state(payload, "blocks")
     record = stage_record(payload)
-    required = {item["id"] for item in payload["blocks"]}
+    required = set(required_spec_subjects(payload))
     submitted = set(record["submissions"])
     missing = sorted(required - submitted)
     if missing:
@@ -929,6 +932,29 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     pool_path = resolve_artifact(case_root, args.diff_pool)
     pool = validate_diff_pool(pool_path, stage, initial=True, require_readiness=True)
     record = stage_record(payload)
+    article_arg = getattr(args, "article", None)
+    if stage in {1, 4}:
+        article_submission = record["submissions"].get(ARTICLE_SUBJECT)
+        if not article_submission:
+            raise CaseFlowError(f"stage {stage} requires the ARTICLE submission")
+        article_path = resolve_artifact(case_root, article_submission["path"])
+        if article_arg and resolve_artifact(case_root, article_arg) != article_path:
+            raise CaseFlowError(f"stage {stage} article must match the ARTICLE submission")
+    else:
+        if not article_arg:
+            raise CaseFlowError(f"stage {stage} stitch requires --article")
+        article_path = resolve_artifact(case_root, article_arg)
+        previous_projection = stage_record(payload, stage - 1).get("article_projection")
+        if not previous_projection:
+            raise CaseFlowError(f"stage {stage - 1} has no article projection")
+    template_path = Path(payload["template"]).expanduser().resolve()
+    prior_projection_paths = {
+        resolve_artifact(case_root, prior["article_projection"]["path"])
+        for prior_stage in range(1, stage)
+        if (prior := stage_record(payload, prior_stage)).get("article_projection")
+    }
+    if article_path == template_path or article_path in prior_projection_paths:
+        raise CaseFlowError("each stage must write a new immutable article projection")
     if stage == 4:
         simplicity_arg = getattr(args, "simplicity_report", None)
         humanizer_arg = getattr(args, "humanizer_report", None)
@@ -966,6 +992,11 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     record["stitch"] = {
         "path": relative_or_absolute(case_root, report),
         "sha256": digest(report),
+        "recorded_at": now(),
+    }
+    record["article_projection"] = {
+        "path": relative_or_absolute(case_root, article_path),
+        "sha256": digest(article_path),
         "recorded_at": now(),
     }
     record["diff_pool"] = {
@@ -1162,8 +1193,15 @@ def rebind_stage_outputs(
     )
     if record.get("stitch"):
         records.append(record["stitch"])
+    if record.get("article_projection"):
+        records.append(record["article_projection"])
+    processed_paths: set[Path] = set()
     for artifact_record in records:
         path = resolve_artifact(case_root, artifact_record["path"])
+        if path in processed_paths:
+            artifact_record["sha256"] = digest(path)
+            continue
+        processed_paths.add(path)
         current = digest(path)
         if current == artifact_record["sha256"]:
             continue
@@ -1196,6 +1234,8 @@ def command_advance(args: argparse.Namespace) -> dict[str, Any]:
             "specification-blocking inputs are not verified: " + ", ".join(incomplete_inputs)
         )
     rebound = rebind_stage_outputs(case_root, record, pool, label=f"stage {stage}")
+    if not record.get("article_projection"):
+        raise CaseFlowError(f"stage {stage} has no article projection")
     record["state"] = "complete"
     if stage < 4:
         payload["stage"] = stage + 1
@@ -1217,6 +1257,12 @@ def command_finalize_article(args: argparse.Namespace) -> dict[str, Any]:
     if not stage_record(payload, 4).get("content_ready_at"):
         raise CaseFlowError("stage 4 has no verified content-readiness marker")
     article = resolve_artifact(case_root, args.article)
+    projection = stage_record(payload, 4).get("article_projection")
+    if not projection:
+        raise CaseFlowError("stage 4 has no article projection")
+    projection_path = resolve_artifact(case_root, projection["path"])
+    if article != projection_path or digest(article) != projection["sha256"]:
+        raise CaseFlowError("final article must be the verified stage 4 projection")
     payload["article"] = {
         "path": relative_or_absolute(case_root, article),
         "sha256": digest(article),
@@ -1860,6 +1906,7 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--case-root", type=Path, required=True)
     record.add_argument("--report", required=True)
     record.add_argument("--diff-pool", required=True)
+    record.add_argument("--article")
     record.add_argument("--simplicity-report")
     record.add_argument("--humanizer-report")
     record.set_defaults(handler=command_record_stitch)

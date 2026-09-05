@@ -17,8 +17,9 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
   acceptance decision implementation-only.
 - Frame the problem, goal and solution hypothesis; draft preliminary user stories.
 - Estimate only as a range with basis and confidence, or mark it unavailable.
-- Recommend one or several independently acceptable specifications, then choose
-  `article-first` or `hybrid` for each.
+- Recommend one or several independently acceptable specifications. Every article uses
+  `article-led` composition: define semantic blocks only for focused passes after the
+  first whole-template draft.
 - Produce an acyclic preliminary plan.
 - Keep decision and plan status `proposed`. The user approves them.
 - Do not write final specification prose or publish to any external system.

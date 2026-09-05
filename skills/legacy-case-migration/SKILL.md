@@ -1,8 +1,8 @@
 ---
 name: legacy-case-migration
 description: >-
-  Use when an unfinished Vigers, Delivery Engineering, or related legacy case must be
-  reviewed and re-baselined for TRACE without treating old process state as approval.
+  Use when an unfinished Vigers, Delivery Engineering, pre-article-led TRACE, or related
+  legacy case must be reviewed and re-baselined without treating old process state as approval.
   Not for new cases or automatic bulk conversion.
 allowed-tools: Read Glob Grep Write Bash
 ---
@@ -17,7 +17,7 @@ applicable method rule IDs; do not preserve old state-machine verdicts. Use
 
 1. Preserve the old case and its Git history; migration creates a new assessment.
 2. Carry forward verified subject matter, not old process verdicts or state-machine flags.
-3. Re-evaluate the current article and evidence against the new four-stage model.
+3. Re-evaluate the current article and evidence against the article-led four-stage model.
 4. Prepare a post; do not send messages or change external systems without authorization.
 
 ## Workflow
@@ -41,17 +41,18 @@ applicable method rule IDs; do not preserve old state-machine verdicts. Use
    stories, scope, classified unknowns, dependencies and estimate. Do not copy legacy
    `unknown` strings unchanged: research them, turn them into direct user questions,
    name the external evidence owner, or prove they are implementation-only.
-3. Decide whether the subject needs one specification or several, and whether each
-   resulting article uses `article-first` or `hybrid` assembly.
+3. Decide whether the subject needs one specification or several, then define semantic
+   depth blocks for each article-led case.
 4. Create the execution plan. External plan synchronization remains optional and
    requires separate authorization plus read-back.
-5. Only after preanalysis, map each approved article into the unchanged template and
-   choose the earliest new stage whose entry criteria are actually satisfied.
+5. Start each specification case at stage 1. If a trustworthy full article already
+   exists, submit it as the candidate whole-template baseline; do not skip directly to
+   block stages merely because legacy block artifacts exist.
 6. Create a migration diff listing missing or stale material. Every still-open input
    that can change requirements, scenarios or AC is a blocking item assigned to the
    earliest applicable new stage; an owner label does not make it non-blocking.
 
-**Exit:** The proposed new case start stage and exact carry-forward set are explicit.
+**Exit:** The proposed stage-1 baseline and exact carry-forward set are explicit.
 
 ### Phase 3: Prepare post
 
@@ -66,9 +67,8 @@ not transfer automatically. Run the work-style `humanizer` pass before delivery.
 
 - No old artifact was overwritten.
 - No old PASS was presented as current acceptance.
-- The preanalysis decision precedes any proposed new start stage.
-- The new start stage has evidence-based entry criteria.
-- The proposed start stage is not later than the earliest unresolved blocking input.
+- The preanalysis decision precedes the proposed stage-1 baseline.
+- The stage-1 baseline has evidence-based entry criteria and covers the whole template.
 - Direct user questions have been asked before claiming their affected entry criteria;
   unanswered content questions remain blocking diff items, never harmless backlog.
 - The post names what is carried, rechecked and intentionally not carried.

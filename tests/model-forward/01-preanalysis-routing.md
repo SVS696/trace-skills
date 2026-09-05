@@ -17,7 +17,8 @@ Return one JSON object with:
 
 - `artifact_order`: ordered artifact filenames that must be proposed;
 - `first_decision`: the decision that must precede block design;
-- `composition_decision`: what is selected for every resulting article;
+- `composition_decision`: the fixed composition model for every resulting article;
+- `authoring_order`: what must exist before semantic block work begins;
 - `agent_may_approve`: boolean;
 - `agent_may_publish_plan`: boolean;
 - `parent_may_publish_without_authorization`: boolean;

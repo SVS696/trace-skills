@@ -15,6 +15,8 @@ Produce one block artifact for one specification stage. The assignment must name
 - Preserve source provenance. Classify every unknown as researchable, a direct user
   decision, external-owner evidence or implementation-only; include the exact next
   action and never treat assignment of an owner as resolution.
+- Treat the previous whole-article projection as the baseline. Return exact targets and
+  proposed normative changes for the assigned concern, not a standalone mini-specification.
 - Do not reconcile another block yourself. Name the dependency for the integration editor.
 - When assigned behavior crosses layers, name the owner of each guarantee, the consumer
   duty, contract direction/data and the evidence contour. For FE, include exact

@@ -267,8 +267,8 @@ def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[s
             raise DecisionError(f"{label}.dependencies must be an array of ids")
         graph[article_id] = dependencies
         composition = article.get("composition")
-        if composition not in {"article-first", "hybrid"}:
-            raise DecisionError(f"{label}.composition is invalid")
+        if composition != "article-led":
+            raise DecisionError(f"{label}.composition must be article-led")
         blocks = article.get("blocks")
         if not isinstance(blocks, list):
             raise DecisionError(f"{label}.blocks must be an array")
@@ -282,10 +282,10 @@ def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[s
             if not BLOCK_RE.fullmatch(block_id) or block_id in block_ids:
                 raise DecisionError(f"invalid or duplicate block id: {block_id}")
             block_ids.add(block_id)
-        if composition == "article-first" and block_ids != {"ARTICLE"}:
-            raise DecisionError(f"{label} article-first requires the sole ARTICLE block")
-        if composition == "hybrid" and len(block_ids) < 2:
-            raise DecisionError(f"{label} hybrid requires at least two blocks")
+        if not block_ids:
+            raise DecisionError(f"{label} requires at least one semantic block")
+        if "ARTICLE" in block_ids:
+            raise DecisionError(f"{label} ARTICLE is reserved for whole-article stages")
     known = set(ids)
     for article_id, dependencies in graph.items():
         unknown = set(dependencies) - known
