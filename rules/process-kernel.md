@@ -108,6 +108,22 @@ Engineering и не зависят от их старых state machines. Parent
   article projection по неизменяемому шаблону с видимыми сквозными сценариями и
   неизвестными. Каждый последующий block pass начинается от этой проекции и завершается
   новой целостной проекцией; старый snapshot не переписывается.
+- `P25 PREANALYSIS-INTEGRITY`: до authoring brief фиксирует запрос к каждому источнику,
+  authority, факт/negative result, freshness и coverage verdict. Каждый preliminary US
+  и preliminary DoD evidence-linked; stage 1 обязан явно сопоставить его с финальными
+  US/DoD как `confirmed|changed|split|rejected`. План связан с hash brief, source refs и
+  проверяемыми exit criteria. Достаточное покрытие останавливает широкий поиск; новый
+  research открывается только под точный gap или falsifying question.
+- `P26 TRANSITION-ARCHITECTURE`: solution horizon не заменяет план перехода. Для
+  реализации выбирается `evolve-in-place|replace-and-remove|staged-migration` с одним
+  authoritative owner, retirement trigger и rollback там, где есть старый путь.
+  Архитектор включается только по подтверждённым триггерам из
+  [контракта](architecture-analysis.md); design и conformance выполняются разными run,
+  а intentional deviation требует решения/ADR.
+- `P27 DIAGRAM-GATE`: диаграмма создаётся только для конкретного вопроса, сохраняет
+  source/semantic IDs и проходит проверку фактического render. Текст остаётся
+  нормативным владельцем; расхождение входит в текущий diff. Подробности раскрывает
+  [контракт диаграмм](diagram-contract.md).
 
 ## Методическая библиотека
 

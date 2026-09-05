@@ -107,7 +107,13 @@ def extract_heading(path: Path, title: str) -> str:
         if next_start > start and next_level <= level:
             end = next_start
             break
-    return "\n".join(lines[start:end]).rstrip() + "\n"
+    text = "\n".join(lines[start:end]).rstrip() + "\n"
+    if path.name == "requirements-method.md":
+        text = text.replace(
+            "`references/diagram-contract.md`",
+            "`rules/diagram-contract.md`",
+        )
+    return text
 
 
 def route_by_id(domain: str, route_id: str) -> dict[str, Any]:

@@ -10,20 +10,22 @@
 ```text
 preliminary sources + template headings
         |
-spec-preanalysis: problem/goal/hypothesis + solution horizon + stories + estimate + plan
-        | two-sided solution boundary + simplicity-spec on solution and decomposition
+spec-preanalysis: evidence coverage + problem/goal/hypothesis + preliminary US/DoD
+        | solution horizon + implementation transition + estimate + bound plan
+        | conditional architecture design + simplicity-spec
         |
 single/split + semantic descent map + optional plan sync
         |
 approved decomposition decision + article-led case manifest
         |
-stage 1: whole template -> one baseline article -> one required diff -> verify
+stage 1: whole template + PUS/DoD lineage -> one baseline article -> one diff -> verify
         |
 stage 2: semantic blocks -> integrate into article snapshot -> one diff -> verify
         |
 stage 3: acceptance blocks -> integrate into article snapshot -> one diff -> verify
         |
-stage 4: consolidate article -> simplicity-spec + humanizer reports -> one diff -> verify
+stage 4: consolidate -> simplicity-spec + humanizer + conditional arch conformance
+                    -> one diff -> verify
                     -> deterministic checks -> revmux convergence
         |
         +-- stop
@@ -44,6 +46,10 @@ event-driven runtime signal: Smoke Break -> P23 COURSE-CHECK after a tool call
 6. read-set из `caseflow context`;
 7. предыдущая целостная article projection и только назначенный агенту блок источников.
 
+Полный preanalysis brief загружается только на stage 1. Архитектурный design — только
+если gate сработал и только для stage 1/4 задач, которым он нужен. Diagram contract
+загружается только при diagram surface в материализованном route.
+
 Предыдущие версии статьи не переписываются: каждая стадия создаёт новый snapshot, а
 `caseflow context` отдаёт только последний. Зарегистрированные версии представлены
 article projection, block artifact, stitch report и fingerprints в `case.json`.
@@ -57,7 +63,8 @@ diff-pool, а текущие bytes совпадают с fingerprint прове�
 
 | Компонент | Владеет | Не владеет |
 |---|---|---|
-| `spec-preanalysis` | preliminary brief, горизонтом решения, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
+| `spec-preanalysis` | source coverage, preliminary brief, горизонтом и переходом решения, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
+| `spec-solution-architect` | triggered design либо независимой conformance-сверкой | бизнес-scope, кодом и workflow-state |
 | `spec-workflow` | целостной статьёй, блоками углубления и article projections | кодом и внешними статусами |
 | `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
 | `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |
@@ -68,6 +75,12 @@ diff-pool, а текущие bytes совпадают с fingerprint прове�
 | `humanizer` | отдельным reader-language проходом по проектному профилю | логикой требований и formal review |
 | `revmux` | независимым review и его ограниченными раундами | авторством статьи и внешней приёмкой |
 | `method-library` | pinned книжными дистиллятами и bounded materialization | продуктовым scope и решениями проекта |
+
+`preanalysis-brief.json`, `decomposition-decision.json` и `execution-plan.json`
+fingerprinted при `init`. Stage 1 дополнительно регистрирует
+`preanalysis-lineage.json`, который обязан ровно один раз сопоставить каждый PUS/PDOD
+с финальными US/DoD. Поэтому restart или миграция не могут молча отбросить раннюю
+постановку смысла.
 
 ## Два уровня декомпозиции
 
@@ -108,6 +121,11 @@ authoritative owner для каждой гарантии, направление
 ответ Backend не доказывает поведение интерфейса. Требования называют владельца
 реализации; AC и DoD разделяют evidence BE API, FE UI и общий E2E-сценарий. Эти части
 проецируются в существующие разделы проектного шаблона, а не требуют нового шаблона.
+
+Горизонт решения и переход реализации различаются. Первый ограничивает обобщение,
+второй выбирает `evolve-in-place|replace-and-remove|staged-migration`, authoritative
+owner и, где есть старый путь, retirement/rollback. Временное сосуществование без
+evidence и измеримого retirement trigger запрещено.
 
 ## Diff-pool
 

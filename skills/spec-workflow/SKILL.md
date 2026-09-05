@@ -43,6 +43,10 @@ into `method-basis/stage-NN-BLOCK.md`.
     selected article's `solution_boundary`. Preserve its root capability, current scope
     and evidence-backed seam. A new variant or horizon change is a `P16` decision, not a
     block-level improvement.
+11. **Preanalysis cannot evaporate.** Stage 1 receives the bound brief and records the
+    disposition of every preliminary US and preliminary DoD before it can advance.
+12. **Architecture stays conditional.** A bound design is loaded only for affected
+    stage-4 work and requires a separate conformance report; `not-required` adds no pass.
 
 ## When to use
 
@@ -66,7 +70,7 @@ into `method-basis/stage-NN-BLOCK.md`.
 a case root exists or the user authorized its initialization.
 
 1. For a new case, initialize it with `scripts/caseflow.py init`; it must consume the
-   matching approved decision and plan plus the selected article entry.
+   matching approved brief, decision and plan plus the selected article entry.
 2. Run `status`, then `context`.
 3. If `context` reports a missing method basis, materialize it before assigning the
    block. Read only the stage file and paths returned in `read_set`.
@@ -122,6 +126,8 @@ Use only the role needed by the current assignment:
 - `quality-pass-reviewer` in one run for the full read-only `simplicity-spec` pass;
 - `quality-pass-reviewer` in a different run for the full read-only `humanizer` and
   project reader pass.
+- `spec-solution-architect` only when the case contains a bound design: design before
+  approval, then a different run for stage-4 conformance.
 
 The article editor receives the complete current article because its assignment is the
 whole. A block analyst receives the previous article projection, its bounded sources and
@@ -131,10 +137,14 @@ its own method basis, not every source or every other block artifact.
 
 - The template was not changed.
 - Stage 1 completed a full pass through the template before any semantic block submission.
+- Stage 1 recorded a complete `confirmed|changed|split|rejected` lineage for every
+  preliminary US and preliminary DoD from the bound brief.
 - Stages 2 and 3 have every semantic block submission, one stitch, one new article
   projection and one diff-pool.
 - Stage 4 has hash-bound observable `simplicity-spec` and `humanizer` reports from
   separate runs, and every finding is covered by the one stage diff-pool.
+- A case with bound architecture design has a separate hash-bound conformance report;
+  its findings enter that same stage-4 diff-pool.
 - Every applied item was separately verified; every waived item has a decision reference.
 - No diff item carrying a blocking `input` was waived; every such item was verified.
 - A multi-layer article identifies the owner and consumer of each shared guarantee,

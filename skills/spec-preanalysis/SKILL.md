@@ -5,7 +5,7 @@ description: >-
   problem, goal and solution hypothesis, draft user stories, estimate a range, build
   a plan, decide one or several specifications, and design semantic analysis blocks.
   Not for writing the final specification or implementing it.
-allowed-tools: Read Glob Grep Write Bash AskUserQuestion
+allowed-tools: Read Glob Grep Write Bash Task AskUserQuestion
 ---
 
 # Specification pre-analysis
@@ -53,28 +53,37 @@ the Vigers reference corpus.
 
 **Entry:** A task brief and current template are available.
 
-1. Build a source index and inspect only material needed to answer the preliminary
-   questions. Classify facts, contradictions and assumptions. For every unknown,
+1. Build a source index. For every search record the exact query, authority, result
+   (`found|negative|unavailable`), timestamp and freshness. Classify facts,
+   contradictions and assumptions. Maintain explicit coverage surfaces and stop broad
+   discovery when their verdict is `sufficient`; reopen research only for an exact gap
+   or falsifying question. For every unknown,
    choose exactly one disposition: continue research, ask the user a direct question,
    request evidence from a named external owner, or prove that it is implementation-only.
 2. Materialize the applicable requirements method route, normally `scope-users` or
    `elicitation`, and pass its path/hash to `spec-preanalyst`.
 3. Form a preliminary problem, goal, solution hypothesis, scope and dependencies.
-4. Draft preliminary user stories without promoting them to approved requirements.
+4. Draft evidence-linked preliminary user stories and preliminary DoD with confidence,
+   without promoting them to approved requirements.
 5. Read [the solution-boundary contract](../../rules/solution-boundary.md). Classify the
    hypothesis as `tactical`, `bounded-systemic` or `generalized-capability`; record the
    root capability, invariants, confirmed and hypothesized variants, current scope,
    extension seams or their absence reason, deferred variants and expansion triggers.
-   Treat `bounded-systemic` as the default, not as a compromise chosen without analysis,
-   and pass the contract path/hash to `spec-preanalyst`.
-6. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
+   Treat `bounded-systemic` as the default, not as a compromise chosen without analysis.
+   Select the implementation transition (`evolve-in-place|replace-and-remove|staged-migration`)
+   or explicitly mark it not applicable, and pass the contract path/hash to
+   `spec-preanalyst`.
+6. Evaluate the triggers in `rules/architecture-analysis.md`. If triggered, assign a
+   fresh `spec-solution-architect` design run before decomposition approval and bind its
+   output path/hash to each affected article. Otherwise record `not-required` with reason.
+7. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
    Remove or defer every mechanism that lacks a current requirement; preserve its
    protected minimum, including an evidence-backed extension seam. This is a semantic
    solution pass, not prose cleanup.
-7. Write the already simplified schema-2 `preanalysis-brief.json` using
+8. Write the already simplified schema-3 `preanalysis-brief.json` using
    [brief-contract.md](references/brief-contract.md).
-8. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
-9. Validate with `scripts/preanalysis.py validate-brief`.
+9. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
+10. Validate with `scripts/preanalysis.py validate-brief`.
 
 **Exit:** A validated preliminary brief exists; facts and hypotheses are distinguishable,
 and no unknown remains an unclassified free-form note.
@@ -111,10 +120,11 @@ block map for the depth passes.
 
 **Entry:** Phases 1–3 completed.
 
-1. Write schema-2 `decomposition-decision.json` using
+1. Write schema-3 `decomposition-decision.json` using
    [decision-contract.md](references/decision-contract.md). Every article carries its
    accepted solution boundary into the specification case.
-2. Write `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
+2. Write schema-2 `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
+   Bind it to the exact brief hash; every task has source refs and observable exit criteria.
 3. Validate all three artifacts.
 4. Present the problem framing, recommendation, estimate range, plan and material
    trade-offs to the user, including the visible `simplicity-spec` result. Batch and ask
@@ -123,7 +133,8 @@ block map for the depth passes.
 5. After the user's choice, approve the decision and plan with exact `decision_ref`.
 6. If separately authorized, sync the approved plan through the project's planning
    adapter (for example `singularity-app`) and record the exact read-back receipt.
-7. Only then initialize each specification with `caseflow.py init`.
+7. Only then initialize each specification with `caseflow.py init --brief ...`. The
+   brief, decision, plan and any architecture design are immutable case inputs.
 
 **Exit:** The brief, approved decomposition and approved plan are valid; any external
 sync has a read-back receipt; no final specification prose was drafted.
@@ -139,6 +150,8 @@ and performs any separately authorized external synchronization.
 - Article count follows independent outcomes and acceptance boundaries.
 - Problem, goal and solution hypothesis are explicit and evidence-linked.
 - Preliminary user stories remain visibly preliminary.
+- Every preliminary US and preliminary DoD is evidence-linked and must later receive an
+  explicit stage-1 disposition; none can disappear during article authoring.
 - Estimate is a justified range or an explicit gap, never an invented deadline.
 - The plan is acyclic and external publication is separately authorized and read back.
 - Implementation layers did not become article boundaries by default.
@@ -155,3 +168,7 @@ and performs any separately authorized external synchronization.
   that cannot change observable requirements or AC are `implementation-only`.
 - Any still-open content input is carried into the earliest applicable stage diff and
   cannot disappear merely because it has an owner.
+- Source coverage has a visible stop verdict, including negative searches and stale or
+  unavailable sources; broad research does not continue after `sufficient`.
+- Architecture analysis runs only on a recorded trigger, and required design is bound
+  by hash before case initialization.

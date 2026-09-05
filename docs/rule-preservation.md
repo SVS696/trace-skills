@@ -26,11 +26,17 @@ TRACE наследует знания Vigers, Delivery Engineering & Co., но �
 проверить outcome, frontier, измеримый progress, drift и следующий falsifier без новой
 стадии или state machine.
 
+Отдельно восстановлены не-FSM правила, которые раньше терялись между артефактами:
+source coverage и negative search, lineage предварительных US/DoD, проверяемые exit
+criteria плана, реализационный transition, условные design/conformance-проходы
+архитектора и diagram decision с render QA. Они встроены в существующие стадии и
+загружаются адресно; новый обязательный workflow-stage не добавлен.
+
 Двусторонняя защита solution boundary сохранена отдельным progressive-disclosure
 контрактом `rules/solution-boundary.md`. Из Vigers перенесены горизонты
 `tactical|bounded-systemic|generalized-capability`, запахи `particular-case` и
 `speculative-generalization`, evidence-backed extension seam и expansion trigger.
-Горизонт фиксируется в schema-2 preliminary brief; старая Vigers state machine для
+Горизонт и transition фиксируются в schema-3 preliminary brief; старая Vigers state machine для
 этого не восстанавливается.
 
 Старые machine transitions, эпохи, профили и команды не переносятся как правила

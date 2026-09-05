@@ -32,6 +32,18 @@ def solution_boundary() -> dict:
             "irreversibility_refs": [],
         },
         "hotfix_exception": None,
+        "implementation_transition": {
+            "status": "selected",
+            "mode": "evolve-in-place",
+            "authoritative_owner": "current-rule-owner",
+            "superseded_paths": [],
+            "coexistence_reason": None,
+            "stages": [],
+            "retirement_trigger": None,
+            "rollback_boundary": None,
+            "evidence_refs": ["SRC-1"],
+            "reason": "The existing owner remains authoritative",
+        },
     }
 
 
@@ -42,11 +54,66 @@ class CaseFlowTests(unittest.TestCase):
         self.case_root = self.root / "case"
         self.template = self.root / "template.md"
         self.template.write_text("# Template\n", encoding="utf-8")
+        self.brief = self.root / "preanalysis-brief.json"
+        self.brief.write_text(
+            json.dumps(
+                {
+                    "schema": 3,
+                    "subject_id": "CASE-1",
+                    "sources": [
+                        {
+                            "id": "SRC-1",
+                            "kind": "request",
+                            "ref": "request-1",
+                            "query": "Resolve requested behavior",
+                            "authority": "user-request",
+                            "status": "found",
+                            "checked_at": "2026-09-06T10:00:00+00:00",
+                            "freshness": "current",
+                        }
+                    ],
+                    "facts": [
+                        {"id": "F-1", "statement": "Requested behavior", "evidence_refs": ["SRC-1"]}
+                    ],
+                    "contradictions": [],
+                    "coverage": {
+                        "verdict": "sufficient",
+                        "surfaces": [
+                            {
+                                "id": "COV-1",
+                                "question": "What must the article specify?",
+                                "status": "covered",
+                                "source_refs": ["SRC-1"],
+                                "gap_refs": [],
+                            }
+                        ],
+                    },
+                    "problem": {"statement": "Problem", "evidence_refs": ["SRC-1"]},
+                    "goal": {"statement": "Goal", "evidence_refs": ["SRC-1"]},
+                    "solution_hypothesis": {"statement": "Hypothesis", "evidence_refs": ["SRC-1"]},
+                    "solution_boundary": solution_boundary(),
+                    "architecture_gate": {
+                        "status": "not-required",
+                        "triggers": [],
+                        "reason": "No architectural boundary changes",
+                    },
+                    "preliminary_user_stories": [],
+                    "preliminary_definition_of_done": [],
+                    "scope_in": [],
+                    "scope_out": [],
+                    "unknowns": [],
+                    "assumptions": [],
+                    "dependencies": [],
+                    "estimate": {"status": "unavailable", "reason": "No implementation contour"},
+                }
+            ),
+            encoding="utf-8",
+        )
         self.decision = self.root / "decision.json"
         self.decision.write_text(
             json.dumps(
                 {
-                    "schema": 1,
+                    "schema": 3,
                     "subject_id": "CASE-1",
                     "status": "approved",
                     "decision_ref": "user-message-1",
@@ -63,6 +130,15 @@ class CaseFlowTests(unittest.TestCase):
                             "acceptance_boundary": "Boundary",
                             "dependencies": [],
                             "composition": "article-led",
+                            "solution_boundary": solution_boundary(),
+                            "architecture": {
+                                "status": "not-required",
+                                "triggers": [],
+                                "design_ref": None,
+                                "design_sha256": None,
+                                "design_run_id": None,
+                                "reason": "No architectural boundary changes",
+                            },
                             "blocks": [
                                 {"id": "B01", "title": "One"},
                                 {"id": "B02", "title": "Two"},
@@ -77,10 +153,11 @@ class CaseFlowTests(unittest.TestCase):
         self.plan.write_text(
             json.dumps(
                 {
-                    "schema": 1,
+                    "schema": 2,
                     "subject_id": "CASE-1",
                     "status": "approved",
                     "decision_ref": "user-message-1",
+                    "brief_sha256": caseflow.digest(self.brief),
                     "route": "specification",
                     "article_ids": ["CASE-1"],
                     "tasks": [
@@ -89,6 +166,9 @@ class CaseFlowTests(unittest.TestCase):
                             "title": "Prepare CASE-1",
                             "output": "Reviewed article",
                             "depends_on": [],
+                            "source_refs": ["SRC-1"],
+                            "exit_criteria": ["Reviewed article exists"],
+                            "checklist": [],
                         }
                     ],
                     "external_sync": {"status": "not_requested"},
@@ -100,10 +180,22 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(
                 case_root=self.case_root,
                 template=self.template,
+                brief=self.brief,
                 decision=self.decision,
                 plan=self.plan,
                 article_id="CASE-1",
             )
+        )
+        self.write(
+            "preanalysis-lineage.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "brief_sha256": caseflow.digest(self.brief),
+                    "user_stories": [],
+                    "definition_of_done": [],
+                }
+            ),
         )
 
     def tearDown(self) -> None:
@@ -1285,6 +1377,7 @@ class CaseFlowTests(unittest.TestCase):
                 argparse.Namespace(
                     case_root=self.root / "second-case",
                     template=self.template,
+                    brief=self.brief,
                     decision=self.decision,
                     plan=mismatched,
                     article_id="CASE-1",
@@ -1484,10 +1577,97 @@ class CaseFlowTests(unittest.TestCase):
             context["read_set"],
         )
 
+    def test_stage_one_context_keeps_the_bound_preanalysis_brief(self) -> None:
+        context = caseflow.command_context(
+            argparse.Namespace(case_root=self.case_root, block="ARTICLE", lane=None)
+        )
+        self.assertIn(str(self.brief.resolve()), context["read_set"])
+
+    def test_stage_one_stitch_requires_complete_preanalysis_lineage(self) -> None:
+        (self.case_root / "preanalysis-lineage.json").unlink()
+        self.submit_stage_one()
+        caseflow.command_open_stitch(argparse.Namespace(case_root=self.case_root))
+        report = self.write("stitches/stage-01.md")
+        pool = self.write(
+            "diffs/stage-01-required.json",
+            json.dumps({"schema": 1, "stage": 1, "deferred_inputs": [], "items": []}),
+        )
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "missing file"):
+            caseflow.command_record_stitch(
+                argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
+            )
+
+    def test_preanalysis_lineage_accounts_for_every_preliminary_item_once(self) -> None:
+        brief = json.loads(self.brief.read_text(encoding="utf-8"))
+        brief["preliminary_user_stories"] = [{"id": "PUS-1"}]
+        lineage = {
+            "schema": 1,
+            "brief_sha256": "b" * 64,
+            "user_stories": [],
+            "definition_of_done": [],
+        }
+        with self.assertRaisesRegex(caseflow.CaseFlowError, r"missing=\['PUS-1'\]"):
+            caseflow.validate_preanalysis_lineage(lineage, brief, "b" * 64)
+
+    def test_architecture_report_binds_design_and_article_bytes(self) -> None:
+        article = self.write("articles/architecture-subject.md", "# Article\n")
+        report = self.write(
+            "architecture/conformance.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "mode": "conformance",
+                    "actor": {"role": "spec-solution-architect", "run_id": "arch-run-1"},
+                    "subject": {
+                        "path": "articles/architecture-subject.md",
+                        "sha256": caseflow.digest(article),
+                    },
+                    "design_sha256": "a" * 64,
+                    "status": "conform",
+                    "findings": [],
+                }
+            ),
+        )
+        validated, _ = caseflow.validate_architecture_report(
+            self.case_root,
+            report,
+            article,
+            {"design_sha256": "a" * 64, "design_run_id": "design-run-1"},
+        )
+        self.assertEqual(validated["status"], "conform")
+
+    def test_architecture_design_binds_the_assigned_run_and_triggers(self) -> None:
+        design = self.write(
+            "architecture/design.json",
+            json.dumps(
+                {
+                    "schema": 1,
+                    "mode": "design",
+                    "actor": {"role": "spec-solution-architect", "run_id": "design-run-1"},
+                    "status": "designed",
+                    "triggers": ["component-boundary"],
+                    "decisions": [
+                        {
+                            "id": "AD-1",
+                            "surface": "component-boundary",
+                            "decision": "Keep one owner",
+                            "reason": "The existing component owns the invariant",
+                        }
+                    ],
+                    "gaps": [],
+                }
+            ),
+        )
+        validated = caseflow.validate_architecture_design(
+            design,
+            {"design_run_id": "design-run-1", "triggers": ["component-boundary"]},
+        )
+        self.assertEqual(validated["status"], "designed")
+
     def test_solution_boundary_survives_case_initialization_and_context(self) -> None:
         boundary = solution_boundary()
         decision_payload = json.loads(self.decision.read_text(encoding="utf-8"))
-        decision_payload["schema"] = 2
+        decision_payload["schema"] = 3
         decision_payload["articles"][0]["solution_boundary"] = boundary
         decision_path = self.root / "decision-v2.json"
         decision_path.write_text(json.dumps(decision_payload), encoding="utf-8")
@@ -1497,6 +1677,7 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(
                 case_root=case_root,
                 template=self.template,
+                brief=self.brief,
                 decision=decision_path,
                 plan=self.plan,
                 article_id="CASE-1",
@@ -1583,6 +1764,7 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(
                 case_root=article_case,
                 template=self.template,
+                brief=self.brief,
                 decision=decision,
                 plan=self.plan,
                 article_id="CASE-1",

@@ -53,6 +53,9 @@ model. The library contains exact mirrored distillates; this skill emits one bou
 
 6. Give the agent the generated basis path and hash. Do not give it the full source
    library or another block/lane basis.
+   If the basis names `rules/diagram-contract.md`, load that one active contract only
+   for the assigned diagram surface. Materialization rewrites the archived mirror's
+   dead relative reference without modifying the pinned source bytes.
 
 ## Boundaries
 

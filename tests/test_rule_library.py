@@ -24,6 +24,14 @@ class RuleLibraryTests(unittest.TestCase):
             self.assertIn("D07. Варианты использования", text)
             self.assertNotIn("C03. Доступность", text)
 
+    def test_requirements_basis_routes_diagram_gate_to_active_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "basis.md"
+            rule_library.materialize("requirements", ["modeling"], output)
+            text = output.read_text(encoding="utf-8")
+            self.assertIn("rules/diagram-contract.md", text)
+            self.assertNotIn("`references/diagram-contract.md`", text)
+
     def test_delivery_route_includes_core_but_not_other_lanes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "basis.md"

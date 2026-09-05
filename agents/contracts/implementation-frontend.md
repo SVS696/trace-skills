@@ -11,6 +11,8 @@ and `handoff_output`.
 - Work only inside `owned_paths`; coordinate before touching shared files.
 - Implement only `current_scope`, preserve the accepted localized extension seam, and
   do not build deferred variants or change the solution horizon inside the lane.
+- Follow the approved `implementation_transition`: keep its authoritative owner, do not
+  add behavior to superseded paths, and satisfy named retirement/rollback conditions.
 - Bind behavior to the exact screen, trigger, mutable method/path and response use.
 - Implement only the assigned consumer duties. Do not reconstruct authoritative server
   state, add local fallback data or treat hidden controls as Backend enforcement unless

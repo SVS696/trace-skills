@@ -15,6 +15,8 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 - Предварительный анализ выбирает горизонт решения
   `tactical|bounded-systemic|generalized-capability`: текущий scope не расширяется без
   evidence, но доказанная вариативность не схлопывается в одноразовый hardcode.
+- Предварительный brief фиксирует coverage источников, negative results, preliminary
+  US/DoD и реализационный переход; approved plan привязан к его hash.
 - Каждая постановка сначала прорабатывается целиком по всему неизменяемому шаблону.
 - Только после появления сквозной модели анализ опускается на уровень семантических
   блоков. Блоки углубляют и проверяют статью, а не становятся самостоятельными
@@ -34,6 +36,10 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 - Перед финальным review статьи отдельные узкие роли выполняют `simplicity-spec` и
   `humanizer`; перед независимой проверкой реализации — `simplicity-code`. Чтение
   файла скилла или упоминание его имени не считается выполненным проходом.
+- Архитектор включается только по зафиксированному триггеру. Design до approval и
+  conformance по готовой статье выполняются разными run; findings входят в общий diff.
+- Диаграмма появляется только для точного вопроса и закрывается проверкой фактического
+  render, а не одним просмотром исходника.
 - Длинный turn получает от Smoke Break временной trigger для короткого `P23 COURSE-CHECK`:
   исходный outcome, активный frontier, измеримый progress, drift и следующий falsifier.
   Это проверка внутри текущей стадии, а не новая state machine.
@@ -45,7 +51,7 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 | Компонент | Назначение |
 |---|---|
 | `method-library` | Адресная материализация книжных правил Vigers и Delivery |
-| `spec-preanalysis` | Сбор данных, problem framing, предварительные US, оценка, план и декомпозиция |
+| `spec-preanalysis` | Coverage источников, problem framing, предварительные US/DoD, оценка, план и декомпозиция |
 | `spec-workflow` | Сквозной черновик, поблочное углубление и контрольные проекции статьи |
 | `delivery-workflow` | Опциональная разработка с теми же integration barriers |
 | `process-timer` | Независимый журнал времени и событий для Work Metrics |
@@ -86,6 +92,7 @@ Codex использует upstream-плагин, а для Claude Code репо
 python3 scripts/caseflow.py init \
   --case-root .workflow/cases/CASE-123 \
   --template /absolute/path/to/current-template.md \
+  --brief /absolute/path/to/preanalysis-brief.json \
   --decision /absolute/path/to/decomposition-decision.json \
   --plan /absolute/path/to/execution-plan.json \
   --article-id CASE-123

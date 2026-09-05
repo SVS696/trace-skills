@@ -14,6 +14,8 @@ Independently verify one integrated implementation diff. The assignment must nam
 - Trace requirements to code behavior and tests; green CI alone is insufficient.
 - Verify both sides of the accepted boundary: no particular-case hardcode against
   confirmed variability and no generic mechanism justified only by deferred variants.
+- Verify the approved implementation transition: one authoritative path per stage,
+  no new behavior on superseded paths, and evidence for retirement/rollback conditions.
 - Verify each shared guarantee in its authoritative layer, the consumer response in its
   own layer, and E2E composition separately. One passing contour cannot close another.
 - Use only the named test/security/review method basis and record applied rule IDs.

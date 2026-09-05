@@ -1,16 +1,26 @@
 # Preliminary brief contract
 
-New `preanalysis-brief.json` artifacts use schema 2. The validator keeps schema 1
-readable for already started cases, but new preliminary analysis must not emit it.
+New `preanalysis-brief.json` artifacts use schema 3. The validator keeps schemas 1 and
+2 readable for already started cases, but `caseflow init` accepts only schema 3.
 
-Schema 2 contains:
+Schema 3 contains:
 
 - `subject_id`;
-- `sources`: stable `id`, `kind`, and `ref` entries;
+- `sources`: stable `id`, `kind`, `ref`, exact `query`, `authority`,
+  `status=found|negative|unavailable`, ISO `checked_at` and
+  `freshness=current|stale|unknown`;
+- evidence-linked `facts` and `contradictions`; a resolved contradiction names its
+  resolution;
+- `coverage.verdict=sufficient|partial|blocked` and non-empty checked surfaces. Every
+  non-covered surface references classified unknown ids through `gap_refs`;
 - `problem`, `goal`, and `solution_hypothesis`, each with `statement` and
   `evidence_refs`;
 - `solution_boundary` following `rules/solution-boundary.md`;
-- `preliminary_user_stories`: `id`, `actor`, `need`, and `value`;
+- `architecture_gate` following `rules/architecture-analysis.md`;
+- `preliminary_user_stories`: `id`, `actor`, `need`, `value`, non-empty
+  `evidence_refs`, and `confidence=low|medium|high`;
+- `preliminary_definition_of_done`: `id`, `criterion`, observable `evidence`,
+  non-empty `evidence_refs`, and confidence;
 - `scope_in`, `scope_out`, `unknowns`, `assumptions`, and `dependencies` arrays;
 - `estimate`.
 
@@ -36,7 +46,19 @@ Schema 2 contains:
     "roadmap_refs": [],
     "irreversibility_refs": []
   },
-  "hotfix_exception": null
+  "hotfix_exception": null,
+  "implementation_transition": {
+    "status": "selected",
+    "mode": "evolve-in-place",
+    "authoritative_owner": "current-capability-owner",
+    "superseded_paths": [],
+    "coexistence_reason": null,
+    "stages": [],
+    "retirement_trigger": null,
+    "rollback_boundary": null,
+    "evidence_refs": ["SRC-001"],
+    "reason": "The current owner can evolve without a parallel path"
+  }
 }
 ```
 
@@ -55,10 +77,26 @@ based only on `hypothesized_variants` is invalid. `bounded-systemic` is the defa
 horizon for an ordinary task, but still requires the recorded systemic boundary.
 
 This boundary is the preliminary subject-level result. After `single|split` routing,
-schema-2 `decomposition-decision.json` carries the applicable boundary on every article.
+schema-3 `decomposition-decision.json` carries the applicable boundary on every article.
 For `single`, preserve the brief boundary unless later evidence changed it explicitly.
 For `split`, derive article-specific boundaries from the same source index; different
 independently accepted outcomes may legitimately have different horizons.
+
+`implementation_transition` is `not-applicable` or `selected`. Selected modes are
+`evolve-in-place`, `replace-and-remove`, and `staged-migration`. Replacement and staged
+migration name superseded paths, retirement trigger and rollback boundary. Staged
+migration also gives the evidence-backed coexistence reason and one authoritative owner
+for each named stage. The old path never receives new business behavior merely to ease
+migration.
+
+`architecture_gate.status=required` names one or more exact triggers from
+`rules/architecture-analysis.md`; `not-required` has no triggers and explains why. A
+`tactical` or `generalized-capability` horizon always requires architecture analysis.
+
+Coverage is an explicit stopping rule. `sufficient` permits no partial/uncovered
+surface and stops broad discovery. More research then needs an exact missing question,
+named source surface and stop condition; model curiosity alone is not a reason to widen
+the corpus.
 
 Every `unknowns` entry is an object with `id`, `statement`, `disposition`,
 `blocks_specification`, and `reason`. Allowed dispositions are:

@@ -17,18 +17,24 @@
      style profile and bounded publication rules, including reader-version history.
    Both follow [quality-pass.md](../../../rules/quality-pass.md). Reading a `SKILL.md`, mentioning the
    gate, or returning an informal "looks clean" is not a pass.
-3. Give the article and both reports to `spec-integration-editor`. It creates one stitch
+   If the case has a bound architecture design, dispatch a separate
+   `spec-solution-architect` conformance run against the same article bytes and design
+   hash. Do not load or run it for `not-required`.
+3. Give the article and required reports to `spec-integration-editor`. It creates one stitch
    report and one diff-pool. Every reported finding is represented by its exact
    `source_finding_id`; simplicity and language changes are not hidden edits.
+   Architecture findings use the same mechanism and the same pool.
 4. Register the stitch with `record-stitch --simplicity-report ... --humanizer-report
-   ...`, apply only that pool, and verify both each exact change and the full finding
+   ... [--architecture-report ...]`, apply only that pool, and verify both each exact change and the full finding
    class. A language change must preserve normative meaning and traceability.
 5. Close the stage 4 pool, run `advance` to record `content_ready_at`, then run
    `finalize-article`. A blocking input may close only as `verified`, after its
    answer/evidence is present in the article; it cannot be waived. `record-review`
    rejects migrated or manually advanced cases without this readiness marker.
 6. Run deterministic project checks for links, tables, diagrams and template-required
-   sections. If they change the article, register the new fingerprint with
+   sections. Required diagrams also follow `rules/diagram-contract.md`: compare text and
+   semantic IDs, then inspect the actual rendered output for readability. If checks
+   change the article, register the new fingerprint with
    `article-updated` before invoking review.
 7. Invoke `revmux` on the article diff using its standard workflow. Use
    `comprehensive` for the first substantive round. Before every later round, count

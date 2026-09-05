@@ -37,17 +37,22 @@ applicable method rule IDs; do not preserve old state-machine verdicts. Use
 **Entry:** Inventory completed.
 
 1. Run `spec-preanalysis` against the current subject and carried evidence.
-2. Rebuild the brief: sources, problem, goal, solution hypothesis, preliminary user
-   stories, scope, classified unknowns, dependencies and estimate. Do not copy legacy
+2. Rebuild the current schema-3 brief: source queries/results/freshness and coverage,
+   problem, goal, solution hypothesis, preliminary user stories and DoD, solution
+   boundary plus implementation transition, architecture gate, scope, classified
+   unknowns, dependencies and estimate. Do not copy legacy
    `unknown` strings unchanged: research them, turn them into direct user questions,
    name the external evidence owner, or prove they are implementation-only.
 3. Decide whether the subject needs one specification or several, then define semantic
    depth blocks for each article-led case.
-4. Create the execution plan. External plan synchronization remains optional and
+4. Create the schema-2 execution plan bound to the brief hash, with source refs and exit
+   criteria. External plan synchronization remains optional and
    requires separate authorization plus read-back.
 5. Start each specification case at stage 1. If a trustworthy full article already
    exists, submit it as the candidate whole-template baseline; do not skip directly to
    block stages merely because legacy block artifacts exist.
+   Bind the rebuilt brief through `caseflow init --brief`; stage 1 must record the final
+   disposition of every preliminary US/DoD.
 6. Create a migration diff listing missing or stale material. Every still-open input
    that can change requirements, scenarios or AC is a blocking item assigned to the
    earliest applicable new stage; an owner label does not make it non-blocking.
@@ -68,6 +73,8 @@ not transfer automatically. Run the work-style `humanizer` pass before delivery.
 - No old artifact was overwritten.
 - No old PASS was presented as current acceptance.
 - The preanalysis decision precedes the proposed stage-1 baseline.
+- The new case binds current brief/decision/plan schemas; old artifacts are evidence,
+  not substitutes for those contracts.
 - The stage-1 baseline has evidence-based entry criteria and covers the whole template.
 - Direct user questions have been asked before claiming their affected entry criteria;
   unanswered content questions remain blocking diff items, never harmless backlog.

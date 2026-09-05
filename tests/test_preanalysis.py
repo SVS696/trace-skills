@@ -73,7 +73,167 @@ def boundary_brief() -> dict:
     }
 
 
+def current_brief() -> dict:
+    payload = boundary_brief()
+    payload["schema"] = 3
+    for source in payload["sources"]:
+        source.update(
+            {
+                "query": f"Resolve {source['id']}",
+                "authority": "project-source",
+                "status": "found",
+                "checked_at": "2026-09-06T10:00:00+00:00",
+                "freshness": "current",
+            }
+        )
+    payload["facts"] = [
+        {"id": "F-1", "statement": "Observed fact", "evidence_refs": ["SRC-1"]}
+    ]
+    payload["contradictions"] = []
+    payload["coverage"] = {
+        "verdict": "sufficient",
+        "surfaces": [
+            {
+                "id": "COV-1",
+                "question": "What behavior is required?",
+                "status": "covered",
+                "source_refs": ["SRC-1"],
+                "gap_refs": [],
+            }
+        ],
+    }
+    payload["preliminary_user_stories"] = [
+        {
+            "id": "PUS-1",
+            "actor": "Operator",
+            "need": "Run the behavior",
+            "value": "Complete the job",
+            "evidence_refs": ["SRC-1"],
+            "confidence": "high",
+        }
+    ]
+    payload["preliminary_definition_of_done"] = [
+        {
+            "id": "PDOD-1",
+            "criterion": "The behavior is observable",
+            "evidence": "Acceptance result",
+            "evidence_refs": ["SRC-1"],
+            "confidence": "medium",
+        }
+    ]
+    payload["solution_boundary"]["implementation_transition"] = {
+        "status": "selected",
+        "mode": "evolve-in-place",
+        "authoritative_owner": "current-rule-owner",
+        "superseded_paths": [],
+        "coexistence_reason": None,
+        "stages": [],
+        "retirement_trigger": None,
+        "rollback_boundary": None,
+        "evidence_refs": ["SRC-2"],
+        "reason": "The current owner remains authoritative",
+    }
+    payload["architecture_gate"] = {
+        "status": "not-required",
+        "triggers": [],
+        "reason": "No architectural boundary changes",
+    }
+    return payload
+
+
 class PreanalysisTests(unittest.TestCase):
+    def test_schema_three_binds_source_coverage_and_preliminary_lineage_inputs(self) -> None:
+        brief = current_brief()
+        self.assertEqual(preanalysis.validate_brief(brief)["schema"], 3)
+        del brief["sources"][0]["query"]
+        with self.assertRaisesRegex(preanalysis.BriefError, "query is required"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_three_requires_evidence_for_pus_and_preliminary_dod(self) -> None:
+        brief = current_brief()
+        brief["preliminary_user_stories"][0]["evidence_refs"] = []
+        with self.assertRaisesRegex(preanalysis.BriefError, "evidence_refs must not be empty"):
+            preanalysis.validate_brief(brief)
+        brief = current_brief()
+        brief["preliminary_definition_of_done"][0]["confidence"] = "certain"
+        with self.assertRaisesRegex(preanalysis.BriefError, "confidence is invalid"):
+            preanalysis.validate_brief(brief)
+
+    def test_staged_transition_requires_retirement_and_authoritative_stages(self) -> None:
+        brief = current_brief()
+        transition = brief["solution_boundary"]["implementation_transition"]
+        transition.update(
+            {
+                "mode": "staged-migration",
+                "superseded_paths": ["legacy-handler"],
+                "coexistence_reason": "Consumers migrate independently",
+                "stages": [],
+                "retirement_trigger": "All consumers use the new path",
+                "rollback_boundary": "Restore the legacy handler",
+            }
+        )
+        with self.assertRaisesRegex(preanalysis.BriefError, "stages must not be empty"):
+            preanalysis.validate_brief(brief)
+
+    def test_current_plan_binds_brief_sources_and_exit_criteria(self) -> None:
+        plan = {
+            "schema": 2,
+            "subject_id": "TASK-1",
+            "status": "approved",
+            "decision_ref": "user-message-1",
+            "brief_sha256": "a" * 64,
+            "route": "specification",
+            "article_ids": ["TASK-1"],
+            "tasks": [
+                {
+                    "id": "P1",
+                    "title": "Analyze",
+                    "output": "article",
+                    "depends_on": [],
+                    "source_refs": ["SRC-1"],
+                    "exit_criteria": ["Article passes its stage gate"],
+                }
+            ],
+            "external_sync": {"status": "not_requested"},
+        }
+        self.assertEqual(preanalysis.validate_plan(plan)["schema"], 2)
+        plan["tasks"][0]["exit_criteria"] = []
+        with self.assertRaisesRegex(preanalysis.PlanError, "exit_criteria must not be empty"):
+            preanalysis.validate_plan(plan)
+
+    def test_sufficient_coverage_rejects_an_open_contradiction(self) -> None:
+        brief = current_brief()
+        brief["contradictions"] = [
+            {
+                "id": "CON-1",
+                "statement": "Sources disagree",
+                "source_refs": ["SRC-1", "SRC-2"],
+                "status": "open",
+            }
+        ]
+        with self.assertRaisesRegex(preanalysis.BriefError, "open contradiction"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_three_decision_requires_architecture_binding_by_horizon(self) -> None:
+        payload = decision()
+        payload["schema"] = 3
+        payload["articles"][0]["solution_boundary"] = copy.deepcopy(
+            current_brief()["solution_boundary"]
+        )
+        payload["articles"][0]["solution_boundary"]["horizon"] = "generalized-capability"
+        payload["articles"][0]["solution_boundary"]["confirmed_variants"].append(
+            {"name": "Second channel", "evidence_refs": ["SRC-2"]}
+        )
+        payload["articles"][0]["architecture"] = {
+            "status": "not-required",
+            "triggers": [],
+            "design_ref": None,
+            "design_sha256": None,
+            "design_run_id": None,
+            "reason": "No architecture changes",
+        }
+        with self.assertRaisesRegex(preanalysis.DecisionError, "requires architecture design"):
+            preanalysis.validate_decision(payload, require_approved=True)
     def test_schema_two_decision_requires_boundary_per_article(self) -> None:
         payload = decision()
         payload["schema"] = 2

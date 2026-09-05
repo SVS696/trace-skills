@@ -6,6 +6,8 @@
    then challenges and deepens user/system scenarios, rules, states, data, interfaces
    and errors for that semantic concern. It returns exact article targets and proposed
    normative changes, not a standalone mini-specification.
+   If its materialized route activates a diagram surface, load only
+   `rules/diagram-contract.md` and return an explicit diagram decision.
 2. Register all `stage-02.md` artifacts.
 3. The integration editor applies compatible block contributions to a new immutable
    stage 2 article projection. At the stitch barrier, compare cross-block state

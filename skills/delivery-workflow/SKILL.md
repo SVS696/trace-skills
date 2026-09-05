@@ -33,7 +33,8 @@ Software Engineering at Google and specialized standard distillates.
    remain dismissed evidence, not implementation work.
 9. Every lane receives the accepted `solution_boundary` from case context. Implement
    current scope and preserve its justified seam, but do not add deferred variants or
-   redesign the horizon. New evidence returns to an explicit `P16` decision.
+   redesign the horizon. Follow its implementation transition and retirement/rollback
+   conditions; new evidence returns to an explicit `P16` decision.
 
 ## When to use
 
@@ -79,6 +80,8 @@ that lane basis and its hash to the agent.
 - Every code change traces to approved scope.
 - The implementation conforms to the accepted solution horizon; a narrow hardcode and
   a speculative generic mechanism are both defects when they contradict its evidence.
+- The approved transition has one authoritative path per stage; no superseded path
+  gained behavior and retirement/rollback evidence is explicit where required.
 - Backend, frontend and shared-contract changes remain inside their declared ownership;
   each layer is verified in its own contour before E2E composition is claimed.
 - Every stage diff-pool is closed with receipts.

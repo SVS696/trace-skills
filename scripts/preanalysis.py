@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,11 @@ ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
 BLOCK_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 UNKNOWN_DISPOSITIONS = {"researchable", "user-decision", "external-owner", "implementation-only"}
 SOLUTION_HORIZONS = {"tactical", "bounded-systemic", "generalized-capability"}
+CONFIDENCE_LEVELS = {"low", "medium", "high"}
+SOURCE_STATUSES = {"found", "negative", "unavailable"}
+SOURCE_FRESHNESS = {"current", "stale", "unknown"}
+TRANSITION_MODES = {"evolve-in-place", "replace-and-remove", "staged-migration"}
+ARCHITECTURE_STATUSES = {"required", "not-required"}
 
 
 class DecisionError(RuntimeError):
@@ -90,7 +96,115 @@ def source_ref_array(
     return refs
 
 
-def validate_solution_boundary(boundary: Any, source_ids: set[str]) -> None:
+def validate_implementation_transition(transition: Any, source_ids: set[str] | None) -> None:
+    if not isinstance(transition, dict):
+        raise BriefError("solution_boundary.implementation_transition must be an object")
+    label = "solution_boundary.implementation_transition"
+    status = transition.get("status")
+    if status not in {"not-applicable", "selected"}:
+        raise BriefError(f"{label}.status is invalid")
+    source_ref_array(transition, "evidence_refs", label, source_ids, non_empty=True)
+    required_text(transition, "reason", label)
+    superseded = text_array(transition, "superseded_paths", label)
+    stages = transition.get("stages")
+    if not isinstance(stages, list):
+        raise BriefError(f"{label}.stages must be an array")
+    if status == "not-applicable":
+        if transition.get("mode") is not None:
+            raise BriefError(f"{label}.mode must be null when transition is not-applicable")
+        if transition.get("authoritative_owner") is not None or superseded or stages:
+            raise BriefError(f"{label} not-applicable cannot declare owners or migration work")
+        for field in ("coexistence_reason", "retirement_trigger", "rollback_boundary"):
+            if transition.get(field) is not None:
+                raise BriefError(f"{label}.{field} must be null when transition is not-applicable")
+        return
+
+    mode = transition.get("mode")
+    if mode not in TRANSITION_MODES:
+        raise BriefError(f"{label}.mode is invalid")
+    required_text(transition, "authoritative_owner", label)
+    if mode == "evolve-in-place":
+        if superseded or stages:
+            raise BriefError(f"{label} evolve-in-place cannot declare superseded paths or stages")
+        for field in ("coexistence_reason", "retirement_trigger", "rollback_boundary"):
+            if transition.get(field) is not None:
+                raise BriefError(f"{label}.{field} must be null for evolve-in-place")
+        return
+    if not superseded:
+        raise BriefError(f"{label}.superseded_paths must not be empty for {mode}")
+    required_text(transition, "retirement_trigger", label)
+    required_text(transition, "rollback_boundary", label)
+    if mode == "replace-and-remove":
+        if stages:
+            raise BriefError(f"{label}.stages must be empty for replace-and-remove")
+        if transition.get("coexistence_reason") is not None:
+            raise BriefError(f"{label}.coexistence_reason must be null for replace-and-remove")
+        return
+    required_text(transition, "coexistence_reason", label)
+    if not stages:
+        raise BriefError(f"{label}.stages must not be empty for staged-migration")
+    names: set[str] = set()
+    for index, stage in enumerate(stages, start=1):
+        stage_label = f"{label}.stages[{index}]"
+        if not isinstance(stage, dict):
+            raise BriefError(f"{stage_label} must be an object")
+        name = required_text(stage, "name", stage_label)
+        required_text(stage, "authoritative_owner", stage_label)
+        if name in names:
+            raise BriefError(f"duplicate implementation transition stage: {name}")
+        names.add(name)
+
+
+def validate_architecture_gate(gate: Any, horizon: str) -> None:
+    if not isinstance(gate, dict):
+        raise BriefError("brief.architecture_gate must be an object")
+    status = gate.get("status")
+    if status not in ARCHITECTURE_STATUSES:
+        raise BriefError("architecture_gate.status is invalid")
+    triggers = text_array(gate, "triggers", "architecture_gate")
+    required_text(gate, "reason", "architecture_gate")
+    if status == "required" and not triggers:
+        raise BriefError("architecture_gate.triggers must not be empty when architecture is required")
+    if status == "not-required" and triggers:
+        raise BriefError("architecture_gate.triggers must be empty when architecture is not required")
+    if horizon in {"tactical", "generalized-capability"} and status != "required":
+        raise BriefError(f"{horizon} horizon requires architecture analysis")
+
+
+def validate_article_architecture(value: Any, horizon: str, label: str) -> None:
+    if not isinstance(value, dict):
+        raise DecisionError(f"{label}.architecture must be an object")
+    status = value.get("status")
+    if status not in {"designed", "not-required"}:
+        raise DecisionError(f"{label}.architecture.status is invalid")
+    triggers = value.get("triggers")
+    if not isinstance(triggers, list) or not all(
+        isinstance(item, str) and item.strip() for item in triggers
+    ):
+        raise DecisionError(f"{label}.architecture.triggers must be an array of strings")
+    required_text(value, "reason", f"{label}.architecture")
+    if status == "designed":
+        if not triggers:
+            raise DecisionError(f"{label}.architecture.triggers must not be empty")
+        required_text(value, "design_ref", f"{label}.architecture")
+        required_text(value, "design_run_id", f"{label}.architecture")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(value.get("design_sha256", ""))):
+            raise DecisionError(f"{label}.architecture.design_sha256 is invalid")
+    elif any(
+        value.get(field) is not None
+        for field in ("design_ref", "design_sha256", "design_run_id")
+    ):
+        raise DecisionError(f"{label}.architecture design binding must be null when not required")
+    if horizon in {"tactical", "generalized-capability"} and status != "designed":
+        raise DecisionError(f"{label} {horizon} horizon requires architecture design")
+
+
+def validate_solution_boundary(
+    boundary: Any,
+    source_ids: set[str] | None,
+    *,
+    require_transition: bool = False,
+) -> None:
     if not isinstance(boundary, dict):
         raise BriefError("brief.solution_boundary must be an object")
     label = "solution_boundary"
@@ -181,11 +295,13 @@ def validate_solution_boundary(boundary: Any, source_ids: set[str]) -> None:
             "generalized-capability requires two confirmed variants, roadmap refs, "
             "or irreversibility refs"
         )
+    if require_transition:
+        validate_implementation_transition(boundary.get("implementation_transition"), source_ids)
 
 
 def validate_brief(payload: Any) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2}:
-        raise BriefError("brief must use schema 1 or 2")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2, 3}:
+        raise BriefError("brief must use schema 1, 2, or 3")
     try:
         required_text(payload, "subject_id", "brief")
         sources = payload.get("sources")
@@ -199,6 +315,18 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             source_id = required_text(source, "id", label)
             required_text(source, "ref", label)
             required_text(source, "kind", label)
+            if payload["schema"] == 3:
+                required_text(source, "query", label)
+                required_text(source, "authority", label)
+                if source.get("status") not in SOURCE_STATUSES:
+                    raise BriefError(f"{label}.status is invalid")
+                checked_at = required_text(source, "checked_at", label)
+                try:
+                    datetime.fromisoformat(checked_at.replace("Z", "+00:00"))
+                except ValueError as exc:
+                    raise BriefError(f"{label}.checked_at must be an ISO timestamp") from exc
+                if source.get("freshness") not in SOURCE_FRESHNESS:
+                    raise BriefError(f"{label}.freshness is invalid")
             if source_id in source_ids:
                 raise BriefError(f"duplicate source id: {source_id}")
             source_ids.add(source_id)
@@ -213,8 +341,36 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             unknown_refs = set(refs) - source_ids
             if unknown_refs:
                 raise BriefError(f"{section} has unknown evidence refs: {sorted(unknown_refs)}")
-        if payload["schema"] == 2:
-            validate_solution_boundary(payload.get("solution_boundary"), source_ids)
+        if payload["schema"] in {2, 3}:
+            validate_solution_boundary(
+                payload.get("solution_boundary"),
+                source_ids,
+                require_transition=payload["schema"] == 3,
+            )
+        if payload["schema"] == 3:
+            has_open_contradiction = False
+            for collection, refs_field in (("facts", "evidence_refs"), ("contradictions", "source_refs")):
+                entries = payload.get(collection)
+                if not isinstance(entries, list):
+                    raise BriefError(f"brief.{collection} must be an array")
+                seen_entries: set[str] = set()
+                for index, entry in enumerate(entries, start=1):
+                    label = f"{collection}[{index}]"
+                    if not isinstance(entry, dict):
+                        raise BriefError(f"{label} must be an object")
+                    entry_id = required_text(entry, "id", label)
+                    required_text(entry, "statement", label)
+                    source_ref_array(entry, refs_field, label, source_ids, non_empty=True)
+                    if collection == "contradictions":
+                        if entry.get("status") not in {"open", "resolved"}:
+                            raise BriefError(f"{label}.status is invalid")
+                        if entry["status"] == "resolved":
+                            required_text(entry, "resolution", label)
+                        else:
+                            has_open_contradiction = True
+                    if entry_id in seen_entries:
+                        raise BriefError(f"duplicate {collection} id: {entry_id}")
+                    seen_entries.add(entry_id)
         stories = payload.get("preliminary_user_stories")
         if not isinstance(stories, list):
             raise BriefError("brief.preliminary_user_stories must be an array")
@@ -226,6 +382,10 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             story_id = required_text(story, "id", label)
             for field in ("actor", "need", "value"):
                 required_text(story, field, label)
+            if payload["schema"] == 3:
+                source_ref_array(story, "evidence_refs", label, source_ids, non_empty=True)
+                if story.get("confidence") not in CONFIDENCE_LEVELS:
+                    raise BriefError(f"{label}.confidence is invalid")
             if story_id in story_ids:
                 raise BriefError(f"duplicate user story id: {story_id}")
             story_ids.add(story_id)
@@ -257,6 +417,65 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             if unknown_id in unknown_ids:
                 raise BriefError(f"duplicate unknown id: {unknown_id}")
             unknown_ids.add(unknown_id)
+        if payload["schema"] == 3:
+            done = payload.get("preliminary_definition_of_done")
+            if not isinstance(done, list):
+                raise BriefError("brief.preliminary_definition_of_done must be an array")
+            done_ids: set[str] = set()
+            for index, criterion in enumerate(done, start=1):
+                label = f"preliminary_definition_of_done[{index}]"
+                if not isinstance(criterion, dict):
+                    raise BriefError(f"{label} must be an object")
+                criterion_id = required_text(criterion, "id", label)
+                required_text(criterion, "criterion", label)
+                required_text(criterion, "evidence", label)
+                source_ref_array(criterion, "evidence_refs", label, source_ids, non_empty=True)
+                if criterion.get("confidence") not in CONFIDENCE_LEVELS:
+                    raise BriefError(f"{label}.confidence is invalid")
+                if criterion_id in done_ids:
+                    raise BriefError(f"duplicate preliminary definition of done id: {criterion_id}")
+                done_ids.add(criterion_id)
+            coverage = payload.get("coverage")
+            if not isinstance(coverage, dict) or coverage.get("verdict") not in {
+                "sufficient", "partial", "blocked"
+            }:
+                raise BriefError("brief.coverage.verdict is invalid")
+            surfaces = coverage.get("surfaces")
+            if not isinstance(surfaces, list) or not surfaces:
+                raise BriefError("brief.coverage.surfaces must be a non-empty array")
+            surface_ids: set[str] = set()
+            has_gap = False
+            for index, surface in enumerate(surfaces, start=1):
+                label = f"coverage.surfaces[{index}]"
+                if not isinstance(surface, dict):
+                    raise BriefError(f"{label} must be an object")
+                surface_id = required_text(surface, "id", label)
+                required_text(surface, "question", label)
+                status = surface.get("status")
+                if status not in {"covered", "partial", "uncovered"}:
+                    raise BriefError(f"{label}.status is invalid")
+                refs = source_ref_array(surface, "source_refs", label, source_ids)
+                gaps = text_array(surface, "gap_refs", label)
+                unknown_gaps = set(gaps) - unknown_ids
+                if unknown_gaps:
+                    raise BriefError(f"{label}.gap_refs has unknown gaps: {sorted(unknown_gaps)}")
+                if status == "covered" and (not refs or gaps):
+                    raise BriefError(f"{label} covered surface requires sources and no gaps")
+                if status != "covered" and not gaps:
+                    raise BriefError(f"{label} {status} surface requires gap_refs")
+                has_gap = has_gap or status != "covered"
+                if surface_id in surface_ids:
+                    raise BriefError(f"duplicate coverage surface id: {surface_id}")
+                surface_ids.add(surface_id)
+            if coverage["verdict"] == "sufficient" and has_gap:
+                raise BriefError("sufficient coverage cannot contain partial or uncovered surfaces")
+            if coverage["verdict"] == "sufficient" and has_open_contradiction:
+                raise BriefError("sufficient coverage cannot contain an open contradiction")
+            if coverage["verdict"] != "sufficient" and not has_gap:
+                raise BriefError("partial or blocked coverage requires an explicit gap")
+            validate_architecture_gate(
+                payload.get("architecture_gate"), payload["solution_boundary"]["horizon"]
+            )
         estimate = payload.get("estimate")
         if not isinstance(estimate, dict):
             raise BriefError("brief.estimate must be an object")
@@ -282,10 +501,14 @@ def validate_brief(payload: Any) -> dict[str, Any]:
 
 
 def validate_plan(payload: Any) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") != 1:
-        raise PlanError("plan must use schema 1")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2}:
+        raise PlanError("plan must use schema 1 or 2")
     try:
         required_text(payload, "subject_id", "plan")
+        if payload["schema"] == 2 and not re.fullmatch(
+            r"[0-9a-f]{64}", str(payload.get("brief_sha256", ""))
+        ):
+            raise PlanError("plan.brief_sha256 is invalid")
         if payload.get("status") not in {"proposed", "approved"}:
             raise PlanError("plan.status must be proposed or approved")
         if payload.get("status") == "approved":
@@ -325,6 +548,27 @@ def validate_plan(payload: Any) -> dict[str, Any]:
                 raise PlanError(f"duplicate task id: {task_id}")
             ids.add(task_id)
             graph[task_id] = dependencies
+            if payload["schema"] == 2:
+                for field in ("source_refs", "exit_criteria"):
+                    values = task.get(field)
+                    if not isinstance(values, list) or not values or not all(
+                        isinstance(item, str) and item.strip() for item in values
+                    ):
+                        raise PlanError(f"{label}.{field} must not be empty")
+                checklist = task.get("checklist", [])
+                if not isinstance(checklist, list):
+                    raise PlanError(f"{label}.checklist must be an array when present")
+                checklist_ids: set[str] = set()
+                for check_index, check in enumerate(checklist, start=1):
+                    check_label = f"{label}.checklist[{check_index}]"
+                    if not isinstance(check, dict):
+                        raise PlanError(f"{check_label} must be an object")
+                    check_id = required_text(check, "id", check_label)
+                    required_text(check, "action", check_label)
+                    required_text(check, "done_when", check_label)
+                    if check_id in checklist_ids:
+                        raise PlanError(f"duplicate checklist id in {task_id}: {check_id}")
+                    checklist_ids.add(check_id)
         for task_id, dependencies in graph.items():
             unknown = set(dependencies) - ids
             if unknown:
@@ -351,8 +595,8 @@ def validate_plan(payload: Any) -> dict[str, Any]:
 
 
 def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2}:
-        raise DecisionError("decision must use schema 1 or 2")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2, 3}:
+        raise DecisionError("decision must use schema 1, 2, or 3")
     required_text(payload, "subject_id", "decision")
     status = payload.get("status")
     if status not in {"proposed", "approved"}:
@@ -393,11 +637,19 @@ def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[s
         composition = article.get("composition")
         if composition != "article-led":
             raise DecisionError(f"{label}.composition must be article-led")
-        if payload["schema"] == 2:
+        if payload["schema"] in {2, 3}:
             try:
-                validate_solution_boundary(article.get("solution_boundary"), None)
+                validate_solution_boundary(
+                    article.get("solution_boundary"),
+                    None,
+                    require_transition=payload["schema"] == 3,
+                )
             except (BriefError, DecisionError) as exc:
                 raise DecisionError(f"{label}.solution_boundary is invalid: {exc}") from exc
+        if payload["schema"] == 3:
+            validate_article_architecture(
+                article.get("architecture"), article["solution_boundary"]["horizon"], label
+            )
         blocks = article.get("blocks")
         if not isinstance(blocks, list):
             raise DecisionError(f"{label}.blocks must be an array")

@@ -20,6 +20,8 @@ try:
         BriefError,
         DecisionError,
         PlanError,
+        validate_article_architecture,
+        validate_brief,
         validate_decision,
         validate_plan,
         validate_solution_boundary,
@@ -29,6 +31,8 @@ except ImportError:  # Direct script execution.
         BriefError,
         DecisionError,
         PlanError,
+        validate_article_architecture,
+        validate_brief,
         validate_decision,
         validate_plan,
         validate_solution_boundary,
@@ -175,6 +179,13 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
         if not isinstance(record, dict):
             raise CaseFlowError(f"case has no {label} fingerprint")
         verify_record(case_root, record, label)
+    if payload.get("preanalysis_brief"):
+        verify_record(case_root, payload["preanalysis_brief"], "preanalysis brief")
+    architecture = payload.get("architecture")
+    if isinstance(architecture, dict) and architecture.get("status") == "designed":
+        design_path = Path(architecture["design_ref"]).expanduser().resolve()
+        if digest(design_path) != architecture.get("design_sha256"):
+            raise CaseFlowError("approved architecture design changed after case initialization")
     article_path = None
     if payload.get("article"):
         article_path = resolve_artifact(case_root, payload["article"]["path"])
@@ -203,6 +214,18 @@ def verify_case_integrity(case_root: Path, payload: dict[str, Any]) -> None:
                 )
         for gate, quality_record in record.get("quality_gates", {}).items():
             verify_record(case_root, quality_record, f"stage {stage} {gate} report")
+        if record.get("preanalysis_lineage"):
+            verify_record(
+                case_root,
+                record["preanalysis_lineage"],
+                f"stage {stage} preanalysis lineage",
+            )
+        if record.get("architecture_conformance"):
+            verify_record(
+                case_root,
+                record["architecture_conformance"],
+                f"stage {stage} architecture conformance",
+            )
         if record.get("diff_pool"):
             verify_record(case_root, record["diff_pool"], f"stage {stage} diff pool")
     for index, round_record in enumerate(payload.get("review_rounds", []), start=1):
@@ -250,7 +273,12 @@ def load_case(case_root: Path) -> dict[str, Any]:
     boundary = payload.get("solution_boundary")
     if boundary is not None:
         try:
-            validate_solution_boundary(boundary, None)
+            current_contract = bool(payload.get("preanalysis_brief"))
+            validate_solution_boundary(boundary, None, require_transition=current_contract)
+            if current_contract:
+                validate_article_architecture(
+                    payload.get("architecture"), boundary["horizon"], "case"
+                )
         except (BriefError, DecisionError) as exc:
             raise CaseFlowError(f"case solution boundary is invalid: {exc}") from exc
     if payload.get("composition") != "article-led":
@@ -666,6 +694,160 @@ def require_quality_findings_in_pool(
         raise CaseFlowError(f"quality findings missing from required diff: {', '.join(missing)}")
 
 
+def validate_preanalysis_lineage(
+    payload: Any,
+    brief: dict[str, Any],
+    brief_sha256: str,
+) -> dict[str, Any]:
+    if not isinstance(payload, dict) or payload.get("schema") != 1:
+        raise CaseFlowError("preanalysis lineage must use schema 1")
+    if payload.get("brief_sha256") != brief_sha256:
+        raise CaseFlowError("preanalysis lineage is not bound to the approved brief")
+    dispositions = {"confirmed", "changed", "split", "rejected"}
+    for field, brief_field in (
+        ("user_stories", "preliminary_user_stories"),
+        ("definition_of_done", "preliminary_definition_of_done"),
+    ):
+        entries = payload.get(field)
+        if not isinstance(entries, list):
+            raise CaseFlowError(f"preanalysis lineage {field} must be an array")
+        expected = {item["id"] for item in brief.get(brief_field, [])}
+        seen: set[str] = set()
+        for index, entry in enumerate(entries, start=1):
+            label = f"{field}[{index}]"
+            if not isinstance(entry, dict):
+                raise CaseFlowError(f"preanalysis lineage {label} must be an object")
+            preliminary_id = entry.get("preliminary_id")
+            if not isinstance(preliminary_id, str) or not preliminary_id.strip():
+                raise CaseFlowError(f"preanalysis lineage {label}.preliminary_id is required")
+            disposition = entry.get("disposition")
+            if disposition not in dispositions:
+                raise CaseFlowError(f"preanalysis lineage {label}.disposition is invalid")
+            final_refs = entry.get("final_refs")
+            if not isinstance(final_refs, list) or not all(
+                isinstance(item, str) and item.strip() for item in final_refs
+            ):
+                raise CaseFlowError(f"preanalysis lineage {label}.final_refs is invalid")
+            reason = entry.get("reason")
+            if not isinstance(reason, str) or not reason.strip():
+                raise CaseFlowError(f"preanalysis lineage {label}.reason is required")
+            if disposition == "confirmed" and len(final_refs) != 1:
+                raise CaseFlowError(f"preanalysis lineage {label} confirmed requires one final ref")
+            if disposition == "changed" and len(final_refs) != 1:
+                raise CaseFlowError(f"preanalysis lineage {label} changed requires one final ref")
+            if disposition == "split" and len(final_refs) < 2:
+                raise CaseFlowError(f"preanalysis lineage {label} split requires at least two final refs")
+            if disposition == "rejected" and final_refs:
+                raise CaseFlowError(f"preanalysis lineage {label} rejected cannot have final refs")
+            if preliminary_id in seen:
+                raise CaseFlowError(f"duplicate preanalysis lineage id: {preliminary_id}")
+            seen.add(preliminary_id)
+        if seen != expected:
+            missing = sorted(expected - seen)
+            extra = sorted(seen - expected)
+            raise CaseFlowError(
+                f"preanalysis lineage {field} mismatch; missing={missing}, extra={extra}"
+            )
+    return payload
+
+
+def validate_architecture_report(
+    case_root: Path,
+    report_path: Path,
+    article_path: Path,
+    architecture: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    article_path = article_path.resolve()
+    report = read_json(report_path)
+    if not isinstance(report, dict) or report.get("schema") != 1:
+        raise CaseFlowError("architecture conformance report must use schema 1")
+    if report.get("mode") != "conformance":
+        raise CaseFlowError("architecture report mode must be conformance")
+    actor = report.get("actor")
+    if (
+        not isinstance(actor, dict)
+        or actor.get("role") != "spec-solution-architect"
+        or not isinstance(actor.get("run_id"), str)
+        or not actor["run_id"].strip()
+    ):
+        raise CaseFlowError("architecture report has no assigned architect run")
+    subject = report.get("subject")
+    if (
+        not isinstance(subject, dict)
+        or not isinstance(subject.get("path"), str)
+        or subject.get("sha256") != digest(article_path)
+        or resolve_artifact(case_root, subject["path"]) != article_path
+    ):
+        raise CaseFlowError("architecture report is not bound to the submitted article")
+    if report.get("design_sha256") != architecture.get("design_sha256"):
+        raise CaseFlowError("architecture report is not bound to the approved design")
+    if actor["run_id"] == architecture.get("design_run_id"):
+        raise CaseFlowError("architecture design and conformance require separate runs")
+    findings = report.get("findings")
+    if not isinstance(findings, list):
+        raise CaseFlowError("architecture report findings must be an array")
+    finding_ids: set[str] = set()
+    for finding in findings:
+        if not isinstance(finding, dict):
+            raise CaseFlowError("architecture report contains an invalid finding")
+        for field in ("id", "target", "change", "reason"):
+            if not isinstance(finding.get(field), str) or not finding[field].strip():
+                raise CaseFlowError(f"architecture finding.{field} is required")
+        if finding["id"] in finding_ids:
+            raise CaseFlowError(f"duplicate architecture finding id: {finding['id']}")
+        finding_ids.add(finding["id"])
+    expected_status = "changes-required" if findings else "conform"
+    if report.get("status") != expected_status:
+        raise CaseFlowError(f"architecture report status must be {expected_status}")
+    record = {
+        "path": relative_or_absolute(case_root, report_path),
+        "sha256": digest(report_path),
+        "subject": subject,
+        "actor": actor,
+        "status": report["status"],
+        "recorded_at": now(),
+    }
+    return report, record
+
+
+def validate_architecture_design(
+    design_path: Path,
+    architecture: dict[str, Any],
+) -> dict[str, Any]:
+    design = read_json(design_path)
+    if not isinstance(design, dict) or design.get("schema") != 1:
+        raise CaseFlowError("architecture design must use schema 1")
+    if design.get("mode") != "design" or design.get("status") != "designed":
+        raise CaseFlowError("architecture design must be a completed design result")
+    actor = design.get("actor")
+    if (
+        not isinstance(actor, dict)
+        or actor.get("role") != "spec-solution-architect"
+        or actor.get("run_id") != architecture.get("design_run_id")
+    ):
+        raise CaseFlowError("architecture design does not match its assigned architect run")
+    triggers = design.get("triggers")
+    if (
+        not isinstance(triggers, list)
+        or not all(isinstance(item, str) and item.strip() for item in triggers)
+        or not set(architecture["triggers"]).issubset(set(triggers))
+    ):
+        raise CaseFlowError("architecture design does not cover every approved trigger")
+    decisions = design.get("decisions")
+    gaps = design.get("gaps")
+    if not isinstance(decisions, list) or not decisions or not all(
+        isinstance(item, dict)
+        and all(isinstance(item.get(field), str) and item[field].strip() for field in (
+            "id", "surface", "decision", "reason"
+        ))
+        for item in decisions
+    ):
+        raise CaseFlowError("architecture design decisions are invalid")
+    if gaps != []:
+        raise CaseFlowError("approved architecture design cannot contain unresolved gaps")
+    return design
+
+
 def command_init(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     if manifest_path(case_root).exists():
@@ -673,20 +855,46 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     template = args.template.expanduser().resolve()
     if not template.is_file():
         raise CaseFlowError(f"template does not exist: {template}")
+    brief_arg = getattr(args, "brief", None)
+    if brief_arg is None:
+        raise CaseFlowError("current case initialization requires --brief")
+    brief_path = brief_arg.expanduser().resolve()
+    try:
+        brief = validate_brief(read_json(brief_path))
+    except BriefError as exc:
+        raise CaseFlowError(str(exc)) from exc
+    if brief.get("schema") != 3:
+        raise CaseFlowError("new cases require preanalysis brief schema 3")
     decision_path = args.decision.expanduser().resolve()
     try:
         decision = validate_decision(read_json(decision_path), require_approved=True)
     except DecisionError as exc:
         raise CaseFlowError(str(exc)) from exc
+    if decision.get("schema") != 3:
+        raise CaseFlowError("new cases require decomposition decision schema 3")
     plan_path = args.plan.expanduser().resolve()
     try:
         plan = validate_plan(read_json(plan_path))
     except PlanError as exc:
         raise CaseFlowError(str(exc)) from exc
+    if plan.get("schema") != 2:
+        raise CaseFlowError("new cases require execution plan schema 2")
     if plan.get("status") != "approved":
         raise CaseFlowError("execution plan must be approved before case initialization")
     if plan["subject_id"] != decision["subject_id"]:
         raise CaseFlowError("execution plan and decomposition decision have different subjects")
+    if brief["subject_id"] != decision["subject_id"]:
+        raise CaseFlowError("preanalysis brief and decomposition decision have different subjects")
+    brief_sha256 = digest(brief_path)
+    if plan["brief_sha256"] != brief_sha256:
+        raise CaseFlowError("execution plan is not bound to the approved brief")
+    brief_source_ids = {source["id"] for source in brief["sources"]}
+    for task in plan["tasks"]:
+        unknown_refs = set(task["source_refs"]) - brief_source_ids
+        if unknown_refs:
+            raise CaseFlowError(
+                f"execution plan task {task['id']} has unknown source refs: {sorted(unknown_refs)}"
+            )
     if plan["decision_ref"] != decision["decision_ref"]:
         raise CaseFlowError("execution plan and decomposition decision have different decision_ref")
     article_ids = {article["id"] for article in decision["articles"]}
@@ -698,6 +906,34 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     if not matches:
         raise CaseFlowError(f"article id is not present in decision: {args.article_id}")
     article = matches[0]
+    if (
+        decision["decision"] == "single"
+        and article["solution_boundary"] != brief["solution_boundary"]
+    ):
+        raise CaseFlowError("single-article decision changed the approved solution boundary")
+    architecture = dict(article["architecture"])
+    expected_architecture_status = (
+        "designed" if brief["architecture_gate"]["status"] == "required" else "not-required"
+    )
+    if decision["decision"] == "single" and architecture["status"] != expected_architecture_status:
+        raise CaseFlowError("single-article decision changed the approved architecture gate")
+    if (
+        decision["decision"] == "single"
+        and brief["architecture_gate"]["status"] == "required"
+        and not set(brief["architecture_gate"]["triggers"]).issubset(
+            set(architecture["triggers"])
+        )
+    ):
+        raise CaseFlowError("approved architecture design does not cover every brief trigger")
+    if architecture["status"] == "designed":
+        design_path = Path(architecture["design_ref"]).expanduser()
+        if not design_path.is_absolute():
+            design_path = decision_path.parent / design_path
+        design_path = design_path.resolve()
+        if digest(design_path) != architecture["design_sha256"]:
+            raise CaseFlowError("approved architecture design fingerprint does not match")
+        validate_architecture_design(design_path, architecture)
+        architecture["design_ref"] = str(design_path)
     blocks = article["blocks"]
     ids = [block["id"] for block in blocks]
     case_root.mkdir(parents=True, exist_ok=True)
@@ -725,6 +961,11 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         "title": article["title"],
         "composition": article["composition"],
         "solution_boundary": article.get("solution_boundary"),
+        "architecture": architecture,
+        "preanalysis_brief": {
+            "path": str(brief_path),
+            "sha256": brief_sha256,
+        },
         "decomposition_decision": {
             "path": str(decision_path),
             "sha256": digest(decision_path),
@@ -773,6 +1014,10 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
             payload["solution_boundary"]["horizon"]
             if isinstance(payload.get("solution_boundary"), dict)
             else None
+        ),
+        "architecture_status": payload.get("architecture", {}).get("status"),
+        "preanalysis_lineage_recorded": bool(
+            stage_record(payload, 1).get("preanalysis_lineage")
         ),
         "stage": payload["stage"],
         "state": payload["state"],
@@ -860,12 +1105,15 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     if stage == 1:
         read_set.extend(
             [
+                str(resolve_artifact(case_root, payload["preanalysis_brief"]["path"])),
                 str(resolve_artifact(case_root, payload["decomposition_decision"]["path"])),
                 str(resolve_artifact(case_root, payload["execution_plan"]["path"])),
             ]
         )
         if source_index.exists():
             read_set.append(str(source_index))
+        if payload.get("architecture", {}).get("status") == "designed":
+            read_set.append(str(Path(payload["architecture"]["design_ref"])))
     elif stage in (2, 3):
         previous = stage_record(payload, stage - 1)
         previous_article = previous.get("article_projection")
@@ -890,6 +1138,8 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
         previous_stitch = previous.get("stitch")
         if previous_stitch:
             read_set.append(str(resolve_artifact(case_root, previous_stitch["path"])))
+        if payload.get("architecture", {}).get("status") == "designed":
+            read_set.append(str(Path(payload["architecture"]["design_ref"])))
     if not args.block:
         for submission in stage_record(payload)["submissions"].values():
             read_set.append(str(resolve_artifact(case_root, submission["path"])))
@@ -901,6 +1151,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
         "state": payload["state"],
         "block": args.block,
         "solution_boundary": payload.get("solution_boundary"),
+        "architecture": payload.get("architecture"),
         "read_set": existing,
         "missing_required": missing,
         "rule": "read only the current stage reference and this read_set",
@@ -983,6 +1234,38 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     }
     if article_path == template_path or article_path in prior_projection_paths:
         raise CaseFlowError("each stage must write a new immutable article projection")
+    if stage == 1:
+        lineage_path = (case_root / "preanalysis-lineage.json").resolve()
+        brief_record = payload.get("preanalysis_brief")
+        if not isinstance(brief_record, dict):
+            raise CaseFlowError("stage 1 requires a bound preanalysis brief")
+        try:
+            brief = validate_brief(read_json(resolve_artifact(case_root, brief_record["path"])))
+        except BriefError as exc:
+            raise CaseFlowError(str(exc)) from exc
+        lineage = validate_preanalysis_lineage(
+            read_json(lineage_path), brief, brief_record["sha256"]
+        )
+        article_text = article_path.read_text(encoding="utf-8")
+        missing_final_refs = sorted(
+            final_ref
+            for field in ("user_stories", "definition_of_done")
+            for entry in lineage[field]
+            for final_ref in entry["final_refs"]
+            if final_ref not in article_text
+        )
+        if missing_final_refs:
+            raise CaseFlowError(
+                "preanalysis lineage final refs are missing from the article: "
+                + ", ".join(missing_final_refs)
+            )
+        record["preanalysis_lineage"] = {
+            "path": relative_or_absolute(case_root, lineage_path),
+            "sha256": digest(lineage_path),
+            "user_stories": len(lineage["user_stories"]),
+            "definition_of_done": len(lineage["definition_of_done"]),
+            "recorded_at": now(),
+        }
     if stage == 4:
         simplicity_arg = getattr(args, "simplicity_report", None)
         humanizer_arg = getattr(args, "humanizer_report", None)
@@ -1017,6 +1300,19 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
             "simplicity-spec": simplicity_record,
             "humanizer": humanizer_record,
         }
+        architecture = payload.get("architecture", {})
+        if architecture.get("status") == "designed":
+            architecture_arg = getattr(args, "architecture_report", None)
+            if not architecture_arg:
+                raise CaseFlowError("stage 4 requires architecture conformance report")
+            architecture_report, architecture_record = validate_architecture_report(
+                case_root,
+                resolve_artifact(case_root, architecture_arg),
+                article_path,
+                architecture,
+            )
+            require_quality_findings_in_pool([architecture_report], pool)
+            record["architecture_conformance"] = architecture_record
     record["stitch"] = {
         "path": relative_or_absolute(case_root, report),
         "sha256": digest(report),
@@ -1906,6 +2202,7 @@ def build_parser() -> argparse.ArgumentParser:
     init = subparsers.add_parser("init")
     init.add_argument("--case-root", type=Path, required=True)
     init.add_argument("--template", type=Path, required=True)
+    init.add_argument("--brief", type=Path, required=True)
     init.add_argument("--decision", type=Path, required=True)
     init.add_argument("--plan", type=Path, required=True)
     init.add_argument("--article-id", required=True)
@@ -1937,6 +2234,7 @@ def build_parser() -> argparse.ArgumentParser:
     record.add_argument("--article")
     record.add_argument("--simplicity-report")
     record.add_argument("--humanizer-report")
+    record.add_argument("--architecture-report")
     record.set_defaults(handler=command_record_stitch)
 
     append_item = subparsers.add_parser("append-item")

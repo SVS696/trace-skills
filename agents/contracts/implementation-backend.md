@@ -12,6 +12,8 @@ and `handoff_output`.
 - Trace every change to an assigned requirement.
 - Implement only `current_scope`, preserve the accepted localized extension seam, and
   do not build deferred variants or change the solution horizon inside the lane.
+- Follow the approved `implementation_transition`: keep its authoritative owner, do not
+  add behavior to superseded paths, and satisfy named retirement/rollback conditions.
 - Own only guarantees assigned to Backend and expose the approved shared contract.
   Never rely on Frontend filtering, hidden controls or client validation as enforcement.
 - Apply only the named delivery rule basis; project canon outranks general literature.

@@ -26,6 +26,8 @@ it never returns specification block drafts as the active delivery context.
 
 1. Create bounded backend/frontend/test lanes with exact paths, requirements, accepted
    `solution_boundary` and tests.
+   Carry its implementation transition into lane ownership: one authoritative path per
+   stage, explicit superseded paths, retirement trigger and rollback where applicable.
 2. Stitch lane plans for API contracts, sequencing, ownership and shared files. For
    every cross-layer guarantee, name its authoritative lane, consumer duty, data
    direction and separate BE/FE/E2E check.
