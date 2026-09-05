@@ -10,8 +10,8 @@
 ```text
 preliminary sources + template headings
         |
-spec-preanalysis: problem/goal/hypothesis + stories + estimate + plan
-        | simplicity-spec on solution and decomposition
+spec-preanalysis: problem/goal/hypothesis + solution horizon + stories + estimate + plan
+        | two-sided solution boundary + simplicity-spec on solution and decomposition
         |
 single/split + semantic descent map + optional plan sync
         |
@@ -37,11 +37,12 @@ event-driven runtime signal: Smoke Break -> P23 COURSE-CHECK after a tool call
 На каждом ходе загружаются только:
 
 1. компактный `rules/process-kernel.md`, один раз на задачу;
-2. `SKILL.md` активного скилла;
-3. одна инструкция текущей стадии;
-4. один материализованный method basis из книжной библиотеки;
-5. read-set из `caseflow context`;
-6. предыдущая целостная article projection и только назначенный агенту блок источников.
+2. принятая `solution_boundary` выбранной статьи из `caseflow context`;
+3. `SKILL.md` активного скилла;
+4. одна инструкция текущей стадии;
+5. один материализованный method basis из книжной библиотеки;
+6. read-set из `caseflow context`;
+7. предыдущая целостная article projection и только назначенный агенту блок источников.
 
 Предыдущие версии статьи не переписываются: каждая стадия создаёт новый snapshot, а
 `caseflow context` отдаёт только последний. Зарегистрированные версии представлены
@@ -56,7 +57,7 @@ diff-pool, а текущие bytes совпадают с fingerprint прове�
 
 | Компонент | Владеет | Не владеет |
 |---|---|---|
-| `spec-preanalysis` | preliminary brief, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
+| `spec-preanalysis` | preliminary brief, горизонтом решения, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
 | `spec-workflow` | целостной статьёй, блоками углубления и article projections | кодом и внешними статусами |
 | `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
 | `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |

@@ -16,9 +16,23 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .preanalysis import DecisionError, PlanError, validate_decision, validate_plan
+    from .preanalysis import (
+        BriefError,
+        DecisionError,
+        PlanError,
+        validate_decision,
+        validate_plan,
+        validate_solution_boundary,
+    )
 except ImportError:  # Direct script execution.
-    from preanalysis import DecisionError, PlanError, validate_decision, validate_plan
+    from preanalysis import (
+        BriefError,
+        DecisionError,
+        PlanError,
+        validate_decision,
+        validate_plan,
+        validate_solution_boundary,
+    )
 
 
 SCHEMA = 1
@@ -233,6 +247,12 @@ def load_case(case_root: Path) -> dict[str, Any]:
         raise CaseFlowError("unsupported case schema")
     if payload.get("stage") not in STAGES:
         raise CaseFlowError("case stage is invalid")
+    boundary = payload.get("solution_boundary")
+    if boundary is not None:
+        try:
+            validate_solution_boundary(boundary, None)
+        except (BriefError, DecisionError) as exc:
+            raise CaseFlowError(f"case solution boundary is invalid: {exc}") from exc
     if payload.get("composition") != "article-led":
         raise CaseFlowError(
             "case uses the pre-article-led TRACE process; re-baseline it with legacy-case-migration"
@@ -704,6 +724,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         "case_id": article["id"],
         "title": article["title"],
         "composition": article["composition"],
+        "solution_boundary": article.get("solution_boundary"),
         "decomposition_decision": {
             "path": str(decision_path),
             "sha256": digest(decision_path),
@@ -748,6 +769,11 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
         deferred_input_count = len(pool.get("deferred_inputs", []))
     result = {
         "case_id": payload["case_id"],
+        "solution_horizon": (
+            payload["solution_boundary"]["horizon"]
+            if isinstance(payload.get("solution_boundary"), dict)
+            else None
+        ),
         "stage": payload["stage"],
         "state": payload["state"],
         "route": payload["route"],
@@ -816,6 +842,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
             "delivery_stage": stage,
             "delivery_state": delivery["state"],
             "lane": lane,
+            "solution_boundary": payload.get("solution_boundary"),
             "read_set": [path for path in read_set if Path(path).exists()],
             "missing_required": [path for path in read_set if not Path(path).exists()],
             "rule": "read only the current delivery stage reference and this read_set",
@@ -873,6 +900,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
         "mode": "specification",
         "state": payload["state"],
         "block": args.block,
+        "solution_boundary": payload.get("solution_boundary"),
         "read_set": existing,
         "missing_required": missing,
         "rule": "read only the current stage reference and this read_set",

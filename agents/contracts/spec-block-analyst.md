@@ -3,7 +3,8 @@
 ## Assignment
 
 Produce one block artifact for one specification stage. The assignment must name
-`case_root`, `stage`, `block`, `stage_reference`, `method_basis`, `read_set`, and `output`.
+`case_root`, `stage`, `block`, `stage_reference`, `solution_boundary`, `method_basis`,
+`read_set`, and `output`.
 
 ## Rules
 
@@ -17,6 +18,9 @@ Produce one block artifact for one specification stage. The assignment must name
   action and never treat assignment of an owner as resolution.
 - Treat the previous whole-article projection as the baseline. Return exact targets and
   proposed normative changes for the assigned concern, not a standalone mini-specification.
+- Treat the accepted `solution_boundary` from case context as immutable input. Preserve
+  its current scope and justified seam; report evidence for a new variant or horizon as
+  a blocking decision instead of expanding the block yourself.
 - Do not reconcile another block yourself. Name the dependency for the integration editor.
 - When assigned behavior crosses layers, name the owner of each guarantee, the consumer
   duty, contract direction/data and the evidence contour. For FE, include exact

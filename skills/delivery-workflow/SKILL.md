@@ -31,6 +31,9 @@ Software Engineering at Google and specialized standard distillates.
    receipt-bound narrow run applies `simplicity-code` to their real execution paths.
    Only confirmed findings enter a correction pool; speculative or unreachable cases
    remain dismissed evidence, not implementation work.
+9. Every lane receives the accepted `solution_boundary` from case context. Implement
+   current scope and preserve its justified seam, but do not add deferred variants or
+   redesign the horizon. New evidence returns to an explicit `P16` decision.
 
 ## When to use
 
@@ -74,6 +77,8 @@ that lane basis and its hash to the agent.
 ## Success criteria
 
 - Every code change traces to approved scope.
+- The implementation conforms to the accepted solution horizon; a narrow hardcode and
+  a speculative generic mechanism are both defects when they contradict its evidence.
 - Backend, frontend and shared-contract changes remain inside their declared ownership;
   each layer is verified in its own contour before E2E composition is claimed.
 - Every stage diff-pool is closed with receipts.

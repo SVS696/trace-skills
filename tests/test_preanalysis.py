@@ -31,7 +31,101 @@ def decision() -> dict:
     }
 
 
+def boundary_brief() -> dict:
+    return {
+        "schema": 2,
+        "subject_id": "TASK-1",
+        "sources": [
+            {"id": "SRC-1", "kind": "request", "ref": "request-1"},
+            {"id": "SRC-2", "kind": "existing-flow", "ref": "flow-2"},
+        ],
+        "problem": {"statement": "Problem", "evidence_refs": ["SRC-1"]},
+        "goal": {"statement": "Goal", "evidence_refs": ["SRC-1"]},
+        "solution_hypothesis": {"statement": "Hypothesis", "evidence_refs": ["SRC-1"]},
+        "solution_boundary": {
+            "horizon": "bounded-systemic",
+            "observed_case": "Current channel needs the rule",
+            "root_capability": "Apply the rule consistently across supported channels",
+            "invariants": ["The rule has one semantic owner"],
+            "confirmed_variants": [
+                {"name": "Current channel", "evidence_refs": ["SRC-1"]}
+            ],
+            "hypothesized_variants": [],
+            "current_scope": ["Support the current channel"],
+            "extension_seams": ["Keep channel selection outside the rule owner"],
+            "extension_seam_absence_reason": None,
+            "deferred_variants": [],
+            "expansion_triggers": ["Another channel is confirmed"],
+            "horizon_evidence": {
+                "analogy_search_refs": ["SRC-2"],
+                "roadmap_refs": [],
+                "irreversibility_refs": [],
+            },
+            "hotfix_exception": None,
+        },
+        "preliminary_user_stories": [],
+        "scope_in": [],
+        "scope_out": [],
+        "unknowns": [],
+        "assumptions": [],
+        "dependencies": [],
+        "estimate": {"status": "unavailable", "reason": "No implementation contour"},
+    }
+
+
 class PreanalysisTests(unittest.TestCase):
+    def test_schema_two_decision_requires_boundary_per_article(self) -> None:
+        payload = decision()
+        payload["schema"] = 2
+        with self.assertRaisesRegex(preanalysis.DecisionError, "solution_boundary"):
+            preanalysis.validate_decision(payload, require_approved=True)
+        payload["articles"][0]["solution_boundary"] = copy.deepcopy(
+            boundary_brief()["solution_boundary"]
+        )
+        self.assertEqual(
+            preanalysis.validate_decision(payload, require_approved=True)["schema"], 2
+        )
+
+    def test_bounded_systemic_requires_extension_seam_or_absence_reason(self) -> None:
+        brief = boundary_brief()
+        brief["solution_boundary"]["extension_seams"] = []
+        brief["solution_boundary"]["extension_seam_absence_reason"] = None
+        with self.assertRaisesRegex(preanalysis.BriefError, "absence_reason is required"):
+            preanalysis.validate_brief(brief)
+        brief["solution_boundary"]["extension_seam_absence_reason"] = (
+            "No variable behavior exists outside the authoritative rule owner"
+        )
+        self.assertEqual(preanalysis.validate_brief(brief)["schema"], 2)
+
+    def test_generalized_capability_requires_confirmed_expansion_evidence(self) -> None:
+        brief = boundary_brief()
+        brief["solution_boundary"]["horizon"] = "generalized-capability"
+        with self.assertRaisesRegex(preanalysis.BriefError, "two confirmed variants"):
+            preanalysis.validate_brief(brief)
+        brief["solution_boundary"]["confirmed_variants"].append(
+            {"name": "Second channel", "evidence_refs": ["SRC-2"]}
+        )
+        self.assertEqual(
+            preanalysis.validate_brief(brief)["solution_boundary"]["horizon"],
+            "generalized-capability",
+        )
+
+    def test_tactical_horizon_requires_reversible_hotfix_exception(self) -> None:
+        brief = boundary_brief()
+        brief["solution_boundary"]["horizon"] = "tactical"
+        with self.assertRaisesRegex(preanalysis.BriefError, "hotfix_exception is required"):
+            preanalysis.validate_brief(brief)
+        brief["solution_boundary"]["hotfix_exception"] = {
+            "reason": "Immediate material risk",
+            "reversibility": "Remove the narrow branch",
+            "return_trigger": "The incident is contained",
+            "evidence_refs": ["SRC-1"],
+        }
+        self.assertEqual(
+            preanalysis.validate_brief(brief)["solution_boundary"]["horizon"],
+            "tactical",
+        )
+
     def test_article_led_reserves_article_for_whole_document_stages(self) -> None:
         payload = decision()
         payload["articles"][0]["blocks"] = [{"id": "ARTICLE", "title": "Wrong"}]

@@ -11,6 +11,30 @@ from pathlib import Path
 from scripts import caseflow
 
 
+def solution_boundary() -> dict:
+    return {
+        "horizon": "bounded-systemic",
+        "observed_case": "Current channel",
+        "root_capability": "Apply one rule across supported channels",
+        "invariants": ["The rule has one owner"],
+        "confirmed_variants": [
+            {"name": "Current channel", "evidence_refs": ["SRC-1"]}
+        ],
+        "hypothesized_variants": [],
+        "current_scope": ["Current channel"],
+        "extension_seams": ["Localized channel selection"],
+        "extension_seam_absence_reason": None,
+        "deferred_variants": [],
+        "expansion_triggers": ["A second channel is confirmed"],
+        "horizon_evidence": {
+            "analogy_search_refs": [],
+            "roadmap_refs": [],
+            "irreversibility_refs": [],
+        },
+        "hotfix_exception": None,
+    }
+
+
 class CaseFlowTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
@@ -1460,8 +1484,36 @@ class CaseFlowTests(unittest.TestCase):
             context["read_set"],
         )
 
+    def test_solution_boundary_survives_case_initialization_and_context(self) -> None:
+        boundary = solution_boundary()
+        decision_payload = json.loads(self.decision.read_text(encoding="utf-8"))
+        decision_payload["schema"] = 2
+        decision_payload["articles"][0]["solution_boundary"] = boundary
+        decision_path = self.root / "decision-v2.json"
+        decision_path.write_text(json.dumps(decision_payload), encoding="utf-8")
+        case_root = self.root / "case-v2"
+
+        initialized = caseflow.command_init(
+            argparse.Namespace(
+                case_root=case_root,
+                template=self.template,
+                decision=decision_path,
+                plan=self.plan,
+                article_id="CASE-1",
+            )
+        )
+
+        self.assertEqual(initialized["solution_boundary"], boundary)
+        status = caseflow.command_status(argparse.Namespace(case_root=case_root))
+        self.assertEqual(status["solution_horizon"], "bounded-systemic")
+        context = caseflow.command_context(
+            argparse.Namespace(case_root=case_root, block=None, lane=None)
+        )
+        self.assertEqual(context["solution_boundary"], boundary)
+
     def test_delivery_has_machine_backed_stage_transitions(self) -> None:
         payload = caseflow.load_case(self.case_root)
+        payload["solution_boundary"] = solution_boundary()
         payload["stage"] = 4
         payload["state"] = "spec_ready"
         article = self.write("article.md", "# Reviewed article\n")
@@ -1511,6 +1563,7 @@ class CaseFlowTests(unittest.TestCase):
         )
         self.assertEqual(context["mode"], "delivery")
         self.assertEqual(context["delivery_stage"], 2)
+        self.assertEqual(context["solution_boundary"]["horizon"], "bounded-systemic")
         self.assertIn(str(article.resolve()), context["read_set"])
         self.assertIn(
             str((self.case_root / "delivery/stage-01-BACKEND.md").resolve()),

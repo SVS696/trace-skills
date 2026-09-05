@@ -61,13 +61,20 @@ the Vigers reference corpus.
    `elicitation`, and pass its path/hash to `spec-preanalyst`.
 3. Form a preliminary problem, goal, solution hypothesis, scope and dependencies.
 4. Draft preliminary user stories without promoting them to approved requirements.
-5. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
+5. Read [the solution-boundary contract](../../rules/solution-boundary.md). Classify the
+   hypothesis as `tactical`, `bounded-systemic` or `generalized-capability`; record the
+   root capability, invariants, confirmed and hypothesized variants, current scope,
+   extension seams or their absence reason, deferred variants and expansion triggers.
+   Treat `bounded-systemic` as the default, not as a compromise chosen without analysis,
+   and pass the contract path/hash to `spec-preanalyst`.
+6. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
    Remove or defer every mechanism that lacks a current requirement; preserve its
-   protected minimum. This is a semantic solution pass, not prose cleanup.
-6. Write the already simplified `preanalysis-brief.json` using
+   protected minimum, including an evidence-backed extension seam. This is a semantic
+   solution pass, not prose cleanup.
+7. Write the already simplified schema-2 `preanalysis-brief.json` using
    [brief-contract.md](references/brief-contract.md).
-7. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
-8. Validate with `scripts/preanalysis.py validate-brief`.
+8. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
+9. Validate with `scripts/preanalysis.py validate-brief`.
 
 **Exit:** A validated preliminary brief exists; facts and hypotheses are distinguishable,
 and no unknown remains an unclassified free-form note.
@@ -78,8 +85,9 @@ and no unknown remains an unclassified free-form note.
 
 Read [routing-criteria.md](references/routing-criteria.md). Recommend `single` unless
 two or more outcomes can be accepted and handed off independently without duplicating
-the same normative rules. For `split`, produce an acyclic dependency graph and name
-the shared context once.
+the same normative rules. For `split`, produce an acyclic dependency graph, name the
+shared context once, and derive a separate evidence-backed solution boundary for each
+article instead of forcing the subject-level preliminary horizon onto all of them.
 
 **Exit:** Every proposed article has its own goal, outcome and acceptance boundary.
 
@@ -103,7 +111,9 @@ block map for the depth passes.
 
 **Entry:** Phases 1–3 completed.
 
-1. Write `decomposition-decision.json` using [decision-contract.md](references/decision-contract.md).
+1. Write schema-2 `decomposition-decision.json` using
+   [decision-contract.md](references/decision-contract.md). Every article carries its
+   accepted solution boundary into the specification case.
 2. Write `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
 3. Validate all three artifacts.
 4. Present the problem framing, recommendation, estimate range, plan and material
@@ -137,6 +147,9 @@ and performs any separately authorized external synchronization.
 - The approved decision initializes cases without manual reinterpretation.
 - The proposed solution and decomposition passed `simplicity-spec`; its simplifications
   or clean result were shown to the user.
+- The solution horizon is evidence-backed. `particular-case` and
+  `speculative-generalization` were checked independently; the current scope is distinct
+  from deferred variants and has a localized extension seam or an explicit absence reason.
 - Every unknown has a disposition. Researchable items are investigated before handoff;
   user decisions are direct questions; external inputs name their owner; only details
   that cannot change observable requirements or AC are `implementation-only`.

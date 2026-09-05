@@ -39,6 +39,10 @@ into `method-basis/stage-NN-BLOCK.md`.
 9. **Review findings are candidates, not work orders.** After a healthy `revmux`
    result, a separate narrow run applies `simplicity-spec` to the receipt findings.
    Only confirmed, material findings enter the correction diff.
+10. **The accepted solution horizon travels with the case.** Every context contains the
+    selected article's `solution_boundary`. Preserve its root capability, current scope
+    and evidence-backed seam. A new variant or horizon change is a `P16` decision, not a
+    block-level improvement.
 
 ## When to use
 
@@ -141,3 +145,5 @@ its own method basis, not every source or every other block artifact.
   `simplicity-spec` adjudication; its accepted set exactly matches the correction pool.
 - The final article exists as one file and revmux is not degraded.
 - The final route is explicitly `stop` or `delivery`.
+- The final article implements the accepted solution boundary without publishing the
+  internal horizon id or promoting deferred variants into current requirements.

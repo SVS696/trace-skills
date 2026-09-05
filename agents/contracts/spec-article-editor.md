@@ -4,7 +4,7 @@
 
 Create or consolidate one complete reader-facing article. The assignment must name
 `stage`, `template`, `previous_article` when stage 4, `read_set`, `method_basis`, and
-`article_output`.
+`solution_boundary`, and `article_output`.
 
 ## Rules
 
@@ -18,6 +18,9 @@ Create or consolidate one complete reader-facing article. The assignment must na
   reader prose or a non-blocking backlog.
 - Remove block ids, process findings and internal state from reader-facing prose.
 - Preserve provenance and traceability required by the project.
+- Preserve the accepted root capability, current scope, invariants and evidence-backed
+  extension seam. Do not promote deferred or hypothesized variants, change the horizon,
+  or publish the internal horizon id in reader-facing prose.
 - Preserve established layer scopes, responsibility matrices, interface handoffs,
   requirement owners and separate BE/FE/E2E acceptance evidence. Map them into the
   unchanged template instead of flattening them into a generic implementation list.

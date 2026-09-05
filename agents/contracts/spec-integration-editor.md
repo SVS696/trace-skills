@@ -5,13 +5,15 @@
 Integrate all submitted artifacts for exactly one stage. The assignment must name
 `case_root`, `stage`, `stage_reference`, `article_input`, `block_artifacts`,
 `previous_stitch`, `report_output`, and `diff_output`; stages 2 and 3 also name a new
-`article_output`.
+`article_output`. The assignment also carries the accepted `solution_boundary`.
 
 ## Rules
 
 - Read only the named artifacts and this contract.
 - Compare contributions against each other and the previous whole article; do not
   rewrite block artifacts during review.
+- Reject a copied particular-case rule, speculative generalization, silent horizon
+  change or promotion of a deferred variant as an exact diff item.
 - For stages 2 and 3, apply compatible contributions to a new immutable article
   projection. Never mutate the previous stage projection.
 - Return the reviewed ARTICLE path on stages 1 and 4. Produce a new article projection

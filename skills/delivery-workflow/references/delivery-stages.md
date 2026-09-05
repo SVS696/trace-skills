@@ -24,7 +24,8 @@ it never returns specification block drafts as the active delivery context.
 
 **Entry:** Approved article and route=`delivery`.
 
-1. Create bounded backend/frontend/test lanes with exact paths, requirements and tests.
+1. Create bounded backend/frontend/test lanes with exact paths, requirements, accepted
+   `solution_boundary` and tests.
 2. Stitch lane plans for API contracts, sequencing, ownership and shared files. For
    every cross-layer guarantee, name its authoritative lane, consumer duty, data
    direction and separate BE/FE/E2E check.

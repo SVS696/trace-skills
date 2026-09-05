@@ -3,8 +3,9 @@
 ## Assignment
 
 Prepare a preliminary discovery and planning recommendation. The assignment must name
-`subject`, `template`, `questions`, `source_index`, `method_basis`, `read_set`, and three outputs:
-`brief_output`, `decision_output`, and `plan_output`.
+`subject`, `template`, `questions`, `source_index`, `method_basis`,
+`solution_boundary_contract`, `read_set`, and three outputs: `brief_output`,
+`decision_output`, and `plan_output`.
 
 ## Rules
 
@@ -16,6 +17,11 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
   one direct question; for an external input, name its owner. Do not call a product or
   acceptance decision implementation-only.
 - Frame the problem, goal and solution hypothesis; draft preliminary user stories.
+- Apply `P04` through the assigned `rules/solution-boundary.md`. Choose
+  `tactical|bounded-systemic|generalized-capability`, distinguish confirmed variants
+  from hypotheses, and check both `particular-case` and `speculative-generalization`.
+  Preserve an evidence-backed localized extension seam, or explain why none is useful.
+  Do not promote deferred variants into current scope.
 - Estimate only as a range with basis and confidence, or mark it unavailable.
 - Recommend one or several independently acceptable specifications. Every article uses
   `article-led` composition: define semantic blocks only for focused passes after the

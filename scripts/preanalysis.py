@@ -13,6 +13,7 @@ from typing import Any
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$")
 BLOCK_RE = re.compile(r"^[A-Z][A-Z0-9_-]{1,31}$")
 UNKNOWN_DISPOSITIONS = {"researchable", "user-decision", "external-owner", "implementation-only"}
+SOLUTION_HORIZONS = {"tactical", "bounded-systemic", "generalized-capability"}
 
 
 class DecisionError(RuntimeError):
@@ -61,9 +62,130 @@ def detect_cycle(graph: dict[str, list[str]], noun: str = "article") -> None:
         visit(node)
 
 
+def text_array(
+    payload: dict[str, Any], field: str, label: str, *, non_empty: bool = False
+) -> list[str]:
+    value = payload.get(field)
+    if not isinstance(value, list) or not all(
+        isinstance(item, str) and item.strip() for item in value
+    ):
+        raise BriefError(f"{label}.{field} must be an array of non-empty strings")
+    if non_empty and not value:
+        raise BriefError(f"{label}.{field} must not be empty")
+    return value
+
+
+def source_ref_array(
+    payload: dict[str, Any],
+    field: str,
+    label: str,
+    source_ids: set[str] | None,
+    *,
+    non_empty: bool = False,
+) -> list[str]:
+    refs = text_array(payload, field, label, non_empty=non_empty)
+    unknown_refs = set(refs) - source_ids if source_ids is not None else set()
+    if unknown_refs:
+        raise BriefError(f"{label}.{field} has unknown source refs: {sorted(unknown_refs)}")
+    return refs
+
+
+def validate_solution_boundary(boundary: Any, source_ids: set[str]) -> None:
+    if not isinstance(boundary, dict):
+        raise BriefError("brief.solution_boundary must be an object")
+    label = "solution_boundary"
+    horizon = boundary.get("horizon")
+    if horizon not in SOLUTION_HORIZONS:
+        raise BriefError(f"{label}.horizon is invalid")
+    required_text(boundary, "observed_case", label)
+    required_text(boundary, "root_capability", label)
+    text_array(boundary, "invariants", label, non_empty=True)
+    text_array(boundary, "hypothesized_variants", label)
+    text_array(boundary, "current_scope", label, non_empty=True)
+    seams = text_array(boundary, "extension_seams", label)
+    absence_reason = boundary.get("extension_seam_absence_reason")
+    if seams:
+        if absence_reason is not None:
+            raise BriefError(
+                f"{label}.extension_seam_absence_reason must be null when extension_seams exist"
+            )
+    elif not isinstance(absence_reason, str) or not absence_reason.strip():
+        raise BriefError(
+            f"{label}.extension_seam_absence_reason is required when extension_seams are empty"
+        )
+    text_array(boundary, "deferred_variants", label)
+    text_array(boundary, "expansion_triggers", label, non_empty=True)
+
+    confirmed = boundary.get("confirmed_variants")
+    if not isinstance(confirmed, list) or not confirmed:
+        raise BriefError(f"{label}.confirmed_variants must be a non-empty array")
+    variant_names: set[str] = set()
+    for index, variant in enumerate(confirmed, start=1):
+        variant_label = f"{label}.confirmed_variants[{index}]"
+        if not isinstance(variant, dict):
+            raise BriefError(f"{variant_label} must be an object")
+        variant_name = required_text(variant, "name", variant_label)
+        source_ref_array(
+            variant,
+            "evidence_refs",
+            variant_label,
+            source_ids,
+            non_empty=True,
+        )
+        if variant_name in variant_names:
+            raise BriefError(f"duplicate confirmed variant: {variant_name}")
+        variant_names.add(variant_name)
+
+    horizon_evidence = boundary.get("horizon_evidence")
+    if not isinstance(horizon_evidence, dict):
+        raise BriefError(f"{label}.horizon_evidence must be an object")
+    source_ref_array(
+        horizon_evidence,
+        "analogy_search_refs",
+        f"{label}.horizon_evidence",
+        source_ids,
+    )
+    roadmap_refs = source_ref_array(
+        horizon_evidence, "roadmap_refs", f"{label}.horizon_evidence", source_ids
+    )
+    irreversibility_refs = source_ref_array(
+        horizon_evidence,
+        "irreversibility_refs",
+        f"{label}.horizon_evidence",
+        source_ids,
+    )
+
+    hotfix = boundary.get("hotfix_exception")
+    if horizon == "tactical":
+        if not isinstance(hotfix, dict):
+            raise BriefError(f"{label}.hotfix_exception is required for tactical horizon")
+        for field in ("reason", "reversibility", "return_trigger"):
+            required_text(hotfix, field, f"{label}.hotfix_exception")
+        source_ref_array(
+            hotfix,
+            "evidence_refs",
+            f"{label}.hotfix_exception",
+            source_ids,
+            non_empty=True,
+        )
+    elif hotfix is not None:
+        raise BriefError(f"{label}.hotfix_exception must be null outside tactical horizon")
+
+    if (
+        horizon == "generalized-capability"
+        and len(confirmed) < 2
+        and not roadmap_refs
+        and not irreversibility_refs
+    ):
+        raise BriefError(
+            "generalized-capability requires two confirmed variants, roadmap refs, "
+            "or irreversibility refs"
+        )
+
+
 def validate_brief(payload: Any) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") != 1:
-        raise BriefError("brief must use schema 1")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2}:
+        raise BriefError("brief must use schema 1 or 2")
     try:
         required_text(payload, "subject_id", "brief")
         sources = payload.get("sources")
@@ -91,6 +213,8 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             unknown_refs = set(refs) - source_ids
             if unknown_refs:
                 raise BriefError(f"{section} has unknown evidence refs: {sorted(unknown_refs)}")
+        if payload["schema"] == 2:
+            validate_solution_boundary(payload.get("solution_boundary"), source_ids)
         stories = payload.get("preliminary_user_stories")
         if not isinstance(stories, list):
             raise BriefError("brief.preliminary_user_stories must be an array")
@@ -227,8 +351,8 @@ def validate_plan(payload: Any) -> dict[str, Any]:
 
 
 def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") != 1:
-        raise DecisionError("decision must use schema 1")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2}:
+        raise DecisionError("decision must use schema 1 or 2")
     required_text(payload, "subject_id", "decision")
     status = payload.get("status")
     if status not in {"proposed", "approved"}:
@@ -269,6 +393,11 @@ def validate_decision(payload: Any, *, require_approved: bool = False) -> dict[s
         composition = article.get("composition")
         if composition != "article-led":
             raise DecisionError(f"{label}.composition must be article-led")
+        if payload["schema"] == 2:
+            try:
+                validate_solution_boundary(article.get("solution_boundary"), None)
+            except (BriefError, DecisionError) as exc:
+                raise DecisionError(f"{label}.solution_boundary is invalid: {exc}") from exc
         blocks = article.get("blocks")
         if not isinstance(blocks, list):
             raise DecisionError(f"{label}.blocks must be an array")

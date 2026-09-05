@@ -26,6 +26,13 @@ TRACE наследует знания Vigers, Delivery Engineering & Co., но �
 проверить outcome, frontier, измеримый progress, drift и следующий falsifier без новой
 стадии или state machine.
 
+Двусторонняя защита solution boundary сохранена отдельным progressive-disclosure
+контрактом `rules/solution-boundary.md`. Из Vigers перенесены горизонты
+`tactical|bounded-systemic|generalized-capability`, запахи `particular-case` и
+`speculative-generalization`, evidence-backed extension seam и expansion trigger.
+Горизонт фиксируется в schema-2 preliminary brief; старая Vigers state machine для
+этого не восстанавливается.
+
 Старые machine transitions, эпохи, профили и команды не переносятся как правила
 предметного качества. Они остаются в архивных Git-репозиториях для истории. Их
 заменяет четырёхстадийная машина TRACE с одним diff-pool на gate и стандартными
