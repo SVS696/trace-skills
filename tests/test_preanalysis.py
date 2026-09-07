@@ -251,7 +251,7 @@ class PreanalysisTests(unittest.TestCase):
             "tasks": [
                 {
                     "id": "P1",
-                    "title": "Analyze",
+                    "title": "Clarify scenario save behavior",
                     "output": "article",
                     "depends_on": [],
                     "source_refs": ["SRC-1"],
@@ -442,7 +442,12 @@ class PreanalysisTests(unittest.TestCase):
             "route": "specification",
             "article_ids": ["TASK-1"],
             "tasks": [
-                {"id": "P1", "title": "Analyze", "output": "brief", "depends_on": []}
+                {
+                    "id": "P1",
+                    "title": "Clarify scenario save behavior",
+                    "output": "brief",
+                    "depends_on": [],
+                }
             ],
             "external_sync": {
                 "status": "synced",
@@ -463,7 +468,14 @@ class PreanalysisTests(unittest.TestCase):
             "decision_ref": "user-message-1",
             "route": "implementation",
             "article_ids": ["TASK-1"],
-            "tasks": [{"id": "P1", "title": "Build", "output": "code", "depends_on": []}],
+            "tasks": [
+                {
+                    "id": "P1",
+                    "title": "Implement scenario save behavior",
+                    "output": "code",
+                    "depends_on": [],
+                }
+            ],
             "external_sync": {"status": "not_requested"},
         }
         with self.assertRaisesRegex(preanalysis.PlanError, "route is invalid"):

@@ -43,6 +43,9 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
   first whole-template draft.
 - Produce an acyclic preliminary plan bound to the brief hash. Every task names source
   refs and observable exit criteria; add a checklist only when the task is not atomic.
+  Give each task a short reader-facing title for the product outcome. Do not make a
+  stage number, block ID, case ID, component name or TRACE operation carry the title's
+  meaning; keep those mechanics in structured fields.
 - Keep decision and plan status `proposed`. The user approves them.
 - Do not write final specification prose or publish to any external system.
 

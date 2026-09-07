@@ -116,8 +116,11 @@ Engineering и не зависят от их старых state machines. Parent
   связи ответом не считаются. Каждый preliminary US
   и preliminary DoD evidence-linked; stage 1 обязан явно сопоставить его с финальными
   US/DoD как `confirmed|changed|split|rejected`. План связан с hash brief, source refs и
-  проверяемыми exit criteria. Достаточное покрытие останавливает широкий поиск; новый
-  research открывается только под точный gap или falsifying question.
+  проверяемыми exit criteria. Название каждой задачи кратко описывает продуктовый
+  результат понятным человеку языком; stage, block ID, case ID и операция TRACE остаются
+  в структурированных полях, а не подменяют смысл заголовка. Достаточное покрытие
+  останавливает широкий поиск; новый research открывается только под точный gap или
+  falsifying question.
 - `P26 TRANSITION-ARCHITECTURE`: solution horizon не заменяет план перехода. Для
   реализации выбирается `evolve-in-place|replace-and-remove|staged-migration` с одним
   authoritative owner, retirement trigger и rollback там, где есть старый путь.

@@ -187,7 +187,7 @@ class CaseFlowTests(unittest.TestCase):
                     "tasks": [
                         {
                             "id": "P1",
-                            "title": "Prepare CASE-1",
+                            "title": "Clarify the operator's scenario workflow",
                             "output": "Reviewed article",
                             "depends_on": [],
                             "source_refs": ["SRC-1"],

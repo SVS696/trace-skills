@@ -15,8 +15,8 @@ started legacy cases; `caseflow init` accepts schema 2.
   "tasks": [
     {
       "id": "P1",
-      "title": "Prepare specification TASK-123",
-      "output": "One reviewed article",
+      "title": "Уточнить правила сохранения актуарного сценария",
+      "output": "Согласованные правила сохранения и обработки ошибок",
       "depends_on": [],
       "source_refs": ["SRC-001"],
       "exit_criteria": ["The complete stage-4 article passes its required gates"],
@@ -39,6 +39,23 @@ same `subject_id` and `decision_ref` as that decision.
 brief `source_ref` and at least one observable `exit_criteria`. `checklist` is optional;
 use it only for finer actions inside a non-atomic task and do not turn every mechanical
 action into a dependency node.
+
+## Task titles
+
+`title` is a short reader-facing name for the task's concrete outcome. A person who
+does not know TRACE must understand what will be clarified, described or made ready.
+Prefer a plain action plus its product subject, and keep the details in `output`,
+`exit_criteria` and the optional `checklist`.
+
+Do not use a stage, block ID, case ID, component name or workflow operation as the
+meaning of the title. Keep those markers in `id`, dependencies or the relevant case
+fields. For example:
+
+- `Stage 2 / B03`, `Пройти блок сценариев` and `Подготовить TASK-123` are not task names;
+- `Уточнить правила сохранения актуарного сценария` names the result in product terms.
+
+An external planning adapter uses the same reader-facing title. A destination-required
+prefix may be added, but it must not replace or obscure the meaningful name.
 
 External sync states are `not_requested`, `authorized`, and `synced`. `synced` requires
 the destination `system`, exact `target_ref`, and `readback_ref`. Tool success without

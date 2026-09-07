@@ -135,7 +135,9 @@ block map for the depth passes.
    [decision-contract.md](references/decision-contract.md). Every article carries its
    accepted solution boundary into the specification case.
 2. Write schema-2 `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
-   Bind it to the exact brief hash; every task has source refs and observable exit criteria.
+   Bind it to the exact brief hash; every task has a short reader-facing title for its
+   product outcome, source refs and observable exit criteria. Keep stage numbers, block
+   IDs and TRACE operations out of the title and in their dedicated fields.
 3. Validate all three artifacts.
 4. Present the four framing answers, recommendation, estimate range, plan and material
    trade-offs to the user, including the visible `simplicity-spec` result. Batch and ask
@@ -168,7 +170,8 @@ and performs any separately authorized external synchronization.
 - Every preliminary US and preliminary DoD is evidence-linked and must later receive an
   explicit stage-1 disposition; none can disappear during article authoring.
 - Estimate is a justified range or an explicit gap, never an invented deadline.
-- The plan is acyclic and external publication is separately authorized and read back.
+- The plan is acyclic, its task titles are understandable without TRACE internals, and
+  external publication is separately authorized and read back.
 - Implementation layers did not become article boundaries by default.
 - Each article uses `article-led`: whole-template baseline first, semantic blocks later.
 - Dependencies are acyclic and shared rules have one owner.
