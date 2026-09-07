@@ -863,8 +863,8 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         brief = validate_brief(read_json(brief_path))
     except BriefError as exc:
         raise CaseFlowError(str(exc)) from exc
-    if brief.get("schema") != 3:
-        raise CaseFlowError("new cases require preanalysis brief schema 3")
+    if brief.get("schema") != 4:
+        raise CaseFlowError("new cases require preanalysis brief schema 4")
     decision_path = args.decision.expanduser().resolve()
     try:
         decision = validate_decision(read_json(decision_path), require_approved=True)

@@ -1,9 +1,28 @@
 # Preliminary brief contract
 
-New `preanalysis-brief.json` artifacts use schema 3. The validator keeps schemas 1 and
-2 readable for already started cases, but `caseflow init` accepts only schema 3.
+New `preanalysis-brief.json` artifacts use schema 4. The validator keeps schemas 1–3
+readable for already started cases, but `caseflow init` accepts only schema 4.
 
-Schema 3 contains:
+Before routing, decomposition, or full analysis, answer these four questions. They are a
+preanalysis invariant and do not depend on the selected article template or its headings:
+
+1. **Problem:** who encounters what current difficulty, in which scenario, and what
+   concrete negative consequence follows?
+2. **Goal:** who receives what observable result, and what benefit does it provide?
+3. **Solution essence:** how will system or process behavior change, and why will that
+   remove the problem without prematurely selecting implementation details?
+4. **Preliminary user stories:** who needs what capability or behavior, and for what
+   value?
+
+Answer from evidence when it is sufficient. A technical fact or an absent component is
+not a problem without its consequence. A list of changes is not a goal without its
+benefit. Technical names are not a solution explanation unless their role in the
+behavior is clear. Do not invent a missing consequence, benefit, actor, or mechanism: if
+one of the four answers can materially change scope and cannot be established from the
+read-set, return `gap`, classify the unknown, and ask the exact direct question. Do not
+proceed to routing with an empty or decorative answer.
+
+Schema 4 contains:
 
 - `subject_id`;
 - `sources`: stable `id`, `kind`, `ref`, exact `query`, `authority`,
@@ -13,12 +32,18 @@ Schema 3 contains:
   resolution;
 - `coverage.verdict=sufficient|partial|blocked` and non-empty checked surfaces. Every
   non-covered surface references classified unknown ids through `gap_refs`;
-- `problem`, `goal`, and `solution_hypothesis`, each with `statement` and
+- `problem`: `statement`, non-empty `affected_actors`, non-empty
+  `negative_consequences`, and non-empty `evidence_refs`;
+- `goal`: `statement`, non-empty `beneficiaries`, non-empty `benefits`, and non-empty
   `evidence_refs`;
+- `solution_essence`: `statement`, non-empty `behavior_changes`, a non-empty
+  `problem_resolution` explaining why the change removes the problem, and non-empty
+  `evidence_refs`. This is still preliminary; uncertainty belongs in evidence,
+  assumptions and classified unknowns rather than in a weaker field name;
 - `solution_boundary` following `rules/solution-boundary.md`;
 - `architecture_gate` following `rules/architecture-analysis.md`;
-- `preliminary_user_stories`: `id`, `actor`, `need`, `value`, non-empty
-  `evidence_refs`, and `confidence=low|medium|high`;
+- at least one `preliminary_user_stories` entry with `id`, `actor`, `need`, `value`,
+  non-empty `evidence_refs`, and `confidence=low|medium|high`;
 - `preliminary_definition_of_done`: `id`, `criterion`, observable `evidence`,
   non-empty `evidence_refs`, and confidence;
 - `scope_in`, `scope_out`, `unknowns`, `assumptions`, and `dependencies` arrays;

@@ -19,8 +19,16 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
 - Investigate researchable inputs before returning. For a blocking user choice, return
   one direct question; for an external input, name its owner. Do not call a product or
   acceptance decision implementation-only.
-- Frame the problem, goal and solution hypothesis; draft evidence-linked preliminary
-  user stories and preliminary DoD with confidence.
+- Before routing or decomposition, independently of the article template, ask and
+  answer four framing questions from the brief contract: problem plus concrete negative
+  consequence; goal plus beneficiary value; solution essence plus behavior change and
+  problem resolution; preliminary user stories with actor, need and value. Do not infer
+  any answer merely from a template heading.
+- A technical fact without its consequence, a change list without its benefit, or a
+  technical name without its behavioral role is not a completed framing answer. Return
+  `gap` and the exact direct question when evidence cannot establish an answer that may
+  change scope. `ok` requires at least one evidence-linked preliminary user story.
+- Draft evidence-linked preliminary DoD with confidence.
 - Apply `P04` through the assigned `rules/solution-boundary.md`. Choose
   `tactical|bounded-systemic|generalized-capability`, distinguish confirmed variants
   from hypotheses, and check both `particular-case` and `speculative-generalization`.
@@ -38,6 +46,7 @@ Prepare a preliminary discovery and planning recommendation. The assignment must
 - Keep decision and plan status `proposed`. The user approves them.
 - Do not write final specification prose or publish to any external system.
 
-Return `ok`, `gap`, or `input-error`, the three output paths, recommendation, material
-trade-offs and the batched direct questions the parent must ask. `ok` is forbidden while
-a researchable input has not been investigated.
+Return `ok`, `gap`, or `input-error`, the three output paths, all four framing answers,
+recommendation, material trade-offs and the batched direct questions the parent must
+ask. `ok` is forbidden while a researchable input has not been investigated or a
+framing answer is missing.

@@ -300,8 +300,8 @@ def validate_solution_boundary(
 
 
 def validate_brief(payload: Any) -> dict[str, Any]:
-    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2, 3}:
-        raise BriefError("brief must use schema 1, 2, or 3")
+    if not isinstance(payload, dict) or payload.get("schema") not in {1, 2, 3, 4}:
+        raise BriefError("brief must use schema 1, 2, 3, or 4")
     try:
         required_text(payload, "subject_id", "brief")
         sources = payload.get("sources")
@@ -315,7 +315,7 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             source_id = required_text(source, "id", label)
             required_text(source, "ref", label)
             required_text(source, "kind", label)
-            if payload["schema"] == 3:
+            if payload["schema"] in {3, 4}:
                 required_text(source, "query", label)
                 required_text(source, "authority", label)
                 if source.get("status") not in SOURCE_STATUSES:
@@ -330,24 +330,45 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             if source_id in source_ids:
                 raise BriefError(f"duplicate source id: {source_id}")
             source_ids.add(source_id)
-        for section in ("problem", "goal", "solution_hypothesis"):
+        if payload["schema"] == 4:
+            framing_sections = (
+                ("problem", "affected_actors", "negative_consequences"),
+                ("goal", "beneficiaries", "benefits"),
+                ("solution_essence", "behavior_changes", None),
+            )
+        else:
+            framing_sections = (
+                ("problem", None, None),
+                ("goal", None, None),
+                ("solution_hypothesis", None, None),
+            )
+        for section, first_array, second_array in framing_sections:
             value = payload.get(section)
             if not isinstance(value, dict):
                 raise BriefError(f"brief.{section} must be an object")
             required_text(value, "statement", section)
-            refs = value.get("evidence_refs", [])
-            if not isinstance(refs, list) or not all(isinstance(item, str) for item in refs):
-                raise BriefError(f"{section}.evidence_refs must be an array of source ids")
-            unknown_refs = set(refs) - source_ids
-            if unknown_refs:
-                raise BriefError(f"{section} has unknown evidence refs: {sorted(unknown_refs)}")
-        if payload["schema"] in {2, 3}:
+            if first_array is not None:
+                text_array(value, first_array, section, non_empty=True)
+            if second_array is not None:
+                text_array(value, second_array, section, non_empty=True)
+            if payload["schema"] == 4 and section == "solution_essence":
+                required_text(value, "problem_resolution", section)
+            if payload["schema"] == 4:
+                source_ref_array(value, "evidence_refs", section, source_ids, non_empty=True)
+            else:
+                refs = value.get("evidence_refs", [])
+                if not isinstance(refs, list) or not all(isinstance(item, str) for item in refs):
+                    raise BriefError(f"{section}.evidence_refs must be an array of source ids")
+                unknown_refs = set(refs) - source_ids
+                if unknown_refs:
+                    raise BriefError(f"{section} has unknown evidence refs: {sorted(unknown_refs)}")
+        if payload["schema"] in {2, 3, 4}:
             validate_solution_boundary(
                 payload.get("solution_boundary"),
                 source_ids,
-                require_transition=payload["schema"] == 3,
+                require_transition=payload["schema"] in {3, 4},
             )
-        if payload["schema"] == 3:
+        if payload["schema"] in {3, 4}:
             has_open_contradiction = False
             for collection, refs_field in (("facts", "evidence_refs"), ("contradictions", "source_refs")):
                 entries = payload.get(collection)
@@ -374,6 +395,8 @@ def validate_brief(payload: Any) -> dict[str, Any]:
         stories = payload.get("preliminary_user_stories")
         if not isinstance(stories, list):
             raise BriefError("brief.preliminary_user_stories must be an array")
+        if payload["schema"] == 4 and not stories:
+            raise BriefError("brief.preliminary_user_stories must not be empty")
         story_ids: set[str] = set()
         for index, story in enumerate(stories, start=1):
             label = f"preliminary_user_stories[{index}]"
@@ -382,7 +405,7 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             story_id = required_text(story, "id", label)
             for field in ("actor", "need", "value"):
                 required_text(story, field, label)
-            if payload["schema"] == 3:
+            if payload["schema"] in {3, 4}:
                 source_ref_array(story, "evidence_refs", label, source_ids, non_empty=True)
                 if story.get("confidence") not in CONFIDENCE_LEVELS:
                     raise BriefError(f"{label}.confidence is invalid")
@@ -417,7 +440,7 @@ def validate_brief(payload: Any) -> dict[str, Any]:
             if unknown_id in unknown_ids:
                 raise BriefError(f"duplicate unknown id: {unknown_id}")
             unknown_ids.add(unknown_id)
-        if payload["schema"] == 3:
+        if payload["schema"] in {3, 4}:
             done = payload.get("preliminary_definition_of_done")
             if not isinstance(done, list):
                 raise BriefError("brief.preliminary_definition_of_done must be an array")

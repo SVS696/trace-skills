@@ -58,7 +58,7 @@ class CaseFlowTests(unittest.TestCase):
         self.brief.write_text(
             json.dumps(
                 {
-                    "schema": 3,
+                    "schema": 4,
                     "subject_id": "CASE-1",
                     "sources": [
                         {
@@ -88,16 +88,40 @@ class CaseFlowTests(unittest.TestCase):
                             }
                         ],
                     },
-                    "problem": {"statement": "Problem", "evidence_refs": ["SRC-1"]},
-                    "goal": {"statement": "Goal", "evidence_refs": ["SRC-1"]},
-                    "solution_hypothesis": {"statement": "Hypothesis", "evidence_refs": ["SRC-1"]},
+                    "problem": {
+                        "statement": "The operator repeats the job",
+                        "affected_actors": ["Operator"],
+                        "negative_consequences": ["The operator loses time to repeated work"],
+                        "evidence_refs": ["SRC-1"],
+                    },
+                    "goal": {
+                        "statement": "The operator completes the job once",
+                        "beneficiaries": ["Operator"],
+                        "benefits": ["The operator avoids repeated work"],
+                        "evidence_refs": ["SRC-1"],
+                    },
+                    "solution_essence": {
+                        "statement": "Keep one authoritative result",
+                        "behavior_changes": ["The system reuses the authoritative result"],
+                        "problem_resolution": "Repeated work is no longer required",
+                        "evidence_refs": ["SRC-1"],
+                    },
                     "solution_boundary": solution_boundary(),
                     "architecture_gate": {
                         "status": "not-required",
                         "triggers": [],
                         "reason": "No architectural boundary changes",
                     },
-                    "preliminary_user_stories": [],
+                    "preliminary_user_stories": [
+                        {
+                            "id": "PUS-1",
+                            "actor": "Operator",
+                            "need": "complete the job once",
+                            "value": "avoid repeated work",
+                            "evidence_refs": ["SRC-1"],
+                            "confidence": "high",
+                        }
+                    ],
                     "preliminary_definition_of_done": [],
                     "scope_in": [],
                     "scope_out": [],
@@ -192,7 +216,14 @@ class CaseFlowTests(unittest.TestCase):
                 {
                     "schema": 1,
                     "brief_sha256": caseflow.digest(self.brief),
-                    "user_stories": [],
+                    "user_stories": [
+                        {
+                            "preliminary_id": "PUS-1",
+                            "disposition": "confirmed",
+                            "final_refs": ["US-1"],
+                            "reason": "The preliminary actor outcome remains valid",
+                        }
+                    ],
                     "definition_of_done": [],
                 }
             ),
@@ -209,7 +240,10 @@ class CaseFlowTests(unittest.TestCase):
 
     def submit_stage_one(self) -> None:
         self.write("method-basis/stage-01-ARTICLE.md", "# Method basis\n")
-        artifact = self.write("articles/stage-01.md", "# Whole-template baseline\n")
+        artifact = self.write(
+            "articles/stage-01.md",
+            "# Whole-template baseline\n\n## US-1\n\nOperator completes the job once.\n",
+        )
         caseflow.command_submit_block(
             argparse.Namespace(
                 case_root=self.case_root,
@@ -415,7 +449,7 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(advanced["stage"], 3)
         payload = caseflow.load_case(self.case_root)
         self.assertEqual(payload["stages"]["2"]["article_projection"]["path"], "articles/stage-02.md")
-        self.assertEqual(baseline.read_text(encoding="utf-8"), "# Whole-template baseline\n")
+        self.assertIn("## US-1", baseline.read_text(encoding="utf-8"))
 
     def test_diff_pool_blocks_advance_until_correction_is_verified(self) -> None:
         self.submit_stage_one()
@@ -466,7 +500,10 @@ class CaseFlowTests(unittest.TestCase):
         artifact.write_text("changed after independent verification\n", encoding="utf-8")
         with self.assertRaisesRegex(caseflow.CaseFlowError, "changed after verification"):
             caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
-        artifact.write_text("# Whole-template baseline\n", encoding="utf-8")
+        artifact.write_text(
+            "# Whole-template baseline\n\n## US-1\n\nOperator completes the job once.\n",
+            encoding="utf-8",
+        )
         advanced = caseflow.command_advance(argparse.Namespace(case_root=self.case_root))
         self.assertEqual(advanced["stage"], 2)
         self.assertEqual(advanced["state"], "blocks")

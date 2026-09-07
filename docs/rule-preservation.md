@@ -36,7 +36,7 @@ criteria плана, реализационный transition, условные d
 контрактом `rules/solution-boundary.md`. Из Vigers перенесены горизонты
 `tactical|bounded-systemic|generalized-capability`, запахи `particular-case` и
 `speculative-generalization`, evidence-backed extension seam и expansion trigger.
-Горизонт и transition фиксируются в schema-3 preliminary brief; старая Vigers state machine для
+Горизонт и transition фиксируются в schema-4 preliminary brief; старая Vigers state machine для
 этого не восстанавливается.
 
 Старые machine transitions, эпохи, профили и команды не переносятся как правила

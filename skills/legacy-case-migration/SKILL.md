@@ -37,8 +37,10 @@ applicable method rule IDs; do not preserve old state-machine verdicts. Use
 **Entry:** Inventory completed.
 
 1. Run `spec-preanalysis` against the current subject and carried evidence.
-2. Rebuild the current schema-3 brief: source queries/results/freshness and coverage,
-   problem, goal, solution hypothesis, preliminary user stories and DoD, solution
+2. Rebuild the current schema-4 brief: source queries/results/freshness and coverage;
+   template-independent problem with negative consequences, goal with benefits,
+   solution essence with behavior change and problem resolution; at least one
+   preliminary user story plus preliminary DoD; solution
    boundary plus implementation transition, architecture gate, scope, classified
    unknowns, dependencies and estimate. Do not copy legacy
    `unknown` strings unchanged: research them, turn them into direct user questions,

@@ -12,9 +12,11 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 ## Что меняется
 
 - Шаблон статьи остаётся неизменяемым каркасом результата.
-- Предварительный анализ выбирает горизонт решения
-  `tactical|bounded-systemic|generalized-capability`: текущий scope не расширяется без
-  evidence, но доказанная вариативность не схлопывается в одноразовый hardcode.
+- Предварительный анализ независимо от шаблона отвечает на четыре базовых вопроса:
+  проблема и её последствие, цель и польза, суть решения и предварительные US. Затем он
+  выбирает горизонт решения `tactical|bounded-systemic|generalized-capability`: текущий
+  scope не расширяется без evidence, но доказанная вариативность не схлопывается в
+  одноразовый hardcode.
 - Предварительный brief фиксирует coverage источников, negative results, preliminary
   US/DoD и реализационный переход; approved plan привязан к его hash.
 - Каждая постановка сначала прорабатывается целиком по всему неизменяемому шаблону.
@@ -51,7 +53,7 @@ TRACE — наследник Vigers, Delivery Engineering & Co.
 | Компонент | Назначение |
 |---|---|
 | `method-library` | Адресная материализация книжных правил Vigers и Delivery |
-| `spec-preanalysis` | Coverage источников, problem framing, предварительные US/DoD, оценка, план и декомпозиция |
+| `spec-preanalysis` | Coverage источников, template-independent проблема/цель/суть решения, предварительные US/DoD, оценка, план и декомпозиция |
 | `spec-workflow` | Сквозной черновик, поблочное углубление и контрольные проекции статьи |
 | `delivery-workflow` | Опциональная разработка с теми же integration barriers |
 | `process-timer` | Независимый журнал времени и событий для Work Metrics |

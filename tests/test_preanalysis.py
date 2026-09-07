@@ -141,7 +141,71 @@ def current_brief() -> dict:
     return payload
 
 
+def framed_brief() -> dict:
+    payload = current_brief()
+    payload["schema"] = 4
+    payload["problem"].update(
+        {
+            "affected_actors": ["Operator"],
+            "negative_consequences": ["The operator must repeat the job"],
+        }
+    )
+    payload["goal"].update(
+        {
+            "beneficiaries": ["Operator"],
+            "benefits": ["The job completes without repeated work"],
+        }
+    )
+    payload["solution_essence"] = {
+        "statement": "Keep one authoritative result for the job",
+        "behavior_changes": ["The system reuses the authoritative result"],
+        "problem_resolution": "Repeated work is no longer required",
+        "evidence_refs": ["SRC-1"],
+    }
+    del payload["solution_hypothesis"]
+    return payload
+
+
 class PreanalysisTests(unittest.TestCase):
+    def test_schema_four_accepts_complete_template_independent_framing(self) -> None:
+        self.assertEqual(preanalysis.validate_brief(framed_brief())["schema"], 4)
+
+    def test_schema_four_requires_negative_problem_consequences(self) -> None:
+        brief = framed_brief()
+        brief["problem"]["negative_consequences"] = []
+        with self.assertRaisesRegex(preanalysis.BriefError, "negative_consequences must not be empty"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_four_requires_goal_benefits(self) -> None:
+        brief = framed_brief()
+        brief["goal"]["benefits"] = []
+        with self.assertRaisesRegex(preanalysis.BriefError, "benefits must not be empty"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_four_requires_solution_to_explain_problem_resolution(self) -> None:
+        brief = framed_brief()
+        brief["solution_essence"]["problem_resolution"] = ""
+        with self.assertRaisesRegex(preanalysis.BriefError, "problem_resolution is required"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_four_requires_at_least_one_preliminary_user_story(self) -> None:
+        brief = framed_brief()
+        brief["preliminary_user_stories"] = []
+        with self.assertRaisesRegex(preanalysis.BriefError, "preliminary_user_stories must not be empty"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_four_requires_evidence_for_each_framing_answer(self) -> None:
+        brief = framed_brief()
+        brief["solution_essence"]["evidence_refs"] = []
+        with self.assertRaisesRegex(preanalysis.BriefError, "evidence_refs must not be empty"):
+            preanalysis.validate_brief(brief)
+
+    def test_schema_four_keeps_schema_three_coverage_and_transition_guards(self) -> None:
+        brief = framed_brief()
+        del brief["solution_boundary"]["implementation_transition"]
+        with self.assertRaisesRegex(preanalysis.BriefError, "implementation_transition must be an object"):
+            preanalysis.validate_brief(brief)
+
     def test_schema_three_binds_source_coverage_and_preliminary_lineage_inputs(self) -> None:
         brief = current_brief()
         self.assertEqual(preanalysis.validate_brief(brief)["schema"], 3)

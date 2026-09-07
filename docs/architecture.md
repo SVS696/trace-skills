@@ -8,9 +8,9 @@
 существующую статью, а после каждой волны интегрируются в новый неизменяемый snapshot.
 
 ```text
-preliminary sources + template headings
+preliminary sources + template-independent framing questions + template headings
         |
-spec-preanalysis: evidence coverage + problem/goal/hypothesis + preliminary US/DoD
+spec-preanalysis: evidence coverage + problem/goal/solution essence + preliminary US/DoD
         | solution horizon + implementation transition + estimate + bound plan
         | conditional architecture design + simplicity-spec
         |

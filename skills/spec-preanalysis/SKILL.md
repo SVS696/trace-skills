@@ -2,7 +2,7 @@
 name: spec-preanalysis
 description: >-
   Use before specification authoring to collect preliminary evidence, frame the
-  problem, goal and solution hypothesis, draft user stories, estimate a range, build
+  problem, goal and solution essence, draft user stories, estimate a range, build
   a plan, decide one or several specifications, and design semantic analysis blocks.
   Not for writing the final specification or implementing it.
 allowed-tools: Read Glob Grep Write Bash Task AskUserQuestion
@@ -18,18 +18,22 @@ the Vigers reference corpus.
 
 1. **Discover before routing.** Build a compact evidence-backed brief before deciding
    how many specifications or blocks exist.
-2. **Decide deliverables before blocks.** First determine whether the subject produces
+2. **Frame independently of the template.** Problem, goal, solution essence and
+   preliminary user stories are mandatory preanalysis answers even when the selected
+   article template has no matching headings. The template consumes the answers; it
+   does not define whether they exist.
+3. **Decide deliverables before blocks.** First determine whether the subject produces
    one independently acceptable result or several. Blocks cannot answer that question.
-3. **Split by outcome, not implementation layer.** Backend/frontend, screens, teams or
+4. **Split by outcome, not implementation layer.** Backend/frontend, screens, teams or
    convenient agent assignments are not enough to create separate specifications.
-4. **Start from the whole, then descend.** Every specification first gets a complete
+5. **Start from the whole, then descend.** Every specification first gets a complete
    working pass through the unchanged template. Semantic blocks are chosen only as
    later depth lenses; they never become the starting deliverables.
-5. **Keep the template unchanged.** The decision maps work to the existing template;
+6. **Keep the template unchanged.** The decision maps work to the existing template;
    it does not redesign it.
-6. **Separate forecast from fact.** Estimates are ranges with basis and confidence;
+7. **Separate forecast from fact.** Estimates are ranges with basis and confidence;
    observed time remains owned by `process-timer`.
-7. **The user owns scope and external writes.** Produce recommendations first. Publish
+8. **The user owns scope and external writes.** Produce recommendations first. Publish
    a plan to Singularity or another system only when authorized, then read it back.
 
 ## When to use
@@ -62,9 +66,16 @@ the Vigers reference corpus.
    request evidence from a named external owner, or prove that it is implementation-only.
 2. Materialize the applicable requirements method route, normally `scope-users` or
    `elicitation`, and pass its path/hash to `spec-preanalyst`.
-3. Form a preliminary problem, goal, solution hypothesis, scope and dependencies.
-4. Draft evidence-linked preliminary user stories and preliminary DoD with confidence,
-   without promoting them to approved requirements.
+3. Before routing or using template headings as a content checklist, read the framing
+   section of [brief-contract.md](references/brief-contract.md). Explicitly ask and
+   answer its four template-independent questions: problem and negative consequence;
+   goal and benefit; solution essence, behavior change and why it removes the problem;
+   preliminary user stories with actor, need and value. Answer from evidence when
+   possible. If an answer that can change scope is missing, classify the gap and return
+   the exact direct question instead of inventing or decorating an answer.
+4. Draft evidence-linked preliminary DoD with confidence. Preliminary status means the
+   answers may be revised by full analysis; it does not make any of the four answers
+   optional.
 5. Read [the solution-boundary contract](../../rules/solution-boundary.md). Classify the
    hypothesis as `tactical`, `bounded-systemic` or `generalized-capability`; record the
    root capability, invariants, confirmed and hypothesized variants, current scope,
@@ -76,11 +87,11 @@ the Vigers reference corpus.
 6. Evaluate the triggers in `rules/architecture-analysis.md`. If triggered, assign a
    fresh `spec-solution-architect` design run before decomposition approval and bind its
    output path/hash to each affected article. Otherwise record `not-required` with reason.
-7. Run `simplicity-spec` on the solution hypothesis and candidate decomposition.
+7. Run `simplicity-spec` on the solution essence and candidate decomposition.
    Remove or defer every mechanism that lacks a current requirement; preserve its
    protected minimum, including an evidence-backed extension seam. This is a semantic
    solution pass, not prose cleanup.
-8. Write the already simplified schema-3 `preanalysis-brief.json` using
+8. Write the already simplified schema-4 `preanalysis-brief.json` using
    [brief-contract.md](references/brief-contract.md).
 9. Record an estimate range with basis and confidence, or explicitly mark it unavailable.
 10. Validate with `scripts/preanalysis.py validate-brief`.
@@ -126,9 +137,10 @@ block map for the depth passes.
 2. Write schema-2 `execution-plan.json` using [plan-contract.md](references/plan-contract.md).
    Bind it to the exact brief hash; every task has source refs and observable exit criteria.
 3. Validate all three artifacts.
-4. Present the problem framing, recommendation, estimate range, plan and material
+4. Present the four framing answers, recommendation, estimate range, plan and material
    trade-offs to the user, including the visible `simplicity-spec` result. Batch and ask
-   every direct `user-decision` question that can change problem, goal, scope,
+   every direct `user-decision` question that can change problem, goal, solution
+   essence, preliminary user stories, scope,
    decomposition or acceptance before requesting approval.
 5. After the user's choice, approve the decision and plan with exact `decision_ref`.
 6. If separately authorized, sync the approved plan through the project's planning
@@ -148,8 +160,11 @@ and performs any separately authorized external synchronization.
 ## Success criteria
 
 - Article count follows independent outcomes and acceptance boundaries.
-- Problem, goal and solution hypothesis are explicit and evidence-linked.
-- Preliminary user stories remain visibly preliminary.
+- Problem and its negative consequence, goal and its benefit, and solution essence with
+  behavior change plus problem resolution are explicit and evidence-linked regardless
+  of article template.
+- At least one evidence-linked preliminary user story is present and remains visibly
+  preliminary.
 - Every preliminary US and preliminary DoD is evidence-linked and must later receive an
   explicit stage-1 disposition; none can disappear during article authoring.
 - Estimate is a justified range or an explicit gap, never an invented deadline.

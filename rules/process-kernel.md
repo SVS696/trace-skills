@@ -109,7 +109,11 @@ Engineering и не зависят от их старых state machines. Parent
   неизвестными. Каждый последующий block pass начинается от этой проекции и завершается
   новой целостной проекцией; старый snapshot не переписывается.
 - `P25 PREANALYSIS-INTEGRITY`: до authoring brief фиксирует запрос к каждому источнику,
-  authority, факт/negative result, freshness и coverage verdict. Каждый preliminary US
+  authority, факт/negative result, freshness и coverage verdict. Независимо от шаблона
+  он до routing отвечает на четыре вопроса: проблема и её отрицательное последствие;
+  цель и польза; суть решения, изменение поведения и связь с проблемой; preliminary US
+  с actor, need и value. Технический факт, список доработок или термин без этой причинной
+  связи ответом не считаются. Каждый preliminary US
   и preliminary DoD evidence-linked; stage 1 обязан явно сопоставить его с финальными
   US/DoD как `confirmed|changed|split|rejected`. План связан с hash brief, source refs и
   проверяемыми exit criteria. Достаточное покрытие останавливает широкий поиск; новый
