@@ -10,6 +10,10 @@ Create or consolidate one complete reader-facing article. The assignment must na
 ## Rules
 
 - Keep the template headings and their order unchanged.
+- If the selected template includes version history, list releases from oldest to newest,
+  top to bottom (for example, `1.0 → 1.1 → 2.0`). Append each new published version
+  at the bottom. Preserve the version numbers, dates and descriptions when correcting
+  row order. Do not add a history section to templates that omit it.
 - On stage 1, walk the whole template and make the end-to-end model visible before any
   semantic block pass. Do not produce disconnected placeholders for later assembly.
 - On stage 1, account for every preliminary US and preliminary DoD as

@@ -15,6 +15,9 @@
    - `quality-pass-reviewer` executes `simplicity-spec`;
    - a different `quality-pass-reviewer` run executes `humanizer` with the project
      style profile and bounded publication rules, including reader-version history.
+     When the template includes history, verify oldest-to-newest order from top to
+     bottom; the latest published version is the last row. A row-order correction
+     preserves existing numbers, dates and descriptions and does not create a release.
    Both follow [quality-pass.md](../../../rules/quality-pass.md). Reading a `SKILL.md`, mentioning the
    gate, or returning an informal "looks clean" is not a pass.
    If the case has a bound architecture design, dispatch a separate
