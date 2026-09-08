@@ -53,6 +53,15 @@ Required checks:
 - `simplicity-code`: `minimum-core`, `real-flow`, `seven-step-ladder`,
   `element-classification`, `runnable-result`.
 
+For `simplicity-spec`, `element-classification` includes the skill's change-boundary
+check: identify the concrete change and requirement evidence for each technical block,
+or propose `REMOVE` / `SIMPLIFY`. A catalogue of unchanged platform contracts is a
+solution-scope defect, not prose cleanup; a "not changed" label does not justify it.
+Retain new behaviour and contract deltas, not complete baseline request/response or
+CRUD descriptions. A necessary compatibility boundary may use one short statement
+or a source link. A full-article pass cannot be `clean` while that catalogue remains;
+a bounded pass must limit its conclusion to its exact subject and read-set.
+
 The report is invalid when it only says that the skill was read, names the gate, or
 claims `clean` without its prescribed checks. The article or code author cannot issue
 the narrow reviewer report under the same `run_id`.

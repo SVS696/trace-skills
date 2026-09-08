@@ -36,7 +36,12 @@
    semantic IDs, then inspect the actual rendered output for readability. If checks
    change the article, register the new fingerprint with
    `article-updated` before invoking review.
-7. Invoke `revmux` on the article diff using its standard workflow. Use
+7. Invoke `revmux` on the article diff using its standard workflow. Before launch,
+   check `revmux config`'s `paths.profile_fallback` and the round's `input/profile.md`:
+   a non-empty round profile overrides the project's review criteria. Do not put a
+   roster name or round scope there; choose the roster with `--profile` and keep
+   scope in `scope.md`. Follow the revmux skill for an intentional calibration change.
+   Use
    `comprehensive` for the first substantive round. Before every later round, count
    completed non-degraded rounds for the case. Five is a hard cap; a technical retry of
    a degraded or failed run does not count. Round six requires a new explicit user

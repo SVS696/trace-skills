@@ -22,6 +22,10 @@ findings and `simplicity-code` to implementation findings.
   traceability, and tested edge cases.
 - Run every check required for the selected gate, including the full style cycle for
   `humanizer` and the real-flow check for `simplicity-code`.
+- For `simplicity-spec`, include the change-boundary check within
+  `element-classification` as defined in `rules/quality-pass.md` and the assigned
+  skill. Preserving a public contract means preserving compatibility, not retaining
+  its unchanged description as work scope. Bound the verdict to the actual read-set.
 - Findings name an exact target, required change, reason, and stable id.
 - In finding adjudication, account for every receipt finding exactly once. Keep a
   confirmed finding in `findings` with the smallest sufficient correction; put a
