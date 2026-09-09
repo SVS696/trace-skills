@@ -18,7 +18,7 @@
         {"path": "library/requirements/references/native-tables.md", "sha256": "ffb486342e5d27c95cf7fcc5fa6caeabd8857bae82d9a307575ab4b9707a54be"},
         {"path": "library/requirements/references/native-diagrams.md", "sha256": "6bbe634ddd35fc7434e991bc11546b0190143ceff9c58540604e6731c73a5a02"},
         {"path": "library/requirements/references/native-image-map.md", "sha256": "66e69edf6cabf5426cd9e252a7fa02351f9091fb19e57ce7c3e0aa0a10ae6a7a"},
-        {"path": "library/requirements/references/task-template.md", "sha256": "d5dd58056f72e52b69bbc55ba6606dd141d227dbdb390f024d12f5eb62c62d5e"}
+        {"path": "library/requirements/references/task-template.md", "sha256": "7bd9aa06e0701007bfd99c248343a72f37cd13e75709050c728c9c4c6b71dcdd", "source_sha256": "d5dd58056f72e52b69bbc55ba6606dd141d227dbdb390f024d12f5eb62c62d5e", "adaptation": "TRACE: DoD is readiness for live acceptance; developer checks are separate"}
       ]
     },
     "delivery": {

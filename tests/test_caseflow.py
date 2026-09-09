@@ -11,6 +11,14 @@ from pathlib import Path
 from scripts import caseflow
 
 
+def legacy_init(args):
+    """Build the historical manifest shape for legacy compatibility tests."""
+    payload = caseflow.command_init(args)
+    payload.pop("review_protocol", None)
+    caseflow.save_case(args.case_root, payload, "legacy_fixture")
+    return payload
+
+
 def solution_boundary() -> dict:
     return {
         "horizon": "bounded-systemic",
@@ -200,7 +208,7 @@ class CaseFlowTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        caseflow.command_init(
+        legacy_init(
             argparse.Namespace(
                 case_root=self.case_root,
                 template=self.template,
@@ -1011,6 +1019,11 @@ class CaseFlowTests(unittest.TestCase):
         payload = caseflow.load_case(self.case_root)
         payload["state"] = "revmux_pending"
         caseflow.save_case(self.case_root, payload, "prepare_review_round_6")
+        retry = caseflow.command_record_review(
+            argparse.Namespace(case_root=self.case_root, receipt=str(degraded_receipt))
+        )
+        self.assertEqual(retry["review_cycles_used"], 5)
+        self.assertEqual(retry["state"], "revmux_pending")
         receipt = self.root / "revmux-clean-6.json"
         receipt.write_text(
             json.dumps(
@@ -1249,6 +1262,61 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(recorded["accepted_finding_ids"], [])
         self.assertEqual(recorded["dismissed_finding_ids"], ["f-paranoia"])
 
+    def test_minor_pause_requires_user_disposition_and_cannot_route(self) -> None:
+        article_sha256 = self.prepare_review()
+        receipt = self.write("minor-receipt.json", json.dumps({
+            "schema": 1, "article_sha256": article_sha256,
+            "sources": {"ids": ["reader"], "expected": 1, "reported": 1, "degraded": []},
+            "findings": [{"id": "m1", "severity": "minor", "sources": ["reader"]}],
+            "open_questions": [],
+        }))
+        adjudication = self.write_review_adjudication(receipt, accepted={"m1"})
+        result = caseflow.command_record_review(argparse.Namespace(
+            case_root=self.case_root, receipt=str(receipt),
+            adjudication_report=str(adjudication), stop_at_minor=True,
+        ))
+        self.assertEqual(result["state"], "revmux_minor_pending")
+        self.assertEqual(result["accepted_finding_ids"], ["m1"])
+        self.assertEqual(result["review_cycles_used"], 1)
+        status = caseflow.command_status(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(status["state"], "revmux_minor_pending")
+        self.assertEqual(status["review_cycles_used"], 1)
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_article_updated(argparse.Namespace(case_root=self.case_root))
+        with self.assertRaises(caseflow.CaseFlowError):
+            caseflow.command_route(argparse.Namespace(
+                case_root=self.case_root, decision="stop",
+            ))
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "exact review diff pool"):
+            caseflow.command_record_review_decisions(argparse.Namespace(
+                case_root=self.case_root, decision_ref="user-1", diff_pool=None,
+            ))
+        pool = self.write("minor-pool.json", json.dumps({
+            "schema": 1, "stage": 4, "items": [{
+                "id": "D4-001", "source_finding_id": "m1", "target": "article.md",
+                "change": "Clarify the label", "reason": "m1", "status": "open",
+            }],
+        }))
+        resumed = caseflow.command_record_review_decisions(argparse.Namespace(
+            case_root=self.case_root, decision_ref="user-1", diff_pool=str(pool),
+        ))
+        self.assertEqual(resumed["state"], "revmux_remediation")
+
+    def test_minor_pause_rejects_major_findings(self) -> None:
+        article_sha256 = self.prepare_review()
+        receipt = self.write("major-receipt.json", json.dumps({
+            "schema": 1, "article_sha256": article_sha256,
+            "sources": {"ids": ["reader"], "expected": 1, "reported": 1, "degraded": []},
+            "findings": [{"id": "m1", "severity": "major", "sources": ["reader"]}],
+            "open_questions": [],
+        }))
+        adjudication = self.write_review_adjudication(receipt, accepted={"m1"})
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "only accepted minor"):
+            caseflow.command_record_review(argparse.Namespace(
+                case_root=self.case_root, receipt=str(receipt),
+                adjudication_report=str(adjudication), stop_at_minor=True,
+            ))
+
     def test_revmux_recheck_keeps_sources_that_raised_accepted_findings(self) -> None:
         article_sha256 = self.prepare_review()
         receipt = self.write(
@@ -1410,7 +1478,7 @@ class CaseFlowTests(unittest.TestCase):
         mismatched = self.root / "mismatched-plan.json"
         mismatched.write_text(json.dumps(plan), encoding="utf-8")
         with self.assertRaises(caseflow.CaseFlowError):
-            caseflow.command_init(
+            legacy_init(
                 argparse.Namespace(
                     case_root=self.root / "second-case",
                     template=self.template,
@@ -1710,7 +1778,7 @@ class CaseFlowTests(unittest.TestCase):
         decision_path.write_text(json.dumps(decision_payload), encoding="utf-8")
         case_root = self.root / "case-v2"
 
-        initialized = caseflow.command_init(
+        initialized = legacy_init(
             argparse.Namespace(
                 case_root=case_root,
                 template=self.template,
@@ -1797,7 +1865,7 @@ class CaseFlowTests(unittest.TestCase):
         decision_payload = json.loads(self.decision.read_text(encoding="utf-8"))
         decision = self.root / "article-led-decision.json"
         decision.write_text(json.dumps(decision_payload), encoding="utf-8")
-        initialized = caseflow.command_init(
+        initialized = legacy_init(
             argparse.Namespace(
                 case_root=article_case,
                 template=self.template,

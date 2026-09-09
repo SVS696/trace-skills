@@ -57,7 +57,7 @@ applicable method rule IDs; do not preserve old state-machine verdicts. Use
    disposition of every preliminary US/DoD.
 6. Create a migration diff listing missing or stale material. Every still-open input
    that can change requirements, scenarios or AC is a blocking item assigned to the
-   earliest applicable new stage; an owner label does not make it non-blocking.
+   earliest applicable authoring stage; an owner label does not make it non-blocking.
 
 **Exit:** The proposed stage-1 baseline and exact carry-forward set are explicit.
 
@@ -79,5 +79,5 @@ not transfer automatically. Run the work-style `humanizer` pass before delivery.
   not substitutes for those contracts.
 - The stage-1 baseline has evidence-based entry criteria and covers the whole template.
 - Direct user questions have been asked before claiming their affected entry criteria;
-  unanswered content questions remain blocking diff items, never harmless backlog.
+  unanswered content questions remain blocking authoring inputs, never harmless backlog.
 - The post names what is carried, rechecked and intentionally not carried.

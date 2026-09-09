@@ -39,7 +39,7 @@ design artifact с `mode=design`, своим `actor.role/run_id`, `status=design
 
 ## Conformance pass
 
-На stage 4 другой запуск той же роли в режиме `conformance` сравнивает точные bytes
+В обычном revmux на stage 4 другой запуск той же роли в режиме `conformance` сравнивает точные bytes
 статьи с утверждённым design artifact. Он не перепроектирует решение и возвращает:
 
 ```json
@@ -54,7 +54,7 @@ design artifact с `mode=design`, своим `actor.role/run_id`, `status=design
 }
 ```
 
-При расхождениях `status=changes-required`, а каждый finding имеет `id`, `target`,
-`change`, `reason` и входит по `source_finding_id` в единый stage-4 diff-pool.
+При расхождениях `status=changes-required`, а каждый finding обычного revmux имеет `id`, `target`,
+`change`, `reason` и входит по `source_finding_id` в единый pool принятых findings revmux.
 Intentional deviation закрывается новым решением/ADR, а не молчаливым исправлением
 design или статьи.

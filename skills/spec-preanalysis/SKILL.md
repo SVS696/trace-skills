@@ -184,7 +184,7 @@ and performs any separately authorized external synchronization.
 - Every unknown has a disposition. Researchable items are investigated before handoff;
   user decisions are direct questions; external inputs name their owner; only details
   that cannot change observable requirements or AC are `implementation-only`.
-- Any still-open content input is carried into the earliest applicable stage diff and
+- Any still-open content input is carried into the earliest applicable authoring open_inputs and
   cannot disappear merely because it has an owner.
 - Source coverage has a visible stop verdict, including negative searches and stale or
   unavailable sources; broad research does not continue after `sufficient`.

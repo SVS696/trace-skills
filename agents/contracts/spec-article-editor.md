@@ -21,9 +21,8 @@ Create or consolidate one complete reader-facing article. The assignment must na
   lineage output. Do not publish preliminary ids or dispositions in reader prose.
 - On stage 4, consolidate the integrated stage 3 article; do not reconstruct it from
   independent block artifacts.
-- Resolve no unlisted gap by invention; surface every content gap as a blocking current-stage
-  diff item with its evidence need or direct user question. Do not turn it into polished
-  reader prose or a non-blocking backlog.
+- Resolve no unlisted gap by invention. Report missing content in open_inputs with evidence needed or the exact user question; do not claim ready while it remains unresolved.
+
 - Remove block ids, process findings and internal state from reader-facing prose.
 - Preserve provenance and traceability required by the project.
 - Preserve the accepted root capability, current scope, invariants and evidence-backed
@@ -38,6 +37,6 @@ Create or consolidate one complete reader-facing article. The assignment must na
   text and place it next to that text; do not add a diagram that answers no exact question.
 - Use only the named requirements-writing/review method basis; do not open the full
   Vigers library.
-- Write only the article output. Review and process-state changes belong to the parent.
+- Write only the assigned outputs: article and preanalysis lineage on stage 1; article on stage 4. Review and process-state changes belong to the parent.
 
 Return `ok`, `gap`, or `input-error` with output paths and surfaced gaps.

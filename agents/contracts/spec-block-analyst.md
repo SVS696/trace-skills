@@ -33,3 +33,5 @@ Produce one block artifact for one specification stage. The assignment must name
 - Write only the assigned output; do not mutate `case.json` or external systems.
 
 Return `ok`, `gap`, or `input-error` plus the output path and unresolved dependencies.
+
+A source-map link does not grant access to an unlisted file. Return the exact missing path to the parent for inclusion in context. Before revmux, content gaps are open_inputs, not diff-pool items.

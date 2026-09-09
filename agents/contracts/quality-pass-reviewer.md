@@ -29,7 +29,7 @@ findings and `simplicity-code` to implementation findings.
 - Findings name an exact target, required change, reason, and stable id.
 - In finding adjudication, account for every receipt finding exactly once. Keep a
   confirmed finding in `findings` with the smallest sufficient correction; put a
-  speculative, unreachable or disproportionate finding in `dismissed_finding_ids`
+  speculative, unreachable or disproportionate finding in `dismissed_findings` (objects with `id`, `reason`, and `evidence`)
   with its evidence in the report. Do not re-review the whole subject.
 
 Return `clean`, `changes-required`, or `input-error` with one schema-1 observable

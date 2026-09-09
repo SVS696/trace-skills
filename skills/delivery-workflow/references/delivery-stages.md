@@ -40,11 +40,13 @@ it never returns specification block drafts as the active delivery context.
 **Entry:** Stage 1 pool closed.
 
 1. Implement lanes with developer tests.
-2. Integrate once and freeze one diff snapshot. A separate
+2. Integrate once, run non-LLM build/tests and static checks, correct failures,
+   then freeze one diff snapshot. A separate
    `quality-pass-reviewer` runs `simplicity-code` and writes the
    [observable report](../../../rules/quality-pass.md) bound to that
    snapshot and the exact skill bytes.
-3. Run build/tests, then create one stage pool covering accepted simplicity findings
+3. Repeat deterministic checks after corrections and before any model dispatch,
+   then create one stage pool covering accepted simplicity findings
    and all remaining defects. Register it with `delivery-record-stitch
    --simplicity-report ...` and preserve the protected minimum.
 4. Apply only pooled corrections and repeat the same checks. The handoff must show the
@@ -60,7 +62,14 @@ it never returns specification block drafts as the active delivery context.
 2. Run project conformance and risk-proportional regression checks. Verify provider
    enforcement directly, consumer behavior separately, then their E2E composition;
    do not let one contour stand in for another.
-3. Put accepted defects into one verification pool and recheck the exact changed diff.
+3. If revmux is used, send its findings first to an independent `simplicity-code`
+   adjudication (or `simplicity-spec` for a documentation subject), record accepted
+   corrections in one pool and dismiss others with evidence. Apply only the pool,
+   run deterministic checks and recheck the correction diff and affected classes
+   with their required sources. Use the same five-round cap and minor-pending
+   stopping rule as specification review; minor residuals never mean acceptance.
+   Without revmux, put accepted defects into one verification pool and recheck
+   the exact changed diff.
 
 **Exit:** Independent evidence has no gating defect; developer and verifier receipts
 remain distinct.

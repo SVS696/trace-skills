@@ -1,244 +1,85 @@
 # Архитектура TRACE
 
-## Решение
+TRACE готовит одну целостную статью для каждого независимо принимаемого результата.
+Смысловые блоки углубляют готовую модель целого; BE/FE и удобство агентов сами по себе
+не являются основанием делить постановку.
 
-Используется нисходящий article-led процесс. Неизменяемый шаблон сначала заполняется
-целиком, чтобы причинно-следственная модель, границы и пробелы были видны одновременно.
-Только затем работа делится на ограниченные семантические блоки. Они углубляют уже
-существующую статью, а после каждой волны интегрируются в новый неизменяемый snapshot.
+## Порядок
 
-```text
-preliminary sources + template-independent framing questions + template headings
-        |
-spec-preanalysis: evidence coverage + problem/goal/solution essence + preliminary US/DoD
-        | solution horizon + implementation transition + estimate + bound plan
-        | conditional architecture design + simplicity-spec
-        |
-single/split + semantic descent map + optional plan sync
-        |
-approved decomposition decision + article-led case manifest
-        |
-stage 1: whole template + PUS/DoD lineage -> one baseline article -> one diff -> verify
-        |
-stage 2: semantic blocks -> integrate into article snapshot -> one diff -> verify
-        |
-stage 3: acceptance blocks -> integrate into article snapshot -> one diff -> verify
-        |
-stage 4: consolidate -> simplicity-spec + humanizer + conditional arch conformance
-                    -> one diff -> verify
-                    -> deterministic checks -> revmux convergence
-        |
-        +-- stop
-        `-- delivery workflow
+1. Преданализ: проверенные источники, проблема и последствие, цель и польза, суть
+   решения, preliminary US/DoD, scope, горизонт решения, переход, оценка и план.
+2. Пользователь утверждает brief, decomposition и plan; они связываются hash при init.
+   Архитектурный design появляется только при подтверждённом trigger до утверждения.
+3. Стадия 1: весь применимый шаблон и явная судьба каждого preliminary US/DoD.
+4. Стадия 2: углубление поведения и новая интегрированная статья.
+5. Стадия 3: наблюдаемая приёмка и новая интегрированная статья.
+6. Стадия 4: готовая статья и deterministic preflight.
+7. article → обычный revmux → findings → принятый diff-pool → fix article →
+   article v2 → следующий обычный revmux.
+8. Остановка на постановке или явно выбранный delivery. Публикация, handoff,
+   реализация, merge, deploy и acceptance остаются отдельными фактами.
 
-event-driven runtime signal: Smoke Break -> P23 COURSE-CHECK after a tool call
-```
+## Контекст
 
-## Контекстная модель
+Parent читает kernel один раз, текущий skill и одну стадию. Он материализует один
+method-library route и формирует окончательный read_set через context с повторяемыми
+--project-rule и --source. Узкий агент получает применимые проектные правила, сами
+источники, предыдущую whole article, accepted solution_boundary и точные output paths.
+Ссылка в source-map не разрешает неназванный источник. Missing required input
+возвращается как input-error или точный запрос на дополнение; весь проект не загружается.
 
-На каждом ходе загружаются только:
+Preanalysis brief и lineage нужны на стадии 1. Architecture design передаётся только
+затронутым назначениям, в том числе conformance-рецензенту внутри обычного revmux.
+Шаблон выбирается из семейства main/component по rules/template-family.md; source
+не меняется при авторинге, неприменимые секции удаляются только из article output.
 
-1. компактный `rules/process-kernel.md`, один раз на задачу;
-2. принятая `solution_boundary` выбранной статьи из `caseflow context`;
-3. `SKILL.md` активного скилла;
-4. одна инструкция текущей стадии;
-5. один материализованный method basis из книжной библиотеки;
-6. read-set из `caseflow context`;
-7. предыдущая целостная article projection и только назначенный агенту блок источников.
+## Авторинг и readiness
 
-Полный preanalysis brief загружается только на stage 1. Архитектурный design — только
-если gate сработал и только для stage 1/4 задач, которым он нужен. Diagram contract
-загружается только при diagram surface в материализованном route.
+До первого revmux нет correction pool. Авторы и integrator исправляют кандидат,
+согласуют блоки, выполняют deterministic preflight и разрешают content inputs.
+Прямой вопрос нужен только для недостающего решения; доступные факты исследуются.
+Неразрешённый вход, меняющий требование, сценарий или AC, не допускает status ready.
 
-Предыдущие версии статьи не переписываются: каждая стадия создаёт новый snapshot, а
-`caseflow context` отдаёт только последний. Зарегистрированные версии представлены
-article projection, block artifact, stitch report и fingerprints в `case.json`.
-Изменённый block artifact, article projection, его method basis или stitch перепривязывается
-на `advance` только когда его путь назван `verified`- или явно `waived`-пунктом
-diff-pool, а текущие bytes совпадают с fingerprint проверки или решения. После закрытия
-стадии fingerprints снова неизменяемы. Финальная статья после чистого review также
-замораживается. Финальный review работает только с проверенной stage-4 projection.
+Каждая стадия регистрирует новый snapshot и JSON stitch report (schema 1, stage,
+status ready, open_inputs [], описание checks), затем advance. Стадия 1 дополнительно
+сохраняет US/DoD lineage. Fingerprints запрещают менять зарегистрированные bytes между
+ready и advance или переписывать закрытые стадии. Finalize выбирает статью стадии 4.
+Это готовность к review, не согласование или приёмка.
 
-## Границы компонентов
+## Findings и подтверждение исправлений
 
-| Компонент | Владеет | Не владеет |
-|---|---|---|
-| `spec-preanalysis` | source coverage, preliminary brief, горизонтом и переходом решения, оценкой, планом, числом постановок и semantic descent map | финальным текстом постановки |
-| `spec-solution-architect` | triggered design либо независимой conformance-сверкой | бизнес-scope, кодом и workflow-state |
-| `spec-workflow` | целостной статьёй, блоками углубления и article projections | кодом и внешними статусами |
-| `delivery-workflow` | implementation lanes и проверками | формальной приёмкой и деплоем без запроса |
-| `caseflow.py` | состоянием, hashes, diff-pool gates | содержанием требований |
-| `process-timer` | наблюдаемыми событиями времени | оценками и выводом о качестве |
-| `Smoke Break` | началом turn и периодическим model-visible reminder после tool call | workflow-state и решением о продолжении |
-| `P23 COURSE-CHECK` | сверкой outcome, frontier, progress, drift и следующего falsifier | новой стадией, артефактом или independent verdict |
-| `simplicity-spec` / `simplicity-code` | отдельным проходом против переусложнения решения или реализации | стилем прозы и формальной приёмкой |
-| `humanizer` | отдельным reader-language проходом по проектному профилю | логикой требований и formal review |
-| `revmux` | независимым review и его ограниченными раундами | авторством статьи и внешней приёмкой |
-| `method-library` | pinned книжными дистиллятами и bounded materialization | продуктовым scope и решениями проекта |
+Обычный revmux включает актуальные проектные критерии, логику, простоту, язык и
+сработавшие архитектурные поверхности. Дизайнер не выдаёт собственный независимый
+conformance verdict. Отдельные pre-revmux review loops и targeted verification не нужны.
 
-`preanalysis-brief.json`, `decomposition-decision.json` и `execution-plan.json`
-fingerprinted при `init`. Stage 1 дополнительно регистрирует
-`preanalysis-lineage.json`, который обязан ровно один раз сопоставить каждый PUS/PDOD
-с финальными US/DoD. Поэтому restart или миграция не могут молча отбросить раннюю
-постановку смысла.
+После полного результата receipt-bound simplicity adjudication отбирает достижимые,
+существенные findings и минимальные corrections; это не повторное ревью статьи.
+Pool точно покрывает принятый набор. Каждый target указывает итоговую article;
+синхронизация промежуточного артефакта может выполняться дополнительно в том же diff.
 
-Заголовки задач `execution-plan.json` принадлежат reader-facing слою: они кратко
-называют продуктовый результат и остаются понятными без знания TRACE. Номера стадий,
-block/case ID и операции процесса хранятся отдельно как структурированная механика.
+После исправления всей партии и deterministic checks resolve-review сохраняет applied
+receipt с hash обновлённой статьи. Неизменившаяся article или устаревший receipt не
+принимаются. Article-updated допускает следующий обычный revmux без verify-review.
+Полный чистый revmux подтверждает applied corrections; degraded receipt их не закрывает.
+Рецензенты, необходимые для предыдущих findings, сохраняются. При новых findings
+повторяется тот же цикл. Авторская запись «исправлено» не является независимым verdict.
 
-## Два уровня декомпозиции
+Считаются только содержательные раунды revmux, максимум пять на article. Технические
+retries и deterministic checks не считаются. Чистый результат останавливает цикл;
+только minor позволяет ранний minor-pending с явным остатком. Шестой раунд требует
+реального решения пользователя. Никакой собственный decision-файл не заменяет его.
 
-Предварительный анализ сначала решает, нужна одна постановка или несколько. Отдельная
-постановка появляется только для независимо принимаемого результата с собственной
-acceptance boundary. Деление по backend/frontend, экрану или агенту не считается
-достаточным основанием.
+## Совместимость и остальные контуры
 
-Затем для каждой постановки выбираются семантические линзы углубления. Это не выбор
-между article-first и hybrid: article-first является обязательным первым проходом для
-каждой постановки. Малой задаче достаточно одного блока, сложной — нескольких, если у
-них действительно разные источники, правила, жизненные циклы или интерфейсные риски.
-Stage 1 и 4 используют служебный subject `ARTICLE`; stage 2 и 3 — утверждённые блоки.
+Init нового кейса помечает его как article-revmux и не принимает pre-review pools. Исторические кейсы
+без этой пометки по-прежнему читают свои старые stage pools/receipts; их не мигрируют
+автоматически. Эти команды не являются альтернативным маршрутом нового авторинга.
 
-## Почему четыре стадии
+Delivery сохраняет собственные lane/stage pools, developer checks и независимый
+implementation verification. Не переносить команду «нет targeted verification для
+article» на реальные тесты кода. Process-timer фиксирует фактически наблюдаемые события,
+не определяет состояние workflow и не подменяет оценку длительностью.
 
-Четыре стадии находятся внутри заданного диапазона 3–5 и дают отдельные точки для
-разных видов ошибок:
-
-1. неполная или ложная сквозная модель по всему шаблону;
-2. недостаточно проработанные сценарии, правила, данные и интерфейсы внутри блоков;
-3. непроверяемые AC, DoD и трассировка после интеграции блоков;
-4. ошибки общей статьи и reader projection.
-
-Добавление новых обязательных стадий требует доказанного повторяемого дефекта. Иначе
-новое правило должно быть проверкой внутри существующей стадии.
-
-## Границы технических слоёв
-
-BE/FE, сервисы и другие технические слои остаются частями одной постановки, если у них
-нет независимых продуктовых результатов и acceptance boundary. Внутри статьи их
-ответственность при этом разводится явно: краткий состав изменения по слоям, один
-authoritative owner для каждой гарантии, направление и данные межслойного контракта,
-триггер вызова и использование ответа потребителем, а также явные запреты на подмену
-чужой гарантии.
-
-Для BE/FE это означает, что клиентская проверка не заменяет серверную, а корректный
-ответ Backend не доказывает поведение интерфейса. Требования называют владельца
-реализации; AC и DoD разделяют evidence BE API, FE UI и общий E2E-сценарий. Эти части
-проецируются в существующие разделы проектного шаблона, а не требуют нового шаблона.
-
-Горизонт решения и переход реализации различаются. Первый ограничивает обобщение,
-второй выбирает `evolve-in-place|replace-and-remove|staged-migration`, authoritative
-owner и, где есть старый путь, retirement/rollback. Временное сосуществование без
-evidence и измеримого retirement trigger запрещено.
-
-## Diff-pool
-
-У каждой стадии один `required-diff.json`. Пул append-only до закрытия стадии.
-Каждый пункт содержит стабильный id, target, требуемое изменение, основание и статус.
-Исполнитель не исправляет ничего вне пула. Проверяющий подтверждает конкретный hash
-target bytes либо добавляет новый точный пункт в тот же пул; последующее изменение
-target требует нового пункта и новой проверки.
-
-Тот же пул является gate содержательной готовности. Интегратор обязан разобрать каждый
-неизвестный вход: самостоятельно исследуемый, прямое решение пользователя, вход от
-названного внешнего владельца или действительно внутренняя деталь реализации.
-Первые три варианта блокируют стадию, если влияют на требования, сценарии или AC, и
-хранятся как обычные diff items с полем `input`. Их нельзя закрыть waiver: ответ или
-evidence сначала встраивается в целевой артефакт, затем проверяется. Только внешняя
-готовность и implementation-only детали, не меняющие контракт постановки, могут
-остаться в `deferred_inputs` с явной причиной.
-
-Зарегистрированный пул не редактируется вручную: новый пункт проходит `append-item`,
-`append-review-item` или `delivery-append-item`. Команда проверяет schema и уникальность
-id, обновляет fingerprint пула и возвращает gate в remediation. Все CLI-изменения одного
-кейса сериализуются файловой блокировкой, поэтому параллельные агенты не теряют записи.
-
-Стадия не продвигается, пока каждый пункт не имеет статус `verified` с отдельным
-verification receipt или `waived` с явной ссылкой на решение. Блокирующий content
-input требует именно `verified` и waiver не допускает. `applied` означает только
-внесённую, но ещё не подтверждённую правку. Неуспешная проверка возвращает тот же
-пункт в `open` и сохраняет историю попыток, поэтому повторная правка не маскируется
-новым id.
-
-У каждого actionable-раунда `revmux` свой article diff-pool, связанный с исходными
-finding id. Каждый принятый finding обязан попасть в него независимо от severity;
-отклонённый остаётся в adjudication с причиной и evidence. Новый review-round нельзя
-запустить, пока пункты прошлого
-пула не `verified`/`waived` и новая версия статьи не зарегистрирована. Degraded-run
-не создаёт diff: сначала восстанавливается источник и повторяется сам review.
-
-Перед correction diff найденные проблемы проходят отдельный adjudication. Для статьи
-`quality-pass-reviewer` применяет `simplicity-spec` только к findings и минимальному
-evidence их достижимости; для code review действует тот же инвариант с
-`simplicity-code`. Отчёт привязан к receipt, покрывает каждый finding и разделяет
-подтверждённые и отклонённые. Профиль `revmux` калибрует reviewer, но не заменяет этот
-gate: он не исполняет внешний skill и не оставляет его observable output. В correction
-diff входят только подтверждённые findings.
-
-Receipt обязан быть schema 1, содержать полную source accounting с устойчивыми
-`sources.ids` и SHA текущей статьи. Каждый finding перечисляет поднявшие его source
-ids. Следующий clean-round обязан повторно включить sources принятых в прошлый diff
-finding-классов: более узкий профиль не может объявить их закрытыми.
-Раунд с open questions переводит кейс в `revmux_decision_pending`; ответ фиксируется
-через `record-review-decisions`, после чего тот же пул покрывает gating findings и
-принятые изменения из ответов.
-
-`caseflow status` отдельно считает только завершённые non-degraded review cycles и
-возвращает остаток от hard cap `5`. `record-review` не принимает следующий раунд после
-исчерпания cap без точного `--cap-decision-ref`; технический retry деградировавшего или
-не состоявшегося запуска счётчик не расходует. Состоявшийся post-fix review или
-verification после пятого раунда требует явного решения пользователя; переименование
-его в recovery и собственный decision-файл агента эту границу не меняют. До первого
-`revmux` статья проходит
-`simplicity-spec`, поэтому reviewer не становится первым барьером против лишней
-сложности. Закрытый stage-4 readiness gate также не позволяет использовать `revmux`
-как поздний сбор базовых продуктовых решений: к первому раунду требования, сценарии и
-AC уже содержательно определены. `advance` фиксирует `content_ready_at`, а
-`record-review` отклоняет старый или вручную продвинутый case без этого marker вместо
-автоматического признания его готовым.
-
-На стадии 4 чтение peer-skill не принимается за результат. Автор статьи и два запуска
-`quality-pass-reviewer` работают в разных run: один выполняет `simplicity-spec`,
-второй — `humanizer`. Их отчёты привязаны к одним bytes статьи, а каждый finding
-обязан войти в единый stage-4 diff. На delivery stage 2 тот же узкий агент выполняет
-`simplicity-code` над интегрированным diff. Компактная schema находится в
-`rules/quality-pass.md` и читается только на этих gates.
-
-После явного route=`delivery` `caseflow.py` заводит отдельные `delivery_stage` и
-`delivery_state`. Каждая из четырёх стадий повторяет барьер lanes → stitch → один
-diff-pool → независимая verification → advance, не перезаписывая историю постановки.
-
-## Агенты
-
-Агенты остаются частью экосистемы, но их роли сужены. Родитель не загружает все
-контракты. Каждый агент читает один контракт после назначения и получает bounded
-read-set. Исторические Vigers/Delivery агенты остаются в прежних GitHub-репозиториях.
-
-## Правила и методическая база
-
-Знания разделены на два слоя. `process-kernel.md` хранит короткие обязательные
-инварианты, накопленные в Vigers/Delivery. `library/requirements` хранит 70 нативных
-правил `C/T/D` из исходной выжимки Вигерса, а `library/delivery` — 30 правил
-`E/B/F/T/S` на базе SWEBOK, Software Engineering at Google и специальных стандартов.
-
-`rule_library.py validate` проверяет pinned SHA всех зеркал и запрещает native rule,
-который не достижим ни через один route. `materialize` извлекает только нужные headings;
-полная книжная выжимка остаётся fallback по pinned commit и не попадает в prompt.
-
-## Таймер
-
-Таймер отделён от процессной state machine. Он пишет только наблюдаемые `state_marker`
-и `activity_pulse`, совместимые с event source Work Metrics. Planning estimates,
-review gates и handoff state больше не смешиваются с измерением времени.
-
-Smoke Break также не входит в state machine. Он хранит только время текущего turn и
-подаёт reminder после завершения tool call. На reminder parent выполняет
-`P23 COURSE-CHECK` по `rules/course-check.md`; verdict остаётся кратким commentary и не
-создаёт workflow-artifact. Поэтому измерение времени, рефлексия о направлении и
-формальные lifecycle gates остаются тремя разными обязанностями.
-
-`caseflow.py` хранит переданный `--cap-decision-ref`, но не может аутентифицировать
-авторство сообщения в Codex или Claude. Поэтому требование явного ответа пользователя
-для post-cap review/verification остаётся обязательной authority-нормой parent, а не
-криптографически доказанным caseflow gate. Receipt не должен создавать ложного
-ощущения, что произвольный файл агента подтверждает согласие пользователя.
+Smoke Break запускает P23 COURSE-CHECK в длинном turn: outcome, frontier, измеримый
+progress, drift, falsifier и CONTINUE/BACKTRACK/ASK/STOP. Это checkpoint parent, не новый
+stage, artifact или агент. Без плагина workflow работает без автоматического таймера.

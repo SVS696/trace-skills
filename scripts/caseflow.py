@@ -524,7 +524,8 @@ def validate_review_receipt(receipt: Any, article_sha256: str) -> dict[str, Any]
 
 
 def required_review_sources(case_root: Path, payload: dict[str, Any]) -> set[str]:
-    """Return the reviewer/lens ids that must verify the latest accepted finding classes."""
+    """Keep sources of all corrections still awaiting an ordinary review."""
+    sources: set[str] = set()
     for round_record in reversed(payload.get("review_rounds", [])):
         diff_pool = round_record.get("diff_pool")
         if not diff_pool:
@@ -534,18 +535,12 @@ def required_review_sources(case_root: Path, payload: dict[str, Any]) -> set[str
             round_record["article_sha256"],
         )
         pool = validate_diff_pool(resolve_artifact(case_root, diff_pool["path"]), 4)
-        accepted = {
-            item.get("source_finding_id")
-            for item in pool["items"]
-            if isinstance(item.get("source_finding_id"), str)
-        }
-        return {
-            source
-            for finding in receipt["findings"]
-            if finding["id"] in accepted
-            for source in finding["sources"]
-        }
-    return set()
+        accepted = {item.get("source_finding_id") for item in pool["items"]}
+        sources.update(source for finding in receipt["findings"]
+                       if finding["id"] in accepted for source in finding["sources"])
+        if payload.get("review_protocol") != "article-revmux":
+            break
+    return sources
 
 
 def validate_quality_pass(
@@ -980,6 +975,7 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
         "template_sha256": digest(template),
         "stage": 1,
         "state": "blocks",
+        "review_protocol": "article-revmux",
         "route": None,
         "article": None,
         "review_rounds": [],
@@ -1050,6 +1046,9 @@ def review_cycles_used(payload: dict[str, Any]) -> int:
 
 def command_context(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
+    assignment_paths = [str(Path(value).expanduser().resolve())
+                        for field in ("project_rule", "source")
+                        for value in (getattr(args, field, None) or [])]
     payload = load_case(case_root)
     delivery = payload.get("delivery")
     lane = getattr(args, "lane", None)
@@ -1081,7 +1080,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
                     read_set.append(str(resolve_artifact(case_root, submission["path"])))
             if previous.get("stitch"):
                 read_set.append(str(resolve_artifact(case_root, previous["stitch"]["path"])))
-        read_set = list(dict.fromkeys(read_set))
+        read_set = list(dict.fromkeys(read_set + assignment_paths))
         return {
             "mode": "delivery",
             "delivery_stage": stage,
@@ -1143,6 +1142,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     if not args.block:
         for submission in stage_record(payload)["submissions"].values():
             read_set.append(str(resolve_artifact(case_root, submission["path"])))
+    read_set = list(dict.fromkeys(read_set + assignment_paths))
     existing = [path for path in read_set if Path(path).exists()]
     missing = [path for path in read_set if not Path(path).exists()]
     return {
@@ -1208,8 +1208,20 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     require_state(payload, "stitching")
     stage = int(payload["stage"])
     report = resolve_artifact(case_root, args.report)
-    pool_path = resolve_artifact(case_root, args.diff_pool)
-    pool = validate_diff_pool(pool_path, stage, initial=True, require_readiness=True)
+    pool_arg = getattr(args, "diff_pool", None)
+    if payload.get("review_protocol") == "article-revmux" and pool_arg:
+        raise CaseFlowError("specification diff pools are created only from revmux findings")
+    pool_path = resolve_artifact(case_root, pool_arg) if pool_arg else None
+    pool = (validate_diff_pool(pool_path, stage, initial=True, require_readiness=True)
+            if pool_path else {"items": [], "deferred_inputs": []})
+    if not pool_path:
+        readiness = read_json(report)
+        if (not isinstance(readiness, dict) or readiness.get("schema") != 1
+                or readiness.get("stage") != stage
+                or readiness.get("status") != "ready"
+                or readiness.get("open_inputs") != []):
+            raise CaseFlowError("stitch report requires schema 1, matching stage, status ready and open_inputs []")
+        payload["review_protocol"] = "article-revmux"
     record = stage_record(payload)
     article_arg = getattr(args, "article", None)
     if stage in {1, 4}:
@@ -1266,7 +1278,7 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
             "definition_of_done": len(lineage["definition_of_done"]),
             "recorded_at": now(),
         }
-    if stage == 4:
+    if stage == 4 and pool_path:
         simplicity_arg = getattr(args, "simplicity_report", None)
         humanizer_arg = getattr(args, "humanizer_report", None)
         if not simplicity_arg or not humanizer_arg:
@@ -1326,7 +1338,7 @@ def command_record_stitch(args: argparse.Namespace) -> dict[str, Any]:
     record["diff_pool"] = {
         "path": relative_or_absolute(case_root, pool_path),
         "sha256": digest(pool_path),
-    }
+    } if pool_path else None
     unresolved_items = [
         item["id"] for item in pool["items"] if item["status"] in {"open", "applied"}
     ]
@@ -1543,8 +1555,9 @@ def command_advance(args: argparse.Namespace) -> dict[str, Any]:
     require_state(payload, "ready")
     stage = int(payload["stage"])
     record = stage_record(payload)
-    pool_path = resolve_artifact(case_root, record["diff_pool"]["path"])
-    pool = validate_diff_pool(pool_path, stage)
+    pool_record = record.get("diff_pool")
+    pool = (validate_diff_pool(resolve_artifact(case_root, pool_record["path"]), stage)
+            if pool_record else {"items": []})
     unresolved = [item["id"] for item in pool["items"] if item["status"] in {"open", "applied"}]
     if unresolved:
         raise CaseFlowError(f"unverified diff items remain: {', '.join(unresolved)}")
@@ -1557,7 +1570,15 @@ def command_advance(args: argparse.Namespace) -> dict[str, Any]:
         raise CaseFlowError(
             "specification-blocking inputs are not verified: " + ", ".join(incomplete_inputs)
         )
-    rebound = rebind_stage_outputs(case_root, record, pool, label=f"stage {stage}")
+    if pool_record:
+        rebound = rebind_stage_outputs(case_root, record, pool, label=f"stage {stage}")
+    else:
+        verify_record(case_root, record["article_projection"], f"stage {stage} article")
+        verify_record(case_root, record["stitch"], f"stage {stage} stitch")
+        for submission in record["submissions"].values():
+            verify_record(case_root, submission, f"stage {stage} submission")
+            verify_record(case_root, submission["method_basis"], f"stage {stage} method basis")
+        rebound = []
     if not record.get("article_projection"):
         raise CaseFlowError(f"stage {stage} has no article projection")
     record["state"] = "complete"
@@ -1605,6 +1626,26 @@ def command_article_updated(args: argparse.Namespace) -> dict[str, Any]:
     article = resolve_artifact(case_root, args.article)
     if article != current_article:
         raise CaseFlowError("article-updated cannot change the registered article path")
+    if payload.get("review_protocol") == "article-revmux":
+        if payload["state"] == "revmux_remediation":
+            _, pool = current_review_pool(case_root, payload)
+            for item in pool["items"]:
+                if item["status"] == "waived":
+                    continue
+                if item["status"] != "applied":
+                    raise CaseFlowError("apply every review finding to the article before the next revmux")
+                if item["receipt"].get("article_sha256") != digest(article):
+                    raise CaseFlowError("correction receipt does not match the updated article bytes")
+            if any(item["status"] == "applied" for item in pool["items"]):
+                if digest(article) == payload["article"]["sha256"]:
+                    raise CaseFlowError("an intermediate-only fix does not change the reviewed article")
+        elif payload["review_rounds"] and digest(article) != payload["article"]["sha256"]:
+            raise CaseFlowError("after revmux, article changes require its findings pool")
+        payload["article"]["sha256"] = digest(article)
+        payload["article"]["recorded_at"] = now()
+        payload["state"] = "revmux_pending"
+        save_case(case_root, payload, "article_updated_revmux_pending")
+        return {"article": payload["article"], "state": payload["state"]}
     closed_targets: dict[Path, str] = {}
     if payload["state"] == "revmux_remediation":
         if not payload["review_rounds"] or not payload["review_rounds"][-1].get("diff_pool"):
@@ -1656,8 +1697,11 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
             + ", ".join(sorted(missing_required_sources))
         )
     cap_decision_ref = getattr(args, "cap_decision_ref", None)
-    if review_cycles_used(payload) >= MAX_REVIEW_CYCLES and not (
-        isinstance(cap_decision_ref, str) and cap_decision_ref.strip()
+    if (
+        not degraded
+        and not source_count_mismatch
+        and review_cycles_used(payload) >= MAX_REVIEW_CYCLES
+        and not (isinstance(cap_decision_ref, str) and cap_decision_ref.strip())
     ):
         raise CaseFlowError(
             "review cycle cap reached; another substantive round requires --cap-decision-ref"
@@ -1691,7 +1735,15 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
         for finding in accepted_findings
         if isinstance(finding, dict) and finding.get("severity") in GATING_SEVERITIES
     ]
+    stop_at_minor = getattr(args, "stop_at_minor", False)
+    if stop_at_minor and (
+        degraded or source_count_mismatch or open_questions
+        or not accepted_findings or gating
+    ):
+        raise CaseFlowError("--stop-at-minor requires only accepted minor findings and complete sources")
     diff_pool_arg = getattr(args, "diff_pool", None)
+    if stop_at_minor and diff_pool_arg:
+        raise CaseFlowError("--stop-at-minor pauses before forming a correction diff pool")
     diff_pool_record = None
     if open_questions and diff_pool_arg:
         raise CaseFlowError("answer revmux open questions before forming a review diff pool")
@@ -1701,6 +1753,10 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     elif diff_pool_arg:
         pool_path = resolve_artifact(case_root, diff_pool_arg)
         pool = validate_diff_pool(pool_path, 4, initial=True)
+        if payload.get("review_protocol") == "article-revmux":
+            article = resolve_artifact(case_root, payload["article"]["path"])
+            if any(normalized_target_path(case_root, item["target"]) != article for item in pool["items"]):
+                raise CaseFlowError("every revmux correction must target the final article")
         if not pool["items"]:
             raise CaseFlowError("review diff pool cannot be empty")
         finding_ids = set(accepted_ids)
@@ -1721,7 +1777,7 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
             "path": relative_or_absolute(case_root, pool_path),
             "sha256": digest(pool_path),
         }
-    elif accepted_findings and not open_questions:
+    elif accepted_findings and not open_questions and not stop_at_minor:
         raise CaseFlowError("accepted revmux findings require an exact review diff pool")
 
     round_record = {
@@ -1748,12 +1804,32 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
     payload["review_rounds"].append(round_record)
     if degraded or source_count_mismatch:
         payload["state"] = "revmux_pending"
+    elif stop_at_minor:
+        payload["state"] = "revmux_minor_pending"
     elif open_questions:
         payload["state"] = "revmux_decision_pending"
     elif diff_pool_record:
         payload["state"] = "revmux_remediation"
     else:
         payload["state"] = "spec_ready"
+    if payload.get("review_protocol") == "article-revmux" and payload["state"] == "spec_ready":
+        for previous in payload["review_rounds"][:-1]:
+            if not previous.get("diff_pool"):
+                continue
+            previous_path = resolve_artifact(case_root, previous["diff_pool"]["path"])
+            previous_pool = validate_diff_pool(previous_path, 4)
+            for item in previous_pool["items"]:
+                if item["status"] == "applied":
+                    item["status"] = "verified"
+                    item["verification_receipt"] = {
+                        "path": relative_or_absolute(case_root, receipt_path),
+                        "sha256": digest(receipt_path),
+                        "article_sha256": payload["article"]["sha256"],
+                        "kind": "ordinary-revmux",
+                        "recorded_at": now(),
+                    }
+            atomic_json(previous_path, previous_pool)
+            previous["diff_pool"]["sha256"] = digest(previous_path)
     save_case(case_root, payload, f"revmux_round_{len(payload['review_rounds'])}_recorded")
     return {
         "state": payload["state"],
@@ -1771,7 +1847,7 @@ def command_record_review(args: argparse.Namespace) -> dict[str, Any]:
 def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
-    require_state(payload, "revmux_decision_pending")
+    require_state(payload, "revmux_decision_pending", "revmux_minor_pending")
     if not args.decision_ref.strip():
         raise CaseFlowError("decision_ref cannot be empty")
     round_record = payload["review_rounds"][-1]
@@ -1789,6 +1865,10 @@ def command_record_review_decisions(args: argparse.Namespace) -> dict[str, Any]:
     if diff_pool_arg:
         pool_path = resolve_artifact(case_root, diff_pool_arg)
         pool = validate_diff_pool(pool_path, 4, initial=True)
+        if payload.get("review_protocol") == "article-revmux":
+            article = resolve_artifact(case_root, payload["article"]["path"])
+            if any(normalized_target_path(case_root, item["target"]) != article for item in pool["items"]):
+                raise CaseFlowError("every revmux correction must target the final article")
         if not pool["items"]:
             raise CaseFlowError("review decision diff pool cannot be empty")
         question_ids = {
@@ -1838,6 +1918,8 @@ def current_review_pool(case_root: Path, payload: dict[str, Any]) -> tuple[Path,
 def command_append_review_item(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
+    if payload.get("review_protocol") == "article-revmux":
+        raise CaseFlowError("new findings must come from the next ordinary revmux round")
     pool_path, pool = current_review_pool(case_root, payload)
     item = append_open_item(pool, read_json(resolve_artifact(case_root, args.item_file)), 4)
     atomic_json(pool_path, pool)
@@ -1862,6 +1944,13 @@ def command_resolve_review(args: argparse.Namespace) -> dict[str, Any]:
         "sha256": digest(receipt),
         "recorded_at": now(),
     }
+    if payload.get("review_protocol") == "article-revmux":
+        article = resolve_artifact(case_root, payload["article"]["path"])
+        if normalized_target_path(case_root, item["target"]) != article:
+            raise CaseFlowError("revmux fixes must target the final article; synchronize sources additionally")
+        if digest(article) == payload["article"]["sha256"]:
+            raise CaseFlowError("an intermediate-only fix does not change the reviewed article")
+        receipt_record["article_sha256"] = digest(article)
     item["receipt"] = receipt_record
     item.setdefault("correction_attempts", []).append(receipt_record)
     item["status"] = "applied"
@@ -1874,6 +1963,8 @@ def command_resolve_review(args: argparse.Namespace) -> dict[str, Any]:
 def command_verify_review(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
+    if payload.get("review_protocol") == "article-revmux":
+        raise CaseFlowError("use the next ordinary revmux round, not targeted verification")
     pool_path, pool = current_review_pool(case_root, payload)
     matching = [item for item in pool["items"] if item["id"] == args.item]
     if not matching:
@@ -2214,6 +2305,8 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "context":
             command.add_argument("--block")
             command.add_argument("--lane")
+            command.add_argument("--project-rule", action="append", default=[])
+            command.add_argument("--source", action="append", default=[])
         command.set_defaults(handler=handler)
 
     submit = subparsers.add_parser("submit-block")
@@ -2230,7 +2323,7 @@ def build_parser() -> argparse.ArgumentParser:
     record = subparsers.add_parser("record-stitch")
     record.add_argument("--case-root", type=Path, required=True)
     record.add_argument("--report", required=True)
-    record.add_argument("--diff-pool", required=True)
+    record.add_argument("--diff-pool", help="Compatibility only: legacy stage pool")
     record.add_argument("--article")
     record.add_argument("--simplicity-report")
     record.add_argument("--humanizer-report")
@@ -2281,6 +2374,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--adjudication-report")
     review.add_argument("--diff-pool")
     review.add_argument("--cap-decision-ref")
+    review.add_argument("--stop-at-minor", action="store_true")
     review.set_defaults(handler=command_record_review)
 
     review_decisions = subparsers.add_parser("record-review-decisions")

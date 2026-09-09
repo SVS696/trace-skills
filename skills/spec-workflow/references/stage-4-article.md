@@ -1,97 +1,57 @@
-# Stage 4: Article and review
+# Stage 4: Final article and revmux
 
-**Entry:** Stage 3 is closed and its integrated article projection is immutable.
+Entry: stage 3 has an integrated article. Read only the selected project rules,
+method basis, accepted solution boundary and bound architecture design when present.
 
-1. The article editor consolidates the stage 3 article projection in the unchanged template.
-   The public article contains no block-process ids, findings or internal state. If a
-   requirement, scenario or AC still lacks a decision/evidence, return it as a blocking
-   stage-4 diff item; do not publish a polished backlog of unknowns. For a multi-layer
-   change, preserve the layer scopes, responsibility boundary, handoff contract,
-   requirement owners and separate BE/FE/E2E evidence in the closest existing template
-   sections; do not add a new template structure.
-2. Register the consolidated article as reserved block `ARTICLE` with its method basis.
-   Dispatch two separate
-   narrow runs on the exact submitted article bytes:
-   - `quality-pass-reviewer` executes `simplicity-spec`;
-   - a different `quality-pass-reviewer` run executes `humanizer` with the project
-     style profile and bounded publication rules, including reader-version history.
-     When the template includes history, verify oldest-to-newest order from top to
-     bottom; the latest published version is the last row. A row-order correction
-     preserves existing numbers, dates and descriptions and does not create a release.
-   Both follow [quality-pass.md](../../../rules/quality-pass.md). Reading a `SKILL.md`, mentioning the
-   gate, or returning an informal "looks clean" is not a pass.
-   If the case has a bound architecture design, dispatch a separate
-   `spec-solution-architect` conformance run against the same article bytes and design
-   hash. Do not load or run it for `not-required`.
-3. Give the article and required reports to `spec-integration-editor`. It creates one stitch
-   report and one diff-pool. Every reported finding is represented by its exact
-   `source_finding_id`; simplicity and language changes are not hidden edits.
-   Architecture findings use the same mechanism and the same pool.
-4. Register the stitch with `record-stitch --simplicity-report ... --humanizer-report
-   ... [--architecture-report ...]`, apply only that pool, and verify both each exact change and the full finding
-   class. A language change must preserve normative meaning and traceability.
-5. Close the stage 4 pool, run `advance` to record `content_ready_at`, then run
-   `finalize-article`. A blocking input may close only as `verified`, after its
-   answer/evidence is present in the article; it cannot be waived. `record-review`
-   rejects migrated or manually advanced cases without this readiness marker.
-6. Run deterministic project checks for links, tables, diagrams and template-required
-   sections. Required diagrams also follow `rules/diagram-contract.md`: compare text and
-   semantic IDs, then inspect the actual rendered output for readability. If checks
-   change the article, register the new fingerprint with
-   `article-updated` before invoking review.
-7. Invoke `revmux` on the article diff using its standard workflow. Before launch,
-   check `revmux config`'s `paths.profile_fallback` and the round's `input/profile.md`:
-   a non-empty round profile overrides the project's review criteria. Do not put a
-   roster name or round scope there; choose the roster with `--profile` and keep
-   scope in `scope.md`. Follow the revmux skill for an intentional calibration change.
-   Use
-   `comprehensive` for the first substantive round. Before every later round, count
-   completed non-degraded rounds for the case. Five is a hard cap; a technical retry of
-   a degraded or failed run does not count. Round six requires a new explicit user
-   decision and must never be inferred from “fixes require confirmation”. Read
-   `review_cycles_used` and `review_cycles_remaining` from `caseflow.py status` before
-   preparing a round. `record-review` rejects a substantive round beyond the cap unless
-   the exact user decision is supplied as `--cap-decision-ref`. After the fifth
-   completed round, a bounded post-fix `revmux` verification is still a completed review
-   and needs the same user decision; only a failed or degraded technical retry is free.
-   A decision artifact written by the agent without a preceding user answer is invalid.
-8. After a complete non-degraded result, send the exact receipt and only the evidence
-   needed for its findings to a fresh `quality-pass-reviewer` run. It applies
-   `simplicity-spec` with `purpose: revmux-finding-adjudication`: confirm the reported
-   problem against the current requirement, reachable scenario and protected minimum,
-   then propose the smallest sufficient correction. It must account for every finding
-   as accepted or dismissed with evidence; it must not re-review the whole article.
-   Revmux verification remains the factual check, while this pass prevents severity or
-   model paranoia from becoming work automatically.
-9. Triage the confirmed set using `P17`: record likelihood, impact and correction
-   cost. Put every accepted correction into one article diff-pool; dismissed findings
-   do not enter it. Every item names the exact `source_finding_id`.
-10. The normalized receipt must use schema 1 and bind `article_sha256` to the current
-   article; it also carries exact `sources.ids`, `sources.expected`,
-   `sources.reported`, `sources.degraded`, `findings`, and `open_questions`.
-   Every finding names the reviewer/lens ids that raised it. A later clean round must
-   include every source behind a finding accepted into the previous diff-pool; changing
-   to a narrower profile cannot silently close that finding class.
-11. Register each round with `record-review --adjudication-report ... [--diff-pool ...]`.
-   A healthy round with findings is rejected without the adjudication report; a diff
-   is rejected unless it covers every accepted finding and none of the dismissed set.
-   Apply and verify only that pool through `resolve-review` and `verify-review`;
-   register any defect
-   discovered during correction with `append-review-item`. Then call
-   `article-updated` and re-review with the profile selected by `revmux` rules only
-   while the cap and `P19` simplicity brake remain open.
-12. A failed verification reopens the same item. A waived item is recorded with
-   `waive-review --decision-ref`. A degraded round forms no diff-pool:
-   restore the missing source and rerun it because partial silence is not evidence.
-13. If revmux returns open questions, `record-review` moves to
-    `revmux_decision_pending`. Present the questions to the user, then record the answer
-    with `record-review-decisions --decision-ref <ref> [--diff-pool <pool>]`. When the
-    same round also has gating findings, that pool must cover them and any accepted
-    question-driven changes.
-14. When state becomes `spec_ready`, record route `stop` or `delivery`; a delivery route
-    also declares stable lane ids with repeated `--lane` arguments.
+## Prepare the article
 
-**Exit:** One substantively complete reader-facing article exists before the first
-`revmux` call; review either converged without gating
-findings or stopped at the cap with an explicit user disposition of residual risk;
-sources in the relied-on round are not degraded, and the next route is explicit.
+1. Consolidate the whole article in the selected template variant. Resolve content
+   gaps before review. Preserve owners, contracts, traceability and US/DoD lineage.
+2. During authoring apply simplicity and language rules. Run deterministic checks
+   for headings, links, tables, examples and actual diagram rendering. Correct the
+   candidate directly. Neither authoring nor preflight creates a diff-pool.
+3. Submit ARTICLE; open-stitch; register a ready integration report without a pool:
+   record-stitch --report REPORT. The JSON report has schema: 1, stage: 4,
+   status: ready, open_inputs: []. Advance, then finalize-article --article ARTICLE.
+4. Prepare one ordinary revmux assignment on these article bytes. Include project
+   logic/conformance, simplicity, reader language and triggered architecture criteria
+   in this round's reviewer assignments. Bound architecture design is an input;
+   its conformance reviewer must be independent from its author. Do not run a second
+   standalone article-review process before or after revmux.
+
+## Review and corrections
+
+article → revmux → findings → diff-pool → fix → article v2 → ordinary revmux
+
+1. Run the normal revmux workflow with the selected full review profile. Preserve
+   relevant sources in later ordinary rounds; do not substitute targeted verification.
+   Keep project review criteria in the profile and assignment scope in scope.md.
+2. A complete result is a schema-1 receipt bound to article_sha256, with source ids,
+   expected/reported counts, degraded sources, findings and open_questions. A degraded
+   result creates no pool; restore the missing source and retry the ordinary round.
+3. Apply simplicity-spec to the returned findings using a receipt-bound adjudication
+   report. This is practical triage of those findings, not a second article review.
+   Each finding is accepted with a minimal correction or dismissed with evidence.
+4. Create one pool from the accepted findings. Each item names source_finding_id and
+   targets the final article path plus the exact heading. List any intermediate
+   artifact synchronization in the same correction; it never replaces the article fix.
+5. Register record-review --receipt RECEIPT --adjudication-report REPORT --diff-pool POOL.
+   For clean results no pool is needed. Resolve user questions before forming their
+   corrections, using record-review-decisions and the actual decision reference.
+6. Apply the complete correction batch to the final article and synchronize named
+   supporting artifacts where needed. Run deterministic checks, then record each
+   applied receipt with resolve-review. These receipts bind the resulting article
+   bytes; writing only a block cannot satisfy them. Applied is not yet verified.
+7. Call article-updated --article ARTICLE, then run the next ordinary revmux on the
+   updated article. Do not call verify-review or launch a separate targeted check.
+   A healthy clean round confirms the applied corrections. Remaining findings enter
+   the next pool; the author never self-certifies semantic correctness.
+
+Only revmux rounds consume the five-round limit. Deterministic authoring checks,
+findings adjudication and failed/degraded technical retries do not consume it.
+After round five ask for an explicit decision before another ordinary round. Stop
+at clean results; if only minor findings remain, record --stop-at-minor without a
+pool and show the residuals. Do not treat minor-pending as spec_ready.
+
+Exit: article and honest review state. At spec_ready record route stop or the
+explicitly authorized delivery route. Publication and acceptance remain separate.

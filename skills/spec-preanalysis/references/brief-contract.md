@@ -134,7 +134,7 @@ Every `unknowns` entry is an object with `id`, `statement`, `disposition`,
 
 `researchable` and `user-decision` are always blocking. `implementation-only` is never
 blocking. `external-owner` may be either, but a blocking external input must later enter
-the earliest applicable stage diff until its evidence is incorporated and verified.
+the earliest applicable authoring open_inputs until its evidence is incorporated before readiness.
 
 An estimate is either:
 

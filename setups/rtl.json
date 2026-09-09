@@ -2,10 +2,13 @@
   "schema": 1,
   "project_id": "RTL",
   "project_root_env": "RTL_PROJECT_ROOT",
-  "instructions": ["CLAUDE.md", "AGENTS.md"],
+  "instructions": [
+    "CLAUDE.md",
+    "AGENTS.md"
+  ],
   "template": {
     "path": "ШАБЛОН ПОСТАНОВКИ.md",
-    "sha256": "08ac24dad4c65ef3cb26203fe5d21f063e333ff1f1ba5d7ba3e2e50d6dc070a0"
+    "sha256": "518569ffa6837e1b1a8aafc284e1ca36abbb9eb4f3df4d96f2617f7a7c76db14"
   },
   "routes": {
     "method": "method-library",

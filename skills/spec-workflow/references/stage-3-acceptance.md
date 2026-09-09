@@ -1,29 +1,17 @@
-# Stage 3: Acceptance
+# Stage 3: Acceptance model
 
-**Entry:** Stage 2 diff-pool is closed and case stage is `3`.
+Entry: stage 2 has an immutable integrated article.
 
-1. Each block reads the stage 2 article projection and its own stage 2 analysis, then
-   proposes measurable AC, acceptance scenarios, DoD evidence and trace links for the
-   behavior it proves. It names exact article targets rather than writing an isolated
-   acceptance document.
-2. Register all `stage-03.md` artifacts.
-3. The integration editor applies compatible contributions to a new immutable stage 3
-   article projection. At the stitch barrier, check end-to-end journeys, cross-block
-   failure paths, duplicated or contradictory AC, missing observability and evidence
-   ownership against the whole article.
-4. Record all corrections in the one stage 3 diff-pool and register the gate with
-   `record-stitch --article articles/stage-03.md`. Reusing or overwriting an earlier
-   projection is rejected.
-5. Treat every `blocked` requirement or AC as a blocking input unless evidence proves it
-   is external readiness or implementation-only and cannot change the acceptance contract.
-   A named owner is not resolution. Research it, ask the user directly, or obtain the
-   external evidence through the same diff item.
-6. For cross-layer behavior, split proof by observable contour: direct BE/API or service
-   evidence for provider guarantees, FE/UI evidence for client behavior, and E2E only
-   for their composition. A hidden control on FE does not prove server authorization;
-   a successful Backend response does not prove rendering, local-state or error behavior.
+1. Each block proposes observable AC and acceptance-readiness DoD against the article.
+   Keep the actor, entry condition, action and expected result concrete.
+2. The integration editor incorporates these contributions into articles/stage-03.md.
+   Resolve duplicated criteria, missing evidence and cross-block contradictions.
+3. Check provider guarantees in BE/API, consumer behavior in FE/UI and composition
+   in E2E. A passing check in one contour does not establish another contour.
+4. Resolve missing content before readiness. Run deterministic authoring checks;
+   correct the candidate directly, without a correction pool or verification loop.
+5. Register schema: 1, stage: 3, status: ready, open_inputs: [] with record-stitch
+   --report REPORT --article articles/stage-03.md; advance.
 
-**Exit:** The stage 3 article projection contains the integrated acceptance model; every
-requirement has observable acceptance evidence and every end-to-end
-scenario crosses block seams without a gap. No requirement or AC remains `blocked`
-because its content is incomplete, and no layer's evidence substitutes for another's.
+Exit: the article has observable acceptance for its requirements. Developer checks
+are not product AC or DoD unless an actual normative requirement makes them so.

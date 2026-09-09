@@ -23,3 +23,7 @@ These instructions apply to Codex and other repository agents.
 
 8. Do not restore `vigers` or `delivery-engineering` to active discovery. Their pinned
    history and local archive locations are recorded in `legacy/preserved-sources.md`.
+9. When changing skills, agent contracts or template comments, use
+   `docs/prompt-authoring.md`: explicit inputs/outputs, one execution order, bounded
+   context, and examples consistent with the rules. This is authoring guidance,
+   not another runtime gate.

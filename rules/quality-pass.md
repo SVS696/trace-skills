@@ -23,8 +23,7 @@ one JSON report bound to the exact subject bytes and the exact `SKILL.md` bytes.
 post-`revmux` adjudication. `style_profile` is required only for `humanizer`. Empty
 findings require `clean`; non-empty findings require `changes-required`.
 
-For ordinary subject passes, every reported finding must appear in the current single
-diff-pool through the same `source_finding_id`. For post-`revmux` adjudication, the
+For specification authoring passes, suggestions update the candidate before review. Independent article gates run within ordinary revmux; only its accepted findings enter the correction pool. Delivery passes follow the delivery stage contract. For post-`revmux` adjudication, the
 subject is the exact review receipt. Confirmed findings remain in `findings` with the
 smallest proposed change;
 the rest are listed in `dismissed_findings` with reason and evidence and do not enter
