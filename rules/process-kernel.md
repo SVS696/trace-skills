@@ -50,6 +50,8 @@ Engineering и не зависят от их старых state machines. Parent
   transition, merge или deploy. Авторизованная запись завершается exact read-back.
 - `P14 PROJECT-OWNERSHIP`: проект владеет источниками истины, архитектурой, шаблоном,
   publication adapters и внешними статусами; экосистема владеет только workflow.
+  На входе в новую реализацию применять [OpenSpec delivery contract](../skills/delivery-workflow/references/openspec.md)
+  в обоих харнесах; пакет сохраняет проектный канон и не заменяет его.
 - `P15 BOUNDED-CONTEXT`: модель получает kernel, один текущий stage/route, назначенный
   subject и active diff. Полные книги, закрытые findings и чужие lane не загружаются.
 - `P16 IMPACT-RECHECK`: после исправления постановки запускается следующий обычный revmux по обновлённой article. Сохраняются проектные критерии и источники принятых findings; отдельная targeted verification не запускается. Новый scope или горизонт решения требует явного решения. Deterministic checks проверяют целостность bytes, но не заменяют семантическое ревью.

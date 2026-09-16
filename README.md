@@ -33,6 +33,7 @@ revmux rounds с ранней остановкой на clean или явно п
 | `spec-preanalysis` | Coverage источников, template-independent проблема/цель/суть решения, предварительные US/DoD, оценка, план и декомпозиция |
 | `spec-workflow` | Сквозной черновик, поблочное углубление и контрольные проекции статьи |
 | `delivery-workflow` | Опциональная разработка с теми же integration barriers |
+| external `OpenSpec` | Обязательный пакет изменения на входе в новую разработку |
 | `process-timer` | Независимый журнал времени и событий для Work Metrics |
 | external `Smoke Break` | Runtime-зависимость для `P23 COURSE-CHECK` в длинном turn |
 | `legacy-case-migration` | Пересмотр незавершённых кейсов старого процесса |
@@ -66,6 +67,22 @@ Codex использует upstream-плагин, а для Claude Code репо
 [карте правил](docs/rule-preservation.md).
 
 ## Быстрый старт
+
+Для разработки нужен [OpenSpec](https://github.com/Fission-AI/OpenSpec): Node.js
+>=20.19.0, OpenSpec >=1.13.0,<2.0.0; проверенная версия — 1.13.0. Анализ и подготовка
+постановки работают без него. Установить CLI и проверить доступность:
+
+```bash
+npm install -g @fission-ai/openspec@1.13.0
+python3 scripts/openspec_bridge.py
+```
+
+На входе в разработку следовать [контракту OpenSpec](skills/delivery-workflow/references/openspec.md).
+Новый delivery-кейс связывается с конкретным изменением и проверенной статьёй;
+`context` и переходы стадий проверяют пакет повторно. Codex и Claude Code используют
+один контракт, а `openspec init --tools codex,claude` создаёт проектные интеграции
+обоих харнесов. TRACE сохраняет проверки и управление исполнителями. Галочки
+OpenSpec не заменяют результаты тестов, независимое ревью или приёмку.
 
 ```bash
 python3 scripts/caseflow.py init \

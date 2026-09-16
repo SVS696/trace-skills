@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import caseflow
 
@@ -56,6 +57,15 @@ def solution_boundary() -> dict:
 
 
 class CaseFlowTests(unittest.TestCase):
+    def mock_openspec(self):
+        file = self.write("openspec/tasks.md", "- [ ] 1.1 Implement and test\n")
+        mocker = patch.object(caseflow, "check_package", return_value={
+            "root": str(self.root), "change": "test-change", "version": "1.13.0",
+            "read_set": [str(file)], "state": "ready", "progress": {"remaining": 1},
+        })
+        self.addCleanup(mocker.stop)
+        return mocker.start()
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
@@ -1798,6 +1808,7 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(context["solution_boundary"], boundary)
 
     def test_delivery_has_machine_backed_stage_transitions(self) -> None:
+        openspec = self.mock_openspec()
         payload = caseflow.load_case(self.case_root)
         payload["solution_boundary"] = solution_boundary()
         payload["stage"] = 4
@@ -1809,11 +1820,24 @@ class CaseFlowTests(unittest.TestCase):
             "recorded_at": caseflow.now(),
         }
         caseflow.save_case(self.case_root, payload, "test_spec_ready")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "openspec-root"):
+            caseflow.command_route(argparse.Namespace(
+                case_root=self.case_root, decision="delivery", lane=["BACKEND"],
+            ))
+        openspec.side_effect = caseflow.OpenSpecError("OpenSpec is missing")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "OpenSpec is missing"):
+            caseflow.command_route(argparse.Namespace(
+                case_root=self.case_root, decision="delivery", lane=["BACKEND"],
+                openspec_root=self.root, openspec_change="test-change",
+            ))
+        self.assertEqual(caseflow.load_case(self.case_root)["state"], "spec_ready")
+        openspec.side_effect = None
         routed = caseflow.command_route(
             argparse.Namespace(
                 case_root=self.case_root,
                 decision="delivery",
                 lane=["BACKEND", "TEST"],
+                openspec_root=self.root, openspec_change="test-change",
             )
         )
         self.assertEqual(routed["delivery"]["stage"], 1)
@@ -1838,6 +1862,11 @@ class CaseFlowTests(unittest.TestCase):
         caseflow.command_delivery_record_stitch(
             argparse.Namespace(case_root=self.case_root, report=str(report), diff_pool=str(pool))
         )
+        openspec.side_effect = caseflow.OpenSpecError("package became incomplete")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "became incomplete"):
+            caseflow.command_delivery_advance(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(caseflow.load_case(self.case_root)["delivery"]["stage"], 1)
+        openspec.side_effect = None
         advanced = caseflow.command_delivery_advance(
             argparse.Namespace(case_root=self.case_root)
         )
@@ -1849,6 +1878,8 @@ class CaseFlowTests(unittest.TestCase):
         )
         self.assertEqual(context["mode"], "delivery")
         self.assertEqual(context["delivery_stage"], 2)
+        self.assertEqual(context["openspec"]["change"], "test-change")
+        self.assertIn(str(self.case_root / "openspec/tasks.md"), context["read_set"])
         self.assertEqual(context["solution_boundary"]["horizon"], "bounded-systemic")
         self.assertIn(str(article.resolve()), context["read_set"])
         self.assertIn(
@@ -1859,6 +1890,35 @@ class CaseFlowTests(unittest.TestCase):
             str((self.case_root / "blocks/B01/stage-01.md").resolve()),
             context["read_set"],
         )
+        # Final handoff must request completion, not just readiness.
+        payload = caseflow.load_case(self.case_root)
+        payload["delivery"].update(stage=4, state="ready")
+        final_pool = self.write("delivery/diff-04.json", json.dumps({"schema": 1, "stage": 4, "items": []}))
+        payload["delivery"]["stages"]["4"]["diff_pool"] = {
+            "path": str(final_pool), "sha256": caseflow.digest(final_pool),
+        }
+        caseflow.save_case(self.case_root, payload, "final_handoff_fixture")
+        openspec.side_effect = caseflow.OpenSpecError("tasks remain unfinished")
+        with self.assertRaisesRegex(caseflow.CaseFlowError, "unfinished"):
+            caseflow.command_delivery_advance(argparse.Namespace(case_root=self.case_root))
+        openspec.assert_called_with(self.root, "test-change", complete=True)
+        self.assertEqual(caseflow.load_case(self.case_root)["state"], "delivery_active")
+        openspec.side_effect = None
+        result = caseflow.command_delivery_advance(argparse.Namespace(case_root=self.case_root))
+        self.assertEqual(result["state"], "delivery_ready")
+        openspec.side_effect = AssertionError("archived package must not be rechecked")
+        context = caseflow.command_context(argparse.Namespace(case_root=self.case_root, block=None, lane="BACKEND"))
+        self.assertEqual(context["openspec"]["state"], "handoff_complete")
+
+    def test_legacy_delivery_and_spec_stop_do_not_require_openspec(self) -> None:
+        with patch.object(caseflow, "check_package", side_effect=AssertionError("unexpected dependency check")):
+            self.assertIsNone(caseflow.delivery_openspec(self.case_root, {"delivery": {}}))
+            payload = caseflow.load_case(self.case_root)
+            article = self.write("article.md", "# Reviewed article\n")
+            payload.update(state="spec_ready", article={"path": str(article), "sha256": caseflow.digest(article)})
+            caseflow.save_case(self.case_root, payload, "stop_fixture")
+            result = caseflow.command_route(argparse.Namespace(case_root=self.case_root, decision="stop"))
+            self.assertEqual(result["state"], "stopped_after_spec")
 
     def test_stage_four_projection_can_share_the_mutable_review_article_path(self) -> None:
         article_case = self.root / "article-led-case"
@@ -2086,6 +2146,7 @@ class CaseFlowTests(unittest.TestCase):
         )
 
     def test_delivery_stage_two_requires_bound_simplicity_code_report(self) -> None:
+        self.mock_openspec()
         payload = caseflow.load_case(self.case_root)
         payload["stage"] = 4
         payload["state"] = "spec_ready"
@@ -2097,7 +2158,8 @@ class CaseFlowTests(unittest.TestCase):
         }
         caseflow.save_case(self.case_root, payload, "test_spec_ready_for_delivery_quality")
         caseflow.command_route(
-            argparse.Namespace(case_root=self.case_root, decision="delivery", lane=["BACKEND"])
+            argparse.Namespace(case_root=self.case_root, decision="delivery", lane=["BACKEND"],
+                               openspec_root=self.root, openspec_change="test-change")
         )
         payload = caseflow.load_case(self.case_root)
         payload["delivery"]["stage"] = 2
@@ -2158,6 +2220,7 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(recorded["quality_gates"]["simplicity-code"]["outcome"], "clean")
 
     def test_delivery_registered_pool_accepts_new_item(self) -> None:
+        self.mock_openspec()
         payload = caseflow.load_case(self.case_root)
         payload["stage"] = 4
         payload["state"] = "spec_ready"
@@ -2169,7 +2232,8 @@ class CaseFlowTests(unittest.TestCase):
         }
         caseflow.save_case(self.case_root, payload, "test_spec_ready")
         caseflow.command_route(
-            argparse.Namespace(case_root=self.case_root, decision="delivery", lane=["BACKEND"])
+            argparse.Namespace(case_root=self.case_root, decision="delivery", lane=["BACKEND"],
+                               openspec_root=self.root, openspec_change="test-change")
         )
         artifact = self.write("delivery/stage-01-BACKEND.md")
         basis = self.write("delivery/method-BACKEND.md")

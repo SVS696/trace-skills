@@ -20,6 +20,13 @@ jobs:
           node-version: "20"
       - name: Unit tests
         run: python3 -m unittest discover -s tests -v
+      - name: OpenSpec dependency and both-harness integration
+        env:
+          TRACE_TEST_OPENSPEC: "1"
+          OPENSPEC_TELEMETRY: "0"
+        run: |
+          npm install -g @fission-ai/openspec@1.13.0
+          python3 -m unittest discover -s tests -p test_openspec_bridge.py -v
       - name: Claude Smoke Break adapter tests
         working-directory: integrations/smoke-break/claude-marketplace/plugins/smoke-break
         run: npm test

@@ -15,6 +15,19 @@
 Дополнительный release gate: `python3 scripts/rule_library.py validate` должен
 подтвердить hash всех зеркал и routing всех 100 native method rules.
 
+## Зависимость разработки OpenSpec
+
+Новая разработка использует OpenSpec >=1.13.0,<2.0.0 (проверено с 1.13.0) и Node.js
+>=20.19.0. `npm install -g @fission-ai/openspec@1.13.0` устанавливает общий CLI;
+`python3 scripts/openspec_bridge.py` проверяет его фактическую доступность и версию.
+В новых рабочих репозиториях `openspec init --tools codex,claude --no-animation`
+создаёт интеграции обоих харнесов. Существующие конфигурации сохраняются.
+
+`scripts/install.py install` обновляет общий TRACE и роли обоих харнесов; установка
+не запускает npm и не инициализирует все проекты. Пакет создаётся при входе в конкретную
+реализацию по [контракту](../skills/delivery-workflow/references/openspec.md).
+Аналитика не зависит от CLI. Уже активные delivery-кейсы продолжают прежний порядок.
+
 ## Runtime-зависимость Smoke Break
 
 Автоматический `P23 COURSE-CHECK` требует Smoke Break в том runtime, где выполняется

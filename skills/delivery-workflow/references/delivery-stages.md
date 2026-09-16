@@ -1,10 +1,11 @@
 # Delivery stages
 
-Initialize from `spec_ready`:
+Initialize from `spec_ready` after the [OpenSpec preflight](openspec.md):
 
 ```bash
 python3 scripts/caseflow.py route --case-root CASE --decision delivery \
-  --lane BACKEND --lane FRONTEND --lane TEST
+  --lane BACKEND --lane FRONTEND --lane TEST \
+  --openspec-root /absolute/planning-repo --openspec-change CHANGE
 ```
 
 For every stage, submit one artifact and materialized method basis per declared lane
@@ -22,9 +23,9 @@ it never returns specification block drafts as the active delivery context.
 
 ## Stage 1: Plan
 
-**Entry:** Approved article and route=`delivery`.
+**Entry:** Approved article, bound OpenSpec package and route=`delivery`.
 
-1. Create bounded backend/frontend/test lanes with exact paths, requirements, accepted
+1. Map OpenSpec task numbers to bounded backend/frontend/test lanes with exact paths, requirements, accepted
    `solution_boundary` and tests.
    Carry its implementation transition into lane ownership: one authoritative path per
    stage, explicit superseded paths, retirement trigger and rollback where applicable.
@@ -39,7 +40,8 @@ it never returns specification block drafts as the active delivery context.
 
 **Entry:** Stage 1 pool closed.
 
-1. Implement lanes with developer tests.
+1. Implement assigned OpenSpec tasks with developer tests. Return per-task evidence;
+   the parent updates shared checkboxes after checking results.
 2. Integrate once, run non-LLM build/tests and static checks, correct failures,
    then freeze one diff snapshot. A separate
    `quality-pass-reviewer` runs `simplicity-code` and writes the
@@ -58,7 +60,8 @@ it never returns specification block drafts as the active delivery context.
 
 **Entry:** Integrated developer checks pass.
 
-1. Independent verifier traces requirements to code and tests.
+1. Independent verifier traces approved article to the OpenSpec package, and its
+   requirements/tasks to code and tests. Checked boxes alone are not evidence.
 2. Run project conformance and risk-proportional regression checks. Verify provider
    enforcement directly, consumer behavior separately, then their E2E composition;
    do not let one contour stand in for another.
@@ -78,7 +81,7 @@ remain distinct.
 
 **Entry:** Stage 3 pool closed.
 
-1. Record exact commit/MR/test evidence and unresolved gaps.
+1. Record exact commit/MR/test evidence, OpenSpec change and task evidence, and unresolved gaps.
 2. State merge, deploy and acceptance as independent current facts.
 3. Perform external writes only when separately authorized and read them back.
 

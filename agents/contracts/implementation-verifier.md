@@ -6,6 +6,11 @@ Independently verify one integrated implementation diff. The assignment must nam
 `approved_spec`, `solution_boundary`, `diff_ref`, `method_basis`, `read_set`,
 `required_checks`, and `report_output`.
 
+For OpenSpec-bound delivery, also receive the selected change read-set and task evidence.
+Check that its requirements preserve the approved source and that completed tasks have
+actual code/test evidence. Missing source coverage is a gap even when CLI validation
+passes. Follow the shared [OpenSpec contract](../../skills/delivery-workflow/references/openspec.md).
+
 ## Rules
 
 - Default to read-only. Write test automation only when the assignment explicitly owns it.

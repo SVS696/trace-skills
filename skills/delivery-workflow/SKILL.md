@@ -15,7 +15,9 @@ Read [the process kernel](../../rules/process-kernel.md) once for the task. Use
 `method-library` to materialize the lane's delivery basis from the preserved SWEBOK,
 Software Engineering at Google and specialized standard distillates.
 
-1. Start by routing a `spec_ready` case to `delivery` with its stable lane ids.
+1. At the implementation boundary, prepare and bind the approved change through
+   [OpenSpec](references/openspec.md), then route a `spec_ready` case to `delivery`
+   with stable lane ids. This applies to both Codex and Claude Code in every project.
 2. Lanes may work independently, but every stage ends in one integrated change.
 3. All integration defects enter one exact stage diff-pool before correction.
 4. Developer checks, independent verification, merge, deploy and acceptance remain
@@ -51,6 +53,10 @@ Software Engineering at Google and specialized standard distillates.
 - The request is only to deploy or change a tracker status: use that system's workflow.
 
 ## Four stages
+
+For a tiny direct implementation, still use the dependency/package preflight and
+task evidence rules in [OpenSpec](references/openspec.md), without creating a TRACE
+case or extra lanes. Specification-only work does not require OpenSpec.
 
 Read [delivery-stages.md](references/delivery-stages.md) and execute only
 `delivery_stage` and `delivery_state` reported by `caseflow.py status`.

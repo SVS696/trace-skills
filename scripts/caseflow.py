@@ -16,6 +16,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from .openspec_bridge import OpenSpecError, check_package
+except ImportError:  # Direct script execution.
+    from openspec_bridge import OpenSpecError, check_package
+
+try:
     from .preanalysis import (
         BriefError,
         DecisionError,
@@ -1059,6 +1064,9 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
             raise CaseFlowError(f"unknown delivery lane: {lane}")
         stage = int(delivery["stage"])
         read_set = [str(PROCESS_KERNEL)]
+        openspec = delivery_openspec(case_root, payload)
+        if openspec:
+            read_set.extend(openspec["read_set"])
         if payload.get("article"):
             read_set.append(str(resolve_artifact(case_root, payload["article"]["path"])))
         current = delivery_stage_record(payload)
@@ -1086,6 +1094,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
             "delivery_stage": stage,
             "delivery_state": delivery["state"],
             "lane": lane,
+            "openspec": openspec,
             "solution_boundary": payload.get("solution_boundary"),
             "read_set": [path for path in read_set if Path(path).exists()],
             "missing_required": [path for path in read_set if not Path(path).exists()],
@@ -2213,6 +2222,23 @@ def command_delivery_waive(args: argparse.Namespace) -> dict[str, Any]:
     return {"item": args.item, "status": "waived", "remaining_unresolved": unresolved}
 
 
+def delivery_openspec(case_root: Path, payload: dict[str, Any], *, complete: bool = False) -> dict[str, Any] | None:
+    """Existing deliveries retain their recorded workflow; new routes bind OpenSpec."""
+    binding = payload["delivery"].get("openspec")
+    if binding is None:
+        return None
+    if payload["delivery"]["state"] == "complete":
+        # Archive may move the package after handoff; historical context stays readable.
+        return {**binding, "state": "handoff_complete", "read_set": []}
+    verify_record(case_root, payload["article"], "delivery source article")
+    if binding["article_sha256"] != payload["article"]["sha256"]:
+        raise CaseFlowError("OpenSpec binding no longer matches the reviewed article")
+    try:
+        return check_package(Path(binding["root"]), binding["change"], complete=complete)
+    except OpenSpecError as exc:
+        raise CaseFlowError(str(exc)) from exc
+
+
 def command_delivery_advance(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
     payload = load_case(case_root)
@@ -2223,6 +2249,7 @@ def command_delivery_advance(args: argparse.Namespace) -> dict[str, Any]:
     if unresolved:
         raise CaseFlowError(f"unverified delivery diff items remain: {', '.join(unresolved)}")
     stage = int(delivery["stage"])
+    delivery_openspec(case_root, payload, complete=stage == 4)
     record = delivery_stage_record(payload)
     rebound = rebind_stage_outputs(
         case_root,
@@ -2258,7 +2285,20 @@ def command_route(args: argparse.Namespace) -> dict[str, Any]:
             raise CaseFlowError("delivery route requires stable uppercase --lane ids")
         if len(lanes) != len(set(lanes)):
             raise CaseFlowError("delivery lanes must be unique")
+        openspec_root = getattr(args, "openspec_root", None)
+        openspec_change = getattr(args, "openspec_change", None)
+        if not openspec_root or not openspec_change:
+            raise CaseFlowError("delivery requires --openspec-root and --openspec-change; see delivery-workflow/references/openspec.md")
+        try:
+            package = check_package(Path(openspec_root), openspec_change)
+        except OpenSpecError as exc:
+            raise CaseFlowError(str(exc)) from exc
         payload["delivery"] = {
+            "openspec": {
+                "root": package["root"], "change": package["change"],
+                "version_at_route": package["version"],
+                "article_sha256": payload["article"]["sha256"],
+            },
             "stage": 1,
             "state": "lanes",
             "lanes": lanes,
@@ -2274,8 +2314,8 @@ def command_route(args: argparse.Namespace) -> dict[str, Any]:
         }
         payload["state"] = "delivery_active"
     else:
-        if lanes:
-            raise CaseFlowError("stop route does not accept delivery lanes")
+        if lanes or getattr(args, "openspec_root", None) or getattr(args, "openspec_change", None):
+            raise CaseFlowError("stop route does not accept delivery lanes or OpenSpec arguments")
         payload["state"] = "stopped_after_spec"
     payload["route"] = args.decision
     save_case(case_root, payload, f"route_{args.decision}_selected")
@@ -2457,6 +2497,8 @@ def build_parser() -> argparse.ArgumentParser:
     route.add_argument("--case-root", type=Path, required=True)
     route.add_argument("--decision", choices=("stop", "delivery"), required=True)
     route.add_argument("--lane", action="append", default=[])
+    route.add_argument("--openspec-root", type=Path)
+    route.add_argument("--openspec-change")
     route.set_defaults(handler=command_route)
     return parser
 
