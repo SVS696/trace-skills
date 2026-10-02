@@ -32,6 +32,10 @@ it never returns specification block drafts as the active delivery context.
 2. Stitch lane plans for API contracts, sequencing, ownership and shared files. For
    every cross-layer guarantee, name its authoritative lane, consumer duty, data
    direction and separate BE/FE/E2E check.
+   For several repositories identify all component SHAs, old/new provider-consumer
+   compatibility where mixed versions are possible, joint build/environment,
+   migrations/flags and merge/deployment order with rollback under the
+   [handoff contract](../../../rules/handoff-contract.md).
 3. Resolve one planning diff-pool before code changes.
 
 **Exit:** Lanes are independently executable and their contracts compose.
@@ -65,6 +69,11 @@ it never returns specification block drafts as the active delivery context.
 2. Run project conformance and risk-proportional regression checks. Verify provider
    enforcement directly, consumer behavior separately, then their E2E composition;
    do not let one contour stand in for another.
+   For several repositories check the joint set of exact SHAs; independent green
+   pipelines alone do not prove compatible behavior. A changed component requires
+   affected joint checks on the new combination. If no joint build is available,
+   keep integrated verification open. Analytical review and code review do not
+   replace QA's executed behavioral checks on a stated build and environment.
 3. If revmux is used, send its findings first to an independent `simplicity-code`
    adjudication (or `simplicity-spec` for a documentation subject), record accepted
    corrections in one pool and dismiss others with evidence. Apply only the pool,
@@ -82,6 +91,9 @@ remain distinct.
 **Entry:** Stage 3 pool closed.
 
 1. Record exact commit/MR/test evidence, OpenSpec change and task evidence, and unresolved gaps.
+   Use the [handoff contract](../../../rules/handoff-contract.md) with recipient,
+   authoritative versions, criterion-to-evidence coverage and conditions for the next
+   action. Compare any deployed version with the checked set when deployment is in scope.
 2. State merge, deploy and acceptance as independent current facts.
 3. Perform external writes only when separately authorized and read them back.
 
