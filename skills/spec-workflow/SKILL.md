@@ -17,6 +17,9 @@ A tiny wording correction does not need a new case.
 
 The result is one reader-facing article. A ready specification is not publication,
 implementation, handoff, or acceptance.
+Analysis owns observable acceptance criteria. QA owns test cases, test data,
+environment, regression and execution against the implementation. Review the article's
+requirements and testability; product testing is not a prerequisite for article readiness.
 
 ## Context and authorship
 
@@ -70,3 +73,5 @@ minor residuals are not a clean result. An extra round requires an actual user d
 Return the article, actual review state, residual findings or questions, and the
 chosen stop/delivery route. Never upgrade a draft or applied fix to verified based
 on the author's own assertion. Only the next healthy ordinary revmux can confirm it.
+For transfer to Design, Dev or QA use the [handoff contract](../../rules/handoff-contract.md):
+exact article version, accepted decisions, criteria, relevant risks and unresolved inputs.

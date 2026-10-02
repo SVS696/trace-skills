@@ -15,6 +15,7 @@ from typing import Any
 
 SKILLS = (
     "method-library",
+    "analysis-workflow",
     "spec-preanalysis",
     "spec-workflow",
     "delivery-workflow",
