@@ -1051,6 +1051,7 @@ def review_cycles_used(payload: dict[str, Any]) -> int:
 
 def command_context(args: argparse.Namespace) -> dict[str, Any]:
     case_root = args.case_root.resolve()
+    read_set = [str(PROCESS_KERNEL), str(PROCESS_KERNEL.with_name("technical-writing.md"))]
     assignment_paths = [str(Path(value).expanduser().resolve())
                         for field in ("project_rule", "source")
                         for value in (getattr(args, field, None) or [])]
@@ -1063,7 +1064,6 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
         if lane and lane not in delivery["lanes"]:
             raise CaseFlowError(f"unknown delivery lane: {lane}")
         stage = int(delivery["stage"])
-        read_set = [str(PROCESS_KERNEL)]
         openspec = delivery_openspec(case_root, payload)
         if openspec:
             read_set.extend(openspec["read_set"])
@@ -1106,7 +1106,7 @@ def command_context(args: argparse.Namespace) -> dict[str, Any]:
     required_subjects = set(required_spec_subjects(payload, stage))
     if args.block and args.block not in required_subjects:
         raise CaseFlowError(f"unknown block: {args.block}")
-    read_set: list[str] = [str(PROCESS_KERNEL), payload["template"]]
+    read_set.append(payload["template"])
     if args.block:
         read_set.append(str(case_root / "method-basis" / f"stage-{stage:02d}-{args.block}.md"))
     source_index = case_root / "sources.md"

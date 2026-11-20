@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplified Technical English"
+  short_description: "Rewrite and check English technical documents"
+  default_prompt: "Use $simplified-technical-english to adapt this text and check that each condition keeps its meaning."

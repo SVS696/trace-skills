@@ -1,7 +1,7 @@
 {
   "name": "smoke-break",
-  "version": "0.1.0-trace.2",
-  "description": "Adds elapsed-time reflection prompts to long-running Claude Code turns.",
+  "version": "0.1.0-trace.3",
+  "description": "Remind the agent to check progress during a long Claude Code turn.",
   "author": {
     "name": "Daniel S / SVS TRACE adapter"
   },

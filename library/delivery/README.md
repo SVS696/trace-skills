@@ -1,15 +1,7 @@
-# Delivery engineering library
+# Методическая библиотека разработки
 
-Адресная инженерная база из Delivery Engineering. Главные книжные источники:
+TRACE использует разделы Software Construction, Software Testing и Software Quality из SWEBOK 4.0a. Из онлайн-издания Software Engineering at Google за 2020 год взяты правила стиля кода, ревью, тестирования и статического анализа.
 
-- `SWEBOK 4.0a` — Software Construction, Software Testing и Software Quality;
-- `Software Engineering at Google`, online edition 2020 — style guides, code review,
-  testing и static analysis.
+В `references/source-registry.md` указаны редакции источников и дополнительные стандарты. Правила `E/B/F/T/S` соответствуют коммиту `56a93cb` репозитория Delivery Engineering. Контрольные суммы защищают эти копии.
 
-Точные редакции и дополнительные стандарты находятся в `references/source-registry.md`.
-Дистилляты `E/B/F/T/S` перенесены byte-identical с commit `56a93cb` и защищены hash.
-
-Lane получает один основной route и, только при отдельной поверхности, один
-дополнительный. Полный корпус другой lane не загружается.
-Локальные расширения маршрутов находятся в `library/route-overrides.json`; это overlay,
-а не часть byte-identical зеркала.
+Выберите один основной маршрут для порученной части разработки. Добавьте один дополнительный маршрут, если задача затрагивает отдельную область, например HTTP. Передайте исполнителю только применимые разделы. Для локальных расширений маршрутов используйте `library/route-overrides.json`.

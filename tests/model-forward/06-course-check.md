@@ -1,21 +1,20 @@
 # Forward test: time-triggered course control
 
-Read only:
+Use only these files.
 
-- `rules/process-kernel.md`;
-- `rules/course-check.md`;
+- `rules/process-kernel.md`
+- `rules/course-check.md`
 - `docs/architecture.md`.
 
-Scenario A: Smoke Break reports that a turn has crossed its interval. Since the previous
-checkpoint, one exact diff item was verified and the next command is a narrow test that
-can falsify the active hypothesis. Scenario B: this is the second consecutive reminder
-with many tool calls but no new verified fact, closed item or receipt. Scenario C: the
-current path now requires editing files outside the approved scope. Scenario D: one
-tool call is still running for longer than the Smoke Break interval. Scenario E: five
-completed review rounds have been used; the agent fixed the fifth round's findings and
-wants to run a bounded post-fix revmux verification without a new user answer.
+## Test input
 
-Return one JSON object with:
+A. Smoke Break reports that the interval has elapsed. Since the last checkpoint, a reviewer verified one change. The next test can disprove the current hypothesis.
+B. For the second consecutive interval, the agent made many tool calls. It obtained no new verified fact, closed item, or receipt.
+C. The next step requires a change outside the approved scope.
+D. One tool call takes longer than the Smoke Break interval.
+E. Five review rounds have finished. The agent applied the fifth round of corrections and wants to start another revmux check. The user has given no new decision.
+
+Return one JSON object. Include these fields.
 
 - `scenario_a_verdict`: exact verdict;
 - `scenario_a_required_next_property`: one short phrase;
@@ -27,5 +26,3 @@ Return one JSON object with:
 - `scenario_d_checkpoint_timing`: one short phrase;
 - `scenario_e_verification_allowed`: boolean;
 - `scenario_e_required_authority`: one short phrase.
-
-Answer from the named files only.

@@ -1,69 +1,39 @@
-# Handoff contract
+# Передача результата
 
-Use when a result moves to another participant, role or project system: an analysis,
-specification, design, implementation or infrastructure observation. This contract
-adds no stage and requires no area directory layout. Use the project's existing
-format; when links already reconstruct the input, supply only missing fields.
+Когда результат переходит другому участнику, роли или системе проекта, укажи отправителя, получателя и ожидаемое действие. Используй действующий формат и каталоги проекта. Если сведения уже доступны по точным ссылкам, добавь только недостающее.
 
-## Project ownership
+## Основания передачи
 
-Establish applicable sources of truth, templates, decision owners, artifact locations,
-publication authority and required checks from project instructions. Name the owner
-of each rule. For example, a tracker owns execution status, a specification approved
-behavior, design the agreed interaction artifact, and code/live systems implementation
-facts. Resolve conflicts by the project's declared precedence; these examples do not
-override its canon. Inspect versions before relying on derived mirrors.
+Установи по правилам проекта нормативные источники, шаблоны, владельцев решений, места хранения, разрешение на публикацию и обязательные проверки. Назови владельца каждого правила. Например, трекер может хранить статус, постановка — согласованное поведение, макет — согласованный способ взаимодействия, код и стенд — сведения о реализации. При расхождении применяй порядок приоритета проекта. Проверь версию производной копии.
 
-A portable instruction catalog can provide stable IDs and versioned reads. Read the
-applicable route and compare contract version plus content digest before mixing rules.
-A catalog distributes instructions and does not itself inspect or mutate live state.
-Preserve provenance when adapting a method; credentials and personal journals stay local.
+Если используешь версионный каталог инструкций, прочитай применимый маршрут. Перед сочетанием правил сверь версию контракта и хеш текста. Факты о живой системе проверяй в самой системе. При адаптации метода сохраняй происхождение. Учётные данные и личные журналы храни локально.
 
-## Minimum transfer
+## Что передать
 
-Identify sender, recipient and next action, then provide:
+1. Цель, текущие границы и проверяемые признаки завершения.
+2. Действующий контракт, источники, точные версии или хеши.
+3. Полученный результат, принятые решения, причины выбора и источник согласования. Пометь рекомендации отдельно.
+4. Для каждого критерия — фактическую проверку, свидетельство, непроверенную часть и риск.
+5. Открытые вопросы и противоречия, их владельцев, последствия и условия начала зависимой работы.
 
-1. Goal, current boundaries and observable exit criteria.
-2. Authoritative contract, sources and exact versions or content hashes.
-3. Result artifacts, accepted decisions and rationale/authorization source.
-4. Criterion → actual check → evidence → uncovered portion and residual risk.
-5. Unknowns/conflicts, owner, impact and condition for starting dependent work.
+Оставь материалы в доступном проектном месте. Получатель должен восстановить основания выбора. Вопрос остаётся открытым, пока владелец не дал ответ.
 
-Keep recommendations distinct from accepted decisions. Shared context must let the
-recipient recover why an option was chosen without the author's private memory.
-A known owner does not resolve a missing requirement.
-
-## Evidence by result
-
-| Transfer | Evidence and boundary |
+| Передача | Что требуется получателю |
 |---|---|
-| Analysis → decision owner | Question, coverage, alternatives, recommendation, limits and actual review; delivery does not approve the choice |
-| Analysis → specification | Verified framing, preliminary stories/criteria, decisions and unknowns; the existing preanalysis approval route remains required |
-| Analysis ↔ Design | Rules, criteria and constraints; checked states/transitions and exact nodes return to Analysis; new behavior needs a recorded decision |
-| Analysis → Dev / QA | Approved requirements/version, criteria and risks; Dev owns implementation and QA the testing method |
-| Dev → verifier / QA | MR/commit, build, environment, dependencies, data, developer checks and all affected component versions |
-| QA → release | Executed scenarios/regressions on a stated version, uncovered checks and risk; QA does not establish merge or deployment |
-| Infrastructure → next owner | Dated live observation, authorized change, rollback and client-path validation; a target diagram or old inventory is not current state |
+| Аналитик → владелец решения | Вопрос, покрытие, варианты, рекомендация, ограничения и фактическое ревью. Принятие решения требует записи выбора |
+| Исследование → постановка | Проверенные основания, предварительные истории и критерии, решения и открытые вопросы. Пройди согласование предварительного анализа |
+| Аналитик ↔ дизайнер | Аналитик передаёт правила, критерии и ограничения. Дизайнер возвращает проверенные состояния, переходы и точные узлы макета. Новое поведение согласуй |
+| Аналитик → разработчик и QA | Утверждённые требования с версией, критерии и риски. Разработчик определяет реализацию, QA выбирает метод проверки |
+| Разработчик → проверяющий или QA | MR или коммит, сборка, среда, зависимости, данные, проверки разработчика и версии всех затронутых компонентов |
+| QA → выпуск | Выполненные сценарии и регрессии на конкретной версии, пропущенные проверки и риски. Слияние и развёртывание установи отдельно |
+| Инфраструктура → следующий владелец | Датированное наблюдение в действующей системе, разрешённое изменение, откат и проверка клиентского пути. Целевая схема и старая опись описывают другое состояние |
 
-For interface work, cover applicable loading, empty, no-match, error, cancel, retry
-and recovery behavior. Check input/context preservation and keyboard/focus behavior
-where relevant. Use the project's design system and accessibility rules; adopting a
-method does not import another project's colors or components.
+Для интерфейса проверь применимые состояния загрузки, отсутствия данных и результатов поиска, ошибки, отмены, повтора и восстановления. Если существенно, проверь сохранение введённых данных, контекста, навигацию с клавиатуры и фокус. Примени дизайн-систему и правила доступности проекта.
 
-## Several repositories
+## Несколько репозиториев
 
-Tie each component to its repository, MR, exact SHA and contract version. Before
-claiming integrated readiness, record and exercise the joint build/environment,
-old/new provider and consumer compatibility where mixed versions are possible,
-migrations, feature flags and merge/deployment order with rollback.
+Для каждого компонента укажи репозиторий, MR, точный SHA и версию контракта. До вывода о совместной готовности проверь общую сборку или среду. Если возможны смешанные версии, проверь старого и нового поставщика с соответствующими потребителями. Проверь миграции, флаги, порядок слияния и развёртывания, возможность отката.
 
-Every MR retains its own review and developer checks. Independent behavioral evidence
-covers the joint set of SHAs. A changed component invalidates evidence for its affected
-combination: repeat those checks and approval/readiness checks on the new version.
-If the joint build cannot be exercised, report the gap instead of inferring integrated
-verification from separate green checks.
+Для каждого MR сохрани собственное ревью и проверки разработчика. Независимые проверки поведения относятся к точному набору SHA. При изменении компонента повтори затронутые совместные проверки и проверки согласования или готовности. Если общая сборка недоступна, укажи, какую проверку ещё нужно выполнить.
 
-After merge inspect actual main commits and pipelines. If deployment is part of the
-result, compare deployed version with the checked set and validate the client path.
-Report approval, review, testing, merge, deployment and acceptance as separate facts;
-authorized external writes require exact read-back.
+После слияния проверь фактические коммиты основной ветки и результаты конвейеров. Если в поручение входит развёртывание, сравни версию в среде с проверенной и выполни клиентский сценарий. Отдельно укажи согласование, ревью, тестирование, слияние, развёртывание и приёмку. После разрешённой внешней записи прочитай результат и сравни с ожидаемым.

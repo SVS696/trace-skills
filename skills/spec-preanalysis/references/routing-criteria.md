@@ -1,31 +1,18 @@
-# Routing criteria
+# Число постановок и смысловых блоков
 
-## Split into several specifications when
+## Когда разделить постановки
 
-- outcomes can be accepted, handed off or stopped independently;
-- different user groups have independent journeys and business rules;
-- lifecycle and data ownership boundaries are stable;
-- one article would require several unrelated goals or acceptance decisions;
-- dependencies can be expressed as a small acyclic graph.
+Проверь, можно ли принять, передать или остановить результаты по отдельности. В пользу разделения говорят независимые пути пользователей и правила, устойчивые границы жизненных циклов и владельцев данных, несколько несвязанных целей или разные решения о приёмке. Представь зависимости небольшим графом без циклов.
 
-Do not split only because work has backend/frontend parts, several screens, several
-agents, many requirements, or different implementation repositories.
+Наличие серверной и клиентской частей, нескольких экранов, репозиториев, исполнителей или большого списка требований само по себе недостаточно для разделения.
 
-## Design the later block descent
+## Как выбрать блоки
 
-Every article starts with a complete working pass through the unchanged template.
-There is no `article-first | hybrid` route choice.
+Для каждой статьи начни с полного рабочего текста по исходному шаблону. Если один основной сценарий и его правила тесно связаны, выбери один смысловой блок. Вводи дополнительные блоки при разных предметах проверки, например:
 
-Use one semantic block when the article has one dominant journey and one tightly coupled
-rule set. Use several only when they expose genuinely different analysis surfaces, for
-example:
+- разные участники или ограниченные наборы источников;
+- самостоятельные группы бизнес-правил;
+- разные жизненные циклы данных или модели состояний;
+- интерфейсы, где обязанности поставщика и потребителя можно проверять отдельно.
 
-- bounded source sets or actors;
-- independent business-rule clusters;
-- distinct data lifecycles or state machines;
-- interfaces whose provider and consumer duties can be checked separately.
-
-Do not create blocks from template headings, BE/FE layers, screens, repositories or
-agent count alone. Blocks deepen and challenge the already visible whole article. Their
-results are integrated into a new article projection at every block stage; a final-only
-stitch is not supported.
+Разделы шаблона, слои реализации, экраны, репозитории и число исполнителей сами по себе не задают блок. Каждый блок уточняет существующую полную статью. На каждом этапе работы по блокам редактор выпускает новую полную версию. Этот порядок един для всех статей.

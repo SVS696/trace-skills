@@ -1,4 +1,4 @@
 interface:
   display_name: "Process Timer"
-  short_description: "Record observed work events for Work Metrics"
-  default_prompt: "Run $process-timer to record observed events without estimating or inferring activity."
+  short_description: "Record work events for Work Metrics"
+  default_prompt: "Use $process-timer to record the work events that you observe."

@@ -1,57 +1,24 @@
-# Stage 4: Final article and revmux
+# Этап 4. Итоговая статья и ревью
 
-Entry: stage 3 has an integrated article. Read only the selected project rules,
-method basis, accepted solution boundary and bound architecture design when present.
+Начни с полной статьи этапа 3. Используй выбранные проектные правила, методический маршрут, согласованную границу решения и закреплённый архитектурный проект, если он есть.
 
-## Prepare the article
+## Подготовка статьи
 
-1. Consolidate the whole article in the selected template variant. Resolve content
-   gaps before review. Preserve owners, contracts, traceability and US/DoD lineage.
-2. During authoring apply simplicity and language rules. Run deterministic checks
-   for headings, links, tables, examples and actual diagram rendering. Correct the
-   candidate directly. Neither authoring nor preflight creates a diff-pool.
-3. Submit ARTICLE; open-stitch; register a ready integration report without a pool:
-   record-stitch --report REPORT. The JSON report has schema: 1, stage: 4,
-   status: ready, open_inputs: []. Advance, then finalize-article --article ARTICLE.
-4. Prepare one ordinary revmux assignment on these article bytes. Include project
-   logic/conformance, simplicity, reader language and triggered architecture criteria
-   in this round's reviewer assignments. Bound architecture design is an input;
-   its conformance reviewer must be independent from its author. Do not run a second
-   standalone article-review process before or after revmux.
+1. Собери полный текст по выбранному шаблону. До ревью закрой пробелы в содержании. Сохрани владельцев, контракты, ссылки на источники и связь предварительных US/DoD с итоговыми.
+2. Примени правила простоты и [технического языка](../../../rules/technical-writing.md). Выполни воспроизводимые проверки заголовков, ссылок, таблиц и примеров. Отрисуй диаграммы и проверь результат. Включи в задание путь к скиллу языка через `context --project-rule`. После редакторской правки сравни изменённые требования с источником через `utr` или `simplified-technical-english`. Проверь, какой ответ готовая статья даёт в штатном и граничном сценарии. Правь рабочую статью напрямую.
+3. Передай `ARTICLE` и вызови `open-stitch`. Зарегистрируй отчёт командой `record-stitch --report REPORT` без списка исправлений. В JSON укажи `schema: 1`, `stage: 4`, `status: ready`, `open_inputs: []`. Выполни `advance`, затем `finalize-article --article ARTICLE`.
+4. Назначь один обычный раунд revmux на точную версию статьи. Распредели между проверяющими применимые критерии проекта, логики, простоты, языка и архитектуры. Если закреплён архитектурный проект, передай его отдельному от автора проверяющему. Проверки статьи входят в этот раунд.
 
-## Review and corrections
+## Ревью и исправления
 
-article → revmux → findings → diff-pool → fix → article v2 → ordinary revmux
+1. Запусти revmux с выбранным полным профилем. Сохрани критерии проекта в профиле, границы задания — в `scope.md`. В следующих обычных раундах сохрани необходимые источники замечаний.
+2. Для полного результата нужен отчёт схемы 1, привязанный к `article_sha256`. В нём указаны идентификаторы источников, ожидаемое и фактическое число ответов, недоступные источники, замечания и `open_questions`. При неполном результате восстанови источник и повтори обычный раунд. Список исправлений пока не создавай.
+3. Для полученных замечаний примени `simplicity-spec`. Привяжи отчёт о разборе к результату ревью. Для каждого замечания прими минимальную правку или запиши основание отклонения. Это разбор замечаний внутри цикла.
+4. Создай один список принятых замечаний. У каждого укажи `source_finding_id`, путь к итоговой статье и точный заголовок. Если требуется изменить промежуточный файл, укажи его в той же правке.
+5. Зарегистрируй `record-review --receipt RECEIPT --adjudication-report REPORT --diff-pool POOL`. Для чистого результата список не нужен. Если правка требует выбора пользователя, до формирования правки получи решение и запиши фактическую ссылку через `record-review-decisions`.
+6. Внеси весь пакет исправлений в итоговую статью. Синхронизируй указанные промежуточные материалы. Выполни автоматические проверки. Через `resolve-review` зарегистрируй применение каждой правки к точным байтам новой статьи.
+7. Выполни `article-updated --article ARTICLE`. Запусти обычный revmux по обновлённой статье. Исправления подтверждает полный чистый раунд. Новые замечания обработай в следующем списке. Авторский отчёт и отдельная команда `verify-review` не заменяют обычный раунд.
 
-1. Run the normal revmux workflow with the selected full review profile. Preserve
-   relevant sources in later ordinary rounds; do not substitute targeted verification.
-   Keep project review criteria in the profile and assignment scope in scope.md.
-2. A complete result is a schema-1 receipt bound to article_sha256, with source ids,
-   expected/reported counts, degraded sources, findings and open_questions. A degraded
-   result creates no pool; restore the missing source and retry the ordinary round.
-3. Apply simplicity-spec to the returned findings using a receipt-bound adjudication
-   report. This is practical triage of those findings, not a second article review.
-   Each finding is accepted with a minimal correction or dismissed with evidence.
-4. Create one pool from the accepted findings. Each item names source_finding_id and
-   targets the final article path plus the exact heading. List any intermediate
-   artifact synchronization in the same correction; it never replaces the article fix.
-5. Register record-review --receipt RECEIPT --adjudication-report REPORT --diff-pool POOL.
-   For clean results no pool is needed. Resolve user questions before forming their
-   corrections, using record-review-decisions and the actual decision reference.
-6. Apply the complete correction batch to the final article and synchronize named
-   supporting artifacts where needed. Run deterministic checks, then record each
-   applied receipt with resolve-review. These receipts bind the resulting article
-   bytes; writing only a block cannot satisfy them. Applied is not yet verified.
-7. Call article-updated --article ARTICLE, then run the next ordinary revmux on the
-   updated article. Do not call verify-review or launch a separate targeted check.
-   A healthy clean round confirms the applied corrections. Remaining findings enter
-   the next pool; the author never self-certifies semantic correctness.
+Предел — пять содержательных раундов revmux. Авторские проверки, разбор замечаний и технический повтор неполного или несостоявшегося раунда не расходуют предел. При чистом результате закончи раньше. При одних мелких замечаниях запиши `--stop-at-minor` без списка исправлений и покажи остаток. После пятого раунда получи решение пользователя перед следующим раундом.
 
-Only revmux rounds consume the five-round limit. Deterministic authoring checks,
-findings adjudication and failed/degraded technical retries do not consume it.
-After round five ask for an explicit decision before another ordinary round. Stop
-at clean results; if only minor findings remain, record --stop-at-minor without a
-pool and show the residuals. Do not treat minor-pending as spec_ready.
-
-Exit: article and honest review state. At spec_ready record route stop or the
-explicitly authorized delivery route. Publication and acceptance remain separate.
+Передай статью с фактическим статусом ревью. При `spec_ready` запиши `stop` или явно согласованный маршрут `delivery`. Для публикации и приёмки нужны отдельные основания.

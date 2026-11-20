@@ -1,22 +1,20 @@
 # Smoke Break integration
 
-Smoke Break supplies the elapsed-time reminder that triggers `P23 COURSE-CHECK`.
-It does not own the TRACE verdict and does not mutate case state.
+Smoke Break measures elapsed time and prompts the agent to run `P23 COURSE-CHECK`. TRACE owns the verdict and the case state.
 
 ## Shared configuration
 
-Create `~/.smoke-break.env`:
+Set the interval in `~/.smoke-break.env`.
 
 ```dotenv
 SMOKE_BREAK_INTERVAL_MS=900000
 ```
 
-Fifteen minutes is the TRACE recommendation. The upstream fallback remains five
-minutes. Configuration is read at the start of the next turn.
+TRACE recommends 15 minutes. The upstream default is five minutes. The plugin reads the configuration when the next turn starts.
 
 ## Codex
 
-Use the upstream plugin:
+Install the upstream plugin and check it.
 
 ```bash
 codex plugin marketplace add ElKornacio/agent-plugins --ref 511e18062c95d746bed7ff0ca300fbcbd31fc57f
@@ -26,8 +24,7 @@ python3 scripts/smoke_break_dependency.py verify --runtime codex
 
 ## Claude Code
 
-Upstream currently ships a Codex manifest only. TRACE therefore includes a minimal
-Claude Code adapter for the same `UserPromptSubmit` and `PostToolUse` events:
+The upstream plugin supplies a Codex manifest. For Claude Code, install the TRACE adapter. It uses the same `UserPromptSubmit` and `PostToolUse` events.
 
 ```bash
 claude plugin marketplace add SVS696/trace-skills --scope user
@@ -35,9 +32,7 @@ claude plugin install smoke-break@trace-smoke-break --scope user
 python3 scripts/smoke_break_dependency.py verify --runtime claude
 ```
 
-The adapter is fail-open and stores only timestamps, the configured interval and a
-hash of the Claude session id in a bounded per-user temporary directory. Existing
-Claude hooks are not replaced.
+The adapter keeps the existing Claude hooks. If the adapter fails, tool calls can continue. The adapter stores timestamps, the interval and a hash of the session ID in a per-user temporary directory with a limit on the number of state files.
 
 ## Verification
 
@@ -45,10 +40,6 @@ Claude hooks are not replaced.
 python3 scripts/smoke_break_dependency.py verify --runtime codex --runtime claude
 ```
 
-Without `--runtime`, the verifier checks the runtimes whose CLI executables are present;
-explicit flags are preferred in installation receipts. It distinguishes an absent CLI,
-a missing plugin, a disabled plugin, version/source drift, a broken reminder marker and
-`unverified`, when the install path or source revision cannot be read.
-New sessions are required after plugin installation. Reminders cannot fire during one
-long-running tool call or while the agent is idle; the checkpoint arrives after the
-next observed tool completion.
+Specify each runtime when you record an installation result. Without `--runtime`, the verifier checks each runtime whose CLI it finds. It reports a missing CLI, a missing or disabled plugin, a version or source mismatch, or an invalid reminder marker. If the verifier cannot read the install path or source revision, it reports `unverified`.
+
+Start a new session after installation. If the interval expires during a long tool call or while the agent is idle, the hook can send the reminder after the next tool completes.

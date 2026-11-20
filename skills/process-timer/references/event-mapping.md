@@ -1,16 +1,16 @@
-# Event mapping
+# События Work Metrics
 
-| Process observation | Work Metrics marker |
+| Что произошло | Что записать |
 |---|---|
-| work actually begins | `work_started` |
-| explicit pause | `pause_started` |
-| observed model or service usage limit | `limit_exhausted` |
-| intentionally deferred | `deferred` |
-| explicit continuation | `resume` |
-| result ready to transfer | `ready_for_handoff` |
-| transfer completed | `handoff` |
-| ordinary completion without handoff | `work_finished` |
-| explicit user stop | `user_stopped` |
-| process guard stopped work | `guard_stopped` |
-| cancellation | `cancelled` |
-| external failure ended lifecycle | `external_failure` |
+| Исполнитель начал работу | `work_started` |
+| Исполнитель явно приостановил работу | `pause_started` |
+| Модель или сервис сообщили о достижении лимита | `limit_exhausted` |
+| Исполнитель отложил работу | `deferred` |
+| Исполнитель явно возобновил работу | `resume` |
+| Результат готов к передаче | `ready_for_handoff` |
+| Получатель получил результат | `handoff` |
+| Работа завершена без передачи | `work_finished` |
+| Пользователь остановил работу | `user_stopped` |
+| Процесс остановился по защитному правилу | `guard_stopped` |
+| Работу отменили | `cancelled` |
+| Внешний сбой завершил работу | `external_failure` |

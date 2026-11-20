@@ -1,7 +1,6 @@
-# Preliminary plan contract
+# План подготовки постановки
 
-New `execution-plan.json` files use schema 2. Schema 1 remains readable only for
-started legacy cases; `caseflow init` accepts schema 2.
+Для нового `execution-plan.json` используй схему 2. TRACE читает схему 1 для ранее начатых кейсов. Новый `caseflow init` принимает схему 2.
 
 ```json
 {
@@ -19,9 +18,9 @@ started legacy cases; `caseflow init` accepts schema 2.
       "output": "Согласованные правила сохранения и обработки ошибок",
       "depends_on": [],
       "source_refs": ["SRC-001"],
-      "exit_criteria": ["The complete stage-4 article passes its required gates"],
+      "exit_criteria": ["В итоговой статье правила сохранения и ошибок связаны с проверяемыми критериями, обязательное ревью завершено"],
       "checklist": [
-        {"id": "P1-C1", "action": "Prepare the whole-template baseline", "done_when": "Stage 1 diff is closed"}
+        {"id": "P1-C1", "action": "Описать сохранение сценария в полном черновике", "done_when": "В статье этапа 1 указан ожидаемый результат сохранения и учтены открытые вопросы"}
       ]
     }
   ],
@@ -29,34 +28,8 @@ started legacy cases; `caseflow init` accepts schema 2.
 }
 ```
 
-`route` is `stop` or `specification`. Implementation-only work is outside this plan
-contract and may enter `delivery-workflow` only from an existing `spec_ready` case.
-`article_ids` names exactly the specification outputs approved in
-`decomposition-decision.json`; dependencies must be acyclic. An approved plan has the
-same `subject_id` and `decision_ref` as that decision.
-
-`brief_sha256` binds the plan to the exact approved brief. Every task names at least one
-brief `source_ref` and at least one observable `exit_criteria`. `checklist` is optional;
-use it only for finer actions inside a non-atomic task and do not turn every mechanical
-action into a dependency node.
-
-## Task titles
-
-`title` is a short reader-facing name for the task's concrete outcome. A person who
-does not know TRACE must understand what will be clarified, described or made ready.
-Prefer a plain action plus its product subject, and keep the details in `output`,
-`exit_criteria` and the optional `checklist`.
-
-Do not use a stage, block ID, case ID, component name or workflow operation as the
-meaning of the title. Keep those markers in `id`, dependencies or the relevant case
-fields. For example:
-
-- `Stage 2 / B03`, `Пройти блок сценариев` and `Подготовить TASK-123` are not task names;
-- `Уточнить правила сохранения актуарного сценария` names the result in product terms.
-
-An external planning adapter uses the same reader-facing title. A destination-required
-prefix may be added, but it must not replace or obscure the meaningful name.
-
-External sync states are `not_requested`, `authorized`, and `synced`. `synced` requires
-the destination `system`, exact `target_ref`, and `readback_ref`. Tool success without
-read-back does not count as synchronized.
+1. Выбери `route=stop` или `specification`. Этот план охватывает подготовку постановки. Реализация через `delivery-workflow` требует существующего кейса `spec_ready`.
+2. Перенеси в `article_ids` точный список статей из согласованного `decomposition-decision.json`. Проверь отсутствие циклов в зависимостях. Для утверждённого плана должны совпадать `subject_id` и `decision_ref` с решением.
+3. Запиши SHA-256 точной предварительной записки в `brief_sha256`. В каждой задаче дай минимум одну ссылку на источник записки в `source_refs` и один наблюдаемый признак завершения в `exit_criteria`. Если внутри задачи есть несколько самостоятельных действий, можно добавить `checklist`.
+4. Назови задачу по действию и продуктовому результату. Подробности помести в `output`, `exit_criteria` и при необходимости в `checklist`. Например, «Уточнить правила сохранения актуарного сценария» объясняет задачу читателю, который не знает TRACE. Номера этапа, блока, кейса и название компонента помести в отдельные поля. Для внешнего планировщика используй тот же заголовок. Обязательный префикс системы может дополнять его.
+5. Для внешней синхронизации выбери `not_requested`, `authorized` или `synced`. Для `synced` укажи `system`, точный `target_ref` и `readback_ref`. Прочитай внешнюю запись и сверь содержимое.

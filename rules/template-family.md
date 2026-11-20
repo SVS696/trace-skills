@@ -1,42 +1,11 @@
-# Template family and output rules
+# Выбор и заполнение шаблона
 
-Select the variant before authoring: main specification for an independently accepted
-product outcome; component task for the assigned slice of an existing parent. A BE/FE
-split alone does not create independent specifications. Global assets are defaults;
-project templates and their applicability rules take precedence.
+Перед написанием выбери шаблон проекта. Если проект не задал шаблон, используй общий. Для независимо принимаемого результата выбери основную постановку. Для назначенной части родительской задачи выбери компонентную подзадачу. Разделение работ между сервером и клиентом само по себе не создаёт две независимые постановки.
 
-The source template is immutable during article authoring. In the output, remove
-non-applicable sections and their TOC entries; keep retained sections in source order.
-Keep applicability reasons in the author's report, not in the reader-facing article.
-Comments and bracketed prompts instruct the author and are removed from the output.
-
-Include only changed components. If BE changes and FE does not, omit FE. If FE changes
-its use of an unchanged API, retain the changed FE behavior without restating the BE
-contract. Omit the whole API section only when neither contract nor usage changes.
-Do not add “no changes” paragraphs. A required compatibility boundary is a positive
-requirement; define it once where it belongs.
-
-Main: problem/goal/solution, changed components, semantic history, goal and current
-scope, user stories, applicable behavior/data/interface sections, AC, DoD and links.
-Component: problem/goal/solution, only the assigned changed owner, parent reference,
-owned scope, applicable calls/states/dependencies, AC and DoD; no publication history.
-Do not fabricate a backend section for a frontend-only task.
-
-Define current scope once under Description / Boundaries. The later Solution boundaries
-section contains only justified extension conditions/seams and links to current scope;
-omit it when there is nothing additional to say.
-
-For a changed operation, describe the semantic delta and provide a complete valid
-wire example of that operation. Unchanged fields may appear in the example; they do
-not become new scope. Do not enumerate unrelated unchanged operations. Use the actual
-status and format (including binary or empty responses), not a hardcoded 200/JSON.
-
-Existing UI labels/paths/ids are sourced facts. New UI labels/ids may be proposed within
-the authorized design scope, marked as proposed until decided; do not search for them
-as existing facts or present them as deployed. Resolve material choices before readiness.
-
-Renumbering is allowed: prepare old heading/id → new heading/id mapping, update all
-references within the article and known incoming references together, and verify no
-stale or misdirected links remain. Preserve a mapping in case evidence, not reader prose.
-If external incoming links cannot be updated, retain the published ID until that
-boundary is resolved; do not silently redirect a different story to the old ID.
+1. Сохрани исходный шаблон при подготовке статьи. В выходном тексте оставь применимые разделы в порядке шаблона. Удали неприменимые разделы и ссылки на них в оглавлении. Основания укажи в отчёте автора. Удали подсказки в скобках и служебные комментарии. Используй [правила технического языка](technical-writing.md).
+2. Опиши изменяемые компоненты. Если меняется только сервер, убери клиентский раздел. Если клиент меняет использование существующего API, опиши новое поведение клиента. Раздел API можно полностью убрать, если сохраняются и контракт, и способ вызова. Обязательную границу совместимости сформулируй один раз как требование.
+3. Основная постановка содержит проблему, цель, суть решения, изменяемые компоненты, историю содержательных изменений, текущие границы, истории пользователей, применимые правила поведения, данные, интерфейсы, AC, DoD и ссылки. В компонентной подзадаче укажи проблему, цель, решение, родителя, ответственный компонент, назначенный объём, применимые вызовы, состояния, зависимости, AC и DoD. История публикаций в подзадаче не нужна.
+4. Один раз задай текущий объём в описании границ. Позднее в разделе границ решения укажи только обоснованные условия и места расширения со ссылкой на текущий объём. Опусти раздел, если таких сведений нет.
+5. Для изменяемой операции опиши, какое поведение меняется. Дай полный корректный пример запроса или ответа в фактическом транспортном формате. Покажи действительный статус и формат, включая двоичный или пустой ответ. Неизменённые поля могут понадобиться в примере. Перечень остальных штатных операций не требуется.
+6. Для действующих названий элементов интерфейса, путей и идентификаторов укажи источник. В согласованных границах дизайна можно предложить новые названия и идентификаторы. Пометь их как предложения до решения. До готовности статьи согласуй варианты, влияющие на результат.
+7. При перенумерации составь соответствие прежних и новых заголовков и идентификаторов. Одновременно обнови внутренние и известные входящие ссылки. Проверь, что каждая ведёт к нужному содержанию. Сохрани сопоставление в материалах кейса. Если входящую внешнюю ссылку пока нельзя обновить, оставь опубликованный идентификатор за прежним содержанием.

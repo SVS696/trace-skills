@@ -1,73 +1,47 @@
-# OpenSpec at the implementation boundary
+# Пакет OpenSpec для реализации
 
-Use this contract for new TRACE delivery routes and direct small implementations in
-any project, in Codex or Claude Code. The parent owns preparation and shared task
-updates. Implementers receive the selected change and their assigned task numbers.
-Existing delivery cases without an OpenSpec binding retain their recorded workflow;
-do not silently migrate them or overwrite an existing project's OpenSpec setup.
+Для нового маршрута TRACE и прямого небольшого изменения используй этот контракт в Codex и Claude Code. Ведущий готовит общий пакет и обновляет статусы задач. Исполнитель получает выбранное изменение и номера своих задач. В уже начатом кейсе без привязки к OpenSpec продолжай зарегистрированный процесс.
 
-## 1. Dependency and project setup
+## 1. Проверить зависимости и проект
 
-Run the shared read-only check from the installed TRACE root:
+Выполни проверку из установленного TRACE.
 
 ```bash
 python3 ~/.workflow-skills/current/scripts/openspec_bridge.py
 ```
 
-Delivery requires Node.js >=20.19.0 and OpenSpec >=1.13.0,<2.0.0. The tested version
-is 1.13.0. If missing/incompatible, report the exact failure and install the pinned
-version when installation is authorized:
+Для реализации нужны Node.js версии 20.19.0 или выше и OpenSpec от 1.13.0 включительно до 2.0.0 исключительно. Проверенная версия — 1.13.0. Если зависимость отсутствует или несовместима, укажи ошибку. Когда установка разрешена, установи закреплённую версию и повтори проверку.
 
 ```bash
 npm install -g @fission-ai/openspec@1.13.0
 ```
 
-No network installation occurs inside caseflow. Resume after a successful check.
-In the actual code/planning repository, inspect existing `openspec/`, project rules
-and tool skills before setup. For a new project run:
+Caseflow не устанавливает зависимости из сети. В реальном репозитории кода или плана проверь каталог `openspec/`, инструкции проекта и скиллы. Для нового проекта выполни:
 
 ```bash
 openspec init --tools codex,claude --no-animation
 ```
 
-For an existing setup preserve its schema, config and custom instructions; inspect
-the setup diff when adding the missing harness. Never use `--force` to discard local
-changes. CLI availability is shared; project skills are installed for both harnesses.
+В действующем проекте сохрани схему, настройки и локальные инструкции. Если добавляешь поддержку отсутствующего клиента, проверь diff настройки. Не используй `--force` для замены локальных изменений. CLI общий, проектные скиллы нужны обоим клиентам.
 
-## 2. Prepare one implementation package
+## 2. Подготовить пакет
 
-Reuse the change for this exact scope or create it with `openspec new change NAME`.
-Run `openspec status --change NAME --json` and fetch `openspec instructions ARTIFACT
---change NAME --json` before writing each required artifact. Follow the selected
-schema's dependencies. Keep the project language and OpenSpec's structural markers.
+Используй существующее изменение для этого точного объёма или создай его через `openspec new change NAME`. Выполни `openspec status --change NAME --json`. Перед записью каждого обязательного материала получи `openspec instructions ARTIFACT --change NAME --json`. Соблюдай зависимости схемы и структурные маркеры OpenSpec. Пиши на языке проекта по [правилам технического языка](../../../rules/technical-writing.md).
 
-Translate the already approved article; do not restart requirements discovery:
+| Материал | Содержание из согласованной постановки |
+|---|---|
+| Proposal | Ссылка или путь к статье, версия или SHA-256, применимая ссылка на задачу, причина, согласованный объём и приоритет источников проекта |
+| Specs | Изменившиеся требования и сценарии, ссылки на исходные требования и AC. Перед записью `MODIFIED` прочитай затронутые действующие спецификации |
+| Design | Принятые решения, владельцы по слоям и порядок перехода. Для небольшого изменения достаточно ссылки или краткого основания |
+| Tasks | Нумерованные задачи с постоянными номерами, отметками выполнения, владельцем и проверяемым результатом. В плане участка используй эти номера |
 
-- Proposal: source article link/path, its version or SHA-256, tracker link where
-  applicable, purpose and approved scope. State the project's authority order.
-- Specs: the changed observable requirements and scenarios, with original requirement
-  and AC references. Read affected existing specs before writing MODIFIED deltas.
-- Design: approved decisions, layer ownership and transition. For a small change a
-  short rationale/reference suffices; do not invent architecture to fill a template.
-- Tasks: stable numbered checkboxes, lane ownership and a concrete completion check.
-  Lane plan artifacts reference these tasks rather than maintain a second checklist.
+Если рефакторинг или изменение инструмента не меняет наблюдаемое поведение, используй предусмотренное OpenSpec `skip_specs: true`. Остальные обязательные материалы подготовь по выбранной схеме.
 
-For a pure refactor/tooling change without behavior requirements, use OpenSpec's
-documented `skip_specs: true` metadata; do not fabricate requirements to satisfy a
-validator. Required artifacts still follow the selected schema.
+Нормативным остаётся объявленный источник проекта, например Confluence или Redmine. Пакет OpenSpec переводит согласованный объём в задания разработки. Если обнаружено противоречие или новое требование, сначала вернись к нормативному источнику и решению о влиянии по TRACE. Только затем обновляй пакет. Инструкции OpenSpec сохраняют действующие правила согласования, ревью, слияния и развёртывания проекта.
 
-Confluence/Redmine or another declared project canon retains its authority. OpenSpec
-is the implementation projection. A conflict or newly needed requirement returns to
-the approved source and TRACE impact decision before updating the package. Do not
-independently maintain competing contracts or treat upstream instructions as authority
-to bypass project approval, review, merge or deployment rules.
+## 3. Привязать пакет и выполнить задачи
 
-## 3. Bind and execute
-
-Use the absolute planning root returned by OpenSpec status. For cross-repository work,
-choose one planning root and pass each lane its actual code root and owned paths.
-The bridge rejects implicit redirection to another store/root; pass that checkout
-explicitly. It does not initialize or write any repository.
+Возьми абсолютный путь из статуса OpenSpec. Если код в нескольких репозиториях, выбери один репозиторий плана и укажи каждому исполнителю его реальный каталог кода и файлы. Для другого хранилища передай нужную рабочую копию явно. Проверяющая утилита исключает неявное перенаправление. Она читает существующие репозитории без инициализации и записи.
 
 ```bash
 python3 ~/.workflow-skills/current/scripts/openspec_bridge.py \
@@ -78,38 +52,16 @@ python3 ~/.workflow-skills/current/scripts/caseflow.py route --case-root CASE \
   --openspec-root /absolute/planning-repo --openspec-change NAME
 ```
 
-The route checks CLI compatibility, artifact readiness, strict validation and apply
-readiness before saving a binding to the reviewed article hash. Delivery `context`
-refreshes the package read-set, and `delivery-advance` repeats preflight. No new TRACE
-stage or review loop is introduced. Final advance also requires all tracked tasks done.
+Перед сохранением привязки к хешу проверенной статьи команда маршрута проверяет совместимость CLI, готовность материалов, строгую проверку пакета и готовность задач к выполнению. `context` обновляет набор файлов. `delivery-advance` повторяет проверки. Для последнего перехода все отслеживаемые задачи должны быть выполнены.
 
-Before assignment/resumption fetch `openspec instructions apply --change NAME --json`
-in the planning root. Read its project context and applicable operation guidance;
-reconcile conflicts with TRACE/project authority rather than silently ignoring them.
-Pass `openspec_root`, `openspec_change`, exact `openspec_tasks`, relevant package files,
-owned code paths and required checks to each implementer. TRACE retains scheduling,
-stage pools, simplicity checks and independent verification. Running an upstream
-apply skill must follow these same boundaries, not start a second execution loop.
+Перед назначением или возобновлением работы запусти в репозитории плана `openspec instructions apply --change NAME --json`. Прочитай контекст проекта и указания для операции. Разреши расхождения по установленному приоритету проекта и TRACE. Передай каждому исполнителю `openspec_root`, `openspec_change`, точные `openspec_tasks`, нужные файлы пакета, назначенные пути кода и проверки. TRACE управляет заданиями, поэтапными исправлениями, проверкой простоты и независимым ревью. Применяй скилл OpenSpec внутри этого порядка.
 
-Implementers return task-number → changed paths → check/result evidence. The parent
-updates shared `tasks.md` after inspecting the evidence; parallel lanes do not race
-to rewrite it. Failed/missing checks leave tasks open. Newly discovered work follows
-the existing scope/pool rules before becoming a task. Checkboxes record developer
-completion; they never establish independent verification or acceptance.
+Исполнитель возвращает номер задачи, изменённые пути и результаты проверок. Ведущий проверяет сведения и один обновляет общий `tasks.md`. Оставь задачу открытой при пропущенной или неуспешной проверке. Новую работу сначала сверь с границами и правилами списка исправлений. Отметка задачи подтверждает завершение работы разработчика.
 
-For direct small work, use the same package check before coding and `--complete`
-after developer checks. Do not create lanes or a full TRACE case just for OpenSpec.
+Для прямой небольшой реализации проверь тот же пакет до изменения кода. После проверок разработчика используй `--complete`. Создавать отдельный кейс TRACE для OpenSpec не требуется.
 
-## 4. Verify and hand off
+## 4. Проверить и передать
 
-The independent verifier checks both approved source → OpenSpec coverage and
-OpenSpec task claims → actual diff/tests, including layer ownership and negative
-scenarios. `validate --strict` is a structure check, not this semantic verdict.
+Независимый проверяющий сверяет согласованную статью с требованиями пакета. Затем сверяет задачи пакета с изменениями кода и тестами. Проверь владельцев по слоям и отрицательные сценарии. Команда `validate --strict` проверяет структуру пакета. Смысл и поведение установи отдельно.
 
-Finish the TRACE handoff with source/version, change name, task evidence and actual
-commit/MR/test state. Leave the OpenSpec change active until the project's lifecycle
-allows spec sync/archive. Handoff alone does not update AS-IS, merge, deploy, close
-Jira or grant acceptance. Run authorized archive/sync after the final TRACE advance;
-the active binding is needed for delivery checks until then.
-After handoff, `context` reads the recorded TRACE artifacts without requiring the
-OpenSpec change to remain active; it reports `handoff_complete`, not live package status.
+В отчёте передачи укажи источник, версию, имя изменения, свидетельства по задачам, фактические коммиты, MR и тесты. Сохрани изменение OpenSpec активным до последнего перехода TRACE. Для синхронизации спецификаций или архивирования требуются разрешение и соответствующий этап проекта. Передача сама по себе не меняет AS-IS, статус Jira, слияние, развёртывание или приёмку. После передачи `context` читает зарегистрированные материалы TRACE и сообщает `handoff_complete`. Для этого активное изменение OpenSpec уже не требуется.

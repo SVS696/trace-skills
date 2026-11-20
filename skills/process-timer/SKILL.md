@@ -1,56 +1,16 @@
 ---
 name: process-timer
 description: >-
-  Use when recording start, pause, resume, readiness, handoff, stop, or activity
-  events for a specification or delivery case and exporting a Work Metrics source.
-  Not for estimating effort or deciding process state.
+  Record observed work events for a specification or delivery case, including pauses, readiness, and handoff. Export the events for Work Metrics. Effort estimation and workflow decisions use separate routes.
 allowed-tools: Read Write Edit Bash
 ---
 
-# Process timer
+# Журнал времени
 
-The timer records observed events only. It does not own stage gates, estimates,
-review status or acceptance.
+Таймер записывает наблюдаемые события. Этап, оценку трудозатрат, результат ревью и приёмку определяют соответствующие участники процесса.
 
-## Workflow
-
-### Phase 1: Initialize
-
-**Entry:** A stable work item id and source id are known.
-
-Run `scripts/work_timer.py init`, then record `work_started`.
-
-**Exit:** A ledger exists with an append-only event list.
-
-### Phase 2: Record
-
-**Entry:** Ledger validation passes.
-
-- Use `pulse` for observed activity.
-- Use `mark pause_started|limit_exhausted|deferred|resume` for explicit lifecycle
-  changes. `limit_exhausted` means an observed model or service usage limit, not an
-  inferred lack of activity.
-- Use `ready_for_handoff` when the result is ready, not when it is accepted.
-- Use `handoff` only after actual transfer.
-- Use terminal stop states exactly as observed.
-
-**Exit:** Every event has a stable id and timestamp; invalid transitions fail closed.
-
-Use `--at` when importing an observed timestamp. It must include a timezone and may
-not precede the previous event; omit it only for an event observed now.
-
-### Phase 3: Export
-
-**Entry:** At least `work_started` exists.
-
-Run `export-source`. Insert the returned source into a Work Metrics bundle whose
-calendar and coverage declaration remain project-owned.
-
-**Exit:** `work_metrics.py validate` accepts the complete project bundle.
-
-## Non-negotiables
-
-- Never infer activity during silence.
-- Never turn a user stop into a pause or automatic resume.
-- Never treat `ready_for_handoff` as `handoff`.
-- Never invent a business calendar in this adapter.
+1. Получи постоянные идентификаторы работы и источника. Выполни `scripts/work_timer.py init`. Запиши `work_started`. Журнал хранит события в порядке добавления.
+2. Проверь журнал перед записью. Для наблюдаемой активности используй `pulse`. При явной смене состояния используй `mark pause_started|limit_exhausted|deferred|resume`. Записывай `limit_exhausted`, только если модель или сервис сообщили о достижении лимита.
+3. Когда результат готов к передаче, запиши `ready_for_handoff`. После фактической передачи запиши `handoff`. Для остановки укажи наблюдаемую причину по [таблице событий](references/event-mapping.md). Если пользователь остановил работу, сохрани остановку. Возобновление требует отдельного события.
+4. Каждое событие имеет постоянный идентификатор и отметку времени. Если импортируешь событие, передай `--at` с часовым поясом. Время должно быть не раньше предыдущего события. Опускай параметр для события, которое наблюдаешь сейчас. При недопустимом переходе запись должна завершиться ошибкой. Молчание не даёт основания добавлять события.
+5. Если в журнале есть `work_started`, выполни `export-source`. Добавь источник в пакет Work Metrics проекта. Возьми календарь и данные о покрытии из проекта. Проверь полный пакет командой `work_metrics.py validate`.

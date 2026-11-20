@@ -1,15 +1,7 @@
-# Requirements method library
+# Методическая библиотека требований
 
-Адресная библиотека правил из исходной выжимки К. Вигерса. Файлы в `references/`
-перенесены byte-identical из `vigers-skill` на commit `62bb327` и защищены hash в
-`library/manifest.json`.
+В каталоге `references/` собраны правила из памятки по книге К. Вигерса. Источник — коммит `62bb327` репозитория `vigers-skill`. В `library/manifest.json` указаны контрольные суммы и отдельная адаптация критериев готовности в `task-template.md`.
 
-`requirements-method.md` содержит исполняемый метод, `native-checklists.md`,
-`native-tables.md` и `native-diagrams.md` — дистилляты с исходными `C/T/D` ids.
-Полный `book-extract.md` не копируется в новый активный пакет: это большой fallback,
-доступный по pinned-ссылке в manifest и в локальном архиве старого репозитория.
+Откройте `requirements-method.md` для порядка работы. Файлы `native-checklists.md`, `native-tables.md` и `native-diagrams.md` содержат контрольные списки, таблицы и диаграммы с исходными идентификаторами `C/T/D`. Полная выжимка `book-extract.md` доступна по ссылке в манифесте и в локальном архиве.
 
-Модель не читает библиотеку целиком. `scripts/rule_library.py` выбирает один маршрут
-из `knowledge-map.md` и материализует только названные sections.
-Недостающая достижимость правил добавляется в `library/route-overrides.json`, чтобы
-не менять pinned-зеркало.
+Команда `scripts/rule_library.py` выбирает маршрут из `knowledge-map.md` и извлекает нужные разделы. Если маршрут не охватывает правило, добавьте связь в `library/route-overrides.json`. Сверяйте исходные тексты по манифесту.

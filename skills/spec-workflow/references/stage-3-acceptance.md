@@ -1,17 +1,11 @@
-# Stage 3: Acceptance model
+# Этап 3. Критерии приёмки и готовности
 
-Entry: stage 2 has an immutable integrated article.
+Начни с неизменяемой полной статьи этапа 2.
 
-1. Each block proposes observable AC and acceptance-readiness DoD against the article.
-   Keep the actor, entry condition, action and expected result concrete.
-2. The integration editor incorporates these contributions into articles/stage-03.md.
-   Resolve duplicated criteria, missing evidence and cross-block contradictions.
-3. Check provider guarantees in BE/API, consumer behavior in FE/UI and composition
-   in E2E. A passing check in one contour does not establish another contour.
-4. Resolve missing content before readiness. Run deterministic authoring checks;
-   correct the candidate directly, without a correction pool or verification loop.
-5. Register schema: 1, stage: 3, status: ready, open_inputs: [] with record-stitch
-   --report REPORT --article articles/stage-03.md; advance.
+1. Каждый исполнитель предлагает по своему блоку наблюдаемые критерии приёмки (AC) и готовности к приёмке (DoD). В критерии укажи участника, начальное условие, действие и ожидаемый результат.
+2. Редактор интеграции переносит критерии в `articles/stage-03.md`. Устрани повторы, найди недостающие сведения и разреши противоречия между блоками.
+3. Для гарантии поставщика укажи проверку BE/API, для поведения потребителя — FE/UI, для их взаимодействия — E2E. Проверка одного слоя подтверждает только результат в этом слое.
+4. До готовности разреши вопросы по содержанию. Выполни автоматические проверки. Исправь кандидата напрямую, без списка исправлений и отдельного цикла проверки.
+5. Выполни `record-stitch --report REPORT --article articles/stage-03.md` и `advance`. В отчёте укажи `schema: 1`, `stage: 3`, `status: ready`, `open_inputs: []`.
 
-Exit: the article has observable acceptance for its requirements. Developer checks
-are not product AC or DoD unless an actual normative requirement makes them so.
+Выход — полная статья с наблюдаемыми критериями по требованиям. Проверка разработчика входит в AC или DoD продукта только при наличии соответствующего нормативного требования.

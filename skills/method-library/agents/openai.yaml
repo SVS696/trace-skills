@@ -1,4 +1,4 @@
 interface:
   display_name: "Method Library"
-  short_description: "Materialize bounded Vigers and delivery book rules"
-  default_prompt: "Use $method-library to select one method route and materialize a bounded basis for this assignment."
+  short_description: "Select method rules for one assignment"
+  default_prompt: "Use $method-library to select a route and prepare the rules for this assignment."

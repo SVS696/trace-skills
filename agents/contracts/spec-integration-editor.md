@@ -2,26 +2,18 @@
 
 ## Assignment
 
-Integrate exactly one stage into a whole article. Require stage, article_input,
-block_artifacts, final read_set, solution_boundary, template_variant and report_output.
-Stages 2/3 also require a new article_output. Stage 1 requires brief and lineage.
-Read only these inputs and the assigned stage reference. Missing input: input-error.
+Integrate one stage into the complete article. Require `stage`, `article_input`, `block_artifacts`, the final `read_set`, `solution_boundary`, `template_variant`, and `report_output`. At stages 2 and 3, also require a new `article_output`. At stage 1, require the brief and lineage. Read only these inputs, the assigned stage reference and the TRACE writing profile. If an input is missing, return `input-error`.
+
+Use the [TRACE writing profile](../../rules/technical-writing.md) for the assigned text. Keep the project language, technical names and contract values. The profile governs wording. Use the assigned sources for product facts.
 
 ## Work
 
-1. Compare contributions against the whole article and each other. Incorporate the
-   agreed behavior, terminology, data, ownership and acceptance into the new article.
-2. Preserve the selected template variant and accepted scope. Previous snapshots
-   stay unchanged. Stage 1 checks every preliminary US/DoD disposition exactly once.
-3. Resolve authoring inconsistencies before registration. For a missing decision,
-   return gap with an exact question; for missing evidence name the source needed.
-4. Check applicable project rules, traceability and deterministic document structure.
-   Ready means the complete contribution is in the article, not merely a block file.
-5. Write the JSON report: schema: 1, stage: N, status: ready|gap, open_inputs: [],
-   article: output path, checks: actual checks. A gap includes nonempty open_inputs.
+1. Compare the block contributions with each other and with the full article. Integrate the agreed behavior, terminology, data, responsibilities and acceptance criteria into the article.
+2. Keep the selected template variant and approved scope. Preserve previous snapshots. At stage 1, check the disposition of each preliminary US and DoD exactly once.
+3. Resolve inconsistent wording before registration. If a decision is missing, return `gap` with the exact question. If evidence is missing, name the source needed.
+4. Check project rules, traceability and document structure. Mark the article ready only when it includes each contribution in full.
+5. Write the JSON report. Set `schema` to 1 and `stage` to the stage number. Set `status` to `ready` or `gap`. Set `article` to the article path. Record the checks you performed in `checks`. Supply `open_inputs` as an array. A gap requires at least one open input.
 
 ## Outputs and authority
 
-Write only assigned article_output on stages 2/3 and report_output on every stage.
-Return the existing ARTICLE path on stages 1/4. Do not create a diff-pool, publish,
-approve scope or change case state. Correction pools are created after revmux.
+Write `report_output` at every stage. Write `article_output` only at stages 2 and 3. At stages 1 and 4, return the existing ARTICLE path. The parent handles scope approval, publication and case state. The correction diff-pool follows revmux review.

@@ -1697,6 +1697,8 @@ class CaseFlowTests(unittest.TestCase):
             argparse.Namespace(case_root=self.case_root, block="ARTICLE", lane=None)
         )
         self.assertIn(str(self.brief.resolve()), context["read_set"])
+        profile = Path(__file__).resolve().parents[1] / "rules/technical-writing.md"
+        self.assertIn(str(profile), context["read_set"])
 
     def test_stage_one_stitch_requires_complete_preanalysis_lineage(self) -> None:
         (self.case_root / "preanalysis-lineage.json").unlink()
@@ -1880,6 +1882,8 @@ class CaseFlowTests(unittest.TestCase):
         self.assertEqual(context["delivery_stage"], 2)
         self.assertEqual(context["openspec"]["change"], "test-change")
         self.assertIn(str(self.case_root / "openspec/tasks.md"), context["read_set"])
+        profile = Path(__file__).resolve().parents[1] / "rules/technical-writing.md"
+        self.assertIn(str(profile), context["read_set"])
         self.assertEqual(context["solution_boundary"]["horizon"], "bounded-systemic")
         self.assertIn(str(article.resolve()), context["read_set"])
         self.assertIn(

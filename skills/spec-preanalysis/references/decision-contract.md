@@ -1,4 +1,8 @@
-# Decomposition decision contract
+# Решение о составе постановок
+
+Для нового `decomposition-decision.json` используй схему 3. Схемы 1 и 2 поддерживаются при чтении ранее начатых кейсов.
+
+Пример описывает условную задачу. Для рабочего решения нужны сведения проекта.
 
 ```json
 {
@@ -7,32 +11,32 @@
   "status": "proposed",
   "decision_ref": "",
   "decision": "single",
-  "reason": "One independently acceptable product outcome",
+  "reason": "Результат можно принять одним сценарием сохранения черновика.",
   "shared_context": [],
   "unknowns": [],
   "articles": [
     {
       "id": "TASK-123",
-      "title": "Reader-facing title",
-      "goal": "One goal",
-      "outcome": "Observable result",
-      "acceptance_boundary": "What can be accepted independently",
+      "title": "Ошибка сохранения черновика с пустым названием",
+      "goal": "Пользователь видит, какое поле нужно заполнить.",
+      "outcome": "Форма указывает пустое обязательное поле после попытки сохранения.",
+      "acceptance_boundary": "Пользователь исправляет название и повторяет сохранение.",
       "dependencies": [],
       "composition": "article-led",
       "solution_boundary": {
         "horizon": "bounded-systemic",
-        "observed_case": "Current evidence-backed request",
-        "root_capability": "Stable capability behind this article",
-        "invariants": ["One authoritative owner for the rule"],
+        "observed_case": "При пустом названии пользователь получает общее сообщение об ошибке сохранения.",
+        "root_capability": "Пользователь сохраняет черновик сценария.",
+        "invariants": ["Сервис сценариев проверяет обязательные поля."],
         "confirmed_variants": [
-          {"name": "Current variant", "evidence_refs": ["SRC-001"]}
+          {"name": "Сохранение черновика с пустым названием", "evidence_refs": ["SRC-001"]}
         ],
         "hypothesized_variants": [],
-        "current_scope": ["Behavior accepted with this article"],
-        "extension_seams": ["Localized point for a confirmed next variant"],
+        "current_scope": ["Если название пустое, форма указывает поле, которое нужно заполнить."],
+        "extension_seams": ["Форма использует существующее сопоставление кода ошибки и поля."],
         "extension_seam_absence_reason": null,
         "deferred_variants": [],
-        "expansion_triggers": ["A second consumer is confirmed"],
+        "expansion_triggers": ["Появился второй подтверждённый потребитель сведений об ошибке."],
         "horizon_evidence": {
           "analogy_search_refs": ["SRC-001"],
           "roadmap_refs": [],
@@ -42,14 +46,14 @@
         "implementation_transition": {
           "status": "selected",
           "mode": "evolve-in-place",
-          "authoritative_owner": "current-capability-owner",
+          "authoritative_owner": "scenario-service",
           "superseded_paths": [],
           "coexistence_reason": null,
           "stages": [],
           "retirement_trigger": null,
           "rollback_boundary": null,
           "evidence_refs": ["SRC-001"],
-          "reason": "The current owner remains authoritative"
+          "reason": "Сервис уже возвращает ошибку проверки названия."
         }
       },
       "architecture": {
@@ -58,36 +62,18 @@
         "design_ref": null,
         "design_sha256": null,
         "design_run_id": null,
-        "reason": "No architecture trigger is present"
+        "reason": "Компоненты, владельцы, API и хранение данных сохраняются. Других архитектурных условий в примере нет."
       },
       "blocks": [
-        {"id": "B01", "title": "First semantic concern"},
-        {"id": "B02", "title": "Second semantic concern"}
+        {"id": "B01", "title": "Обработка пустого названия"},
+        {"id": "B02", "title": "Повторное сохранение после исправления"}
       ]
     }
   ]
 }
 ```
 
-New decisions use schema 3. Schemas 1 and 2 remain readable only for cases already
-started before the current preanalysis contract. The `solution_boundary` object
-uses the exact shape and horizon rules from [brief-contract.md](brief-contract.md).
-It is stored per article because independently accepted outcomes can have different
-horizons.
-
-The preanalysis agent always emits `proposed` with an empty `decision_ref`. Only the
-parent records `approved` and the real user or project decision reference after the
-user has chosen the decomposition.
-
-`single` requires exactly one article; `split` requires at least two. Every article uses
-`article-led` composition and has at least one semantic block for the focused depth
-passes. `ARTICLE` is reserved by `caseflow` for the whole-template stages and cannot be
-a semantic block id. Dependencies refer to article ids and must be acyclic. Case
-initialization copies the selected article boundary into `case.json`; later spec and
-delivery contexts receive it without reopening the whole preanalysis corpus.
-
-Every article also records `architecture.status=designed|not-required`. A required
-design names triggers, path, SHA-256 and authoring `design_run_id` of the artifact produced under
-`rules/architecture-analysis.md`. A not-required entry has null design binding and an
-explicit reason. `caseflow init` verifies required design bytes before creating a case;
-stage 4 later requires a separate conformance run against those bytes.
+1. Исполнитель предварительного анализа записывает `proposed` и оставляет `decision_ref` пустым. Когда пользователь выбрал вариант, ведущий агент записывает `approved` и ссылку на фактическое решение пользователя или проекта.
+2. Для `single` укажи одну статью. Для `split` укажи как минимум две. Для каждой статьи задай `article-led` и хотя бы один смысловой блок. Идентификатор `ARTICLE` зарезервирован для этапов работы над полным текстом. В зависимостях указывай идентификаторы статей. Проверь, что циклов нет.
+3. Для каждой статьи заполни `solution_boundary` по [правилам записки](brief-contract.md). Независимые результаты могут иметь разные горизонты. При создании кейса TRACE копирует границу выбранной статьи в `case.json` и передаёт её в контекст постановки и реализации.
+4. Укажи `architecture.status=designed|not-required`. Для готового [архитектурного решения](../../../rules/architecture-analysis.md) нужны условия, путь, SHA-256 и `design_run_id` автора. Если решение не требуется, укажи причину и `null` для привязки. До создания кейса `caseflow init` сверяет точные байты обязательного решения. На этапе 4 другой запуск роли проверяет статью по этой версии.

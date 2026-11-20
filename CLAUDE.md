@@ -1,9 +1,5 @@
-# Claude Code instructions
+# Instructions for Claude Code
 
-`AGENTS.md` is the canonical contributor instruction file for this repository. Read it
-fully before changing workflow semantics.
+Read the complete `AGENTS.md` before you change workflow behavior. That file defines the contributor rules for this repository.
 
-User skills are installed through `scripts/install.py` into `~/.claude/skills`; narrow
-Claude agents are copied from `agents/claude`. Do not load all skills, agent contracts
-or method-library sources at once. Use the active skill, one stage/route and its exact
-read-set.
+The installer connects user skills to `~/.claude/skills` and copies role definitions from `agents/claude`. Load the active skill, its current stage or route, and the sources assigned to that task.

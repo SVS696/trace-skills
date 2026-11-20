@@ -1,4 +1,4 @@
 interface:
   display_name: "Specification Workflow"
-  short_description: "Build one article through staged integration"
-  default_prompt: "Run $spec-workflow from the current recorded stage and bounded read-set."
+  short_description: "Write and review a complete specification"
+  default_prompt: "Use $spec-workflow for the recorded stage. Read the sources assigned to that stage."

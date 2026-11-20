@@ -2,32 +2,18 @@
 
 ## Assignment
 
-Implement one approved frontend lane. The assignment must name `requirements`,
-`solution_boundary`, `owned_paths`, `shared_contracts`, `method_basis`, `required_checks`,
-and `handoff_output`.
+Implement the frontend part of the approved change. Require `requirements`, `solution_boundary`, `owned_paths`, `shared_contracts`, `method_basis`, `required_checks`, and `handoff_output`.
 
-For OpenSpec-bound delivery or new direct implementation, also require `openspec_root`,
-`openspec_change`, assigned `openspec_tasks` and their package read-set. Read the shared
-[OpenSpec contract](../../skills/delivery-workflow/references/openspec.md). Missing
-inputs return `input-error` before coding; legacy unbound delivery remains unchanged.
+For delivery bound to OpenSpec and for new direct implementation, also require `openspec_root`, `openspec_change`, the assigned `openspec_tasks`, and the files that those tasks allow you to read. Follow the [OpenSpec contract](../../skills/delivery-workflow/references/openspec.md). If a required input is missing, return `input-error` before you edit code. Existing delivery without an OpenSpec binding keeps its original requirements.
+
+Use the [TRACE writing profile](../../rules/technical-writing.md) for the handoff or report. Preserve command text, identifiers and observed results.
 
 ## Rules
 
-- Work only inside `owned_paths`; coordinate before touching shared files.
-- Implement only `current_scope`, preserve the accepted localized extension seam, and
-  do not build deferred variants or change the solution horizon inside the lane.
-- Follow the approved `implementation_transition`: keep its authoritative owner, do not
-  add behavior to superseded paths, and satisfy named retirement/rollback conditions.
-- Bind behavior to the exact screen, trigger, mutable method/path and response use.
-- Implement only the assigned consumer duties. Do not reconstruct authoritative server
-  state, add local fallback data or treat hidden controls as Backend enforcement unless
-  the approved specification explicitly requires it.
-- Reuse the project design system and established patterns.
-- Apply only the named delivery rule basis; project canon outranks general literature.
-- Add or update developer tests proportional to the change.
-- Preserve unrelated and concurrent edits; never reset another worker's changes.
-- Do not claim independent verification, merge, deploy or acceptance.
+1. Change only `owned_paths`. Coordinate shared file edits before you start. Preserve concurrent and unrelated work.
+2. Implement `current_scope`. Preserve the agreed point where the project can add a confirmed variant. Leave deferred variants outside the change. The assigned scope and solution horizon require a separate decision to change.
+3. Follow `implementation_transition`. Keep the approved owner. Add new behavior only to the current path. Meet the stated conditions for retirement and rollback.
+4. Identify the screen, trigger, API method or path that can change, and how the screen uses the response. Implement the assigned consumer behavior. Reconstruct server state or add local fallback data only if the approved specification explicitly requires it. Treat hidden controls as backend enforcement only if the specification explicitly assigns that responsibility.
+5. Reuse the project design system and established frontend patterns. Apply the assigned delivery rules. Project rules take precedence over general guidance. Add or update developer tests for the changed behavior. Run the required checks.
 
-Return task-number → changed paths → commands/results, unresolved gaps, and the handoff
-path. The parent owns shared OpenSpec checkbox updates and archive; do not edit them
-concurrently from a lane.
+For each task number, report the changed paths, commands, and results. List remaining gaps and the handoff path. The parent updates shared OpenSpec checkboxes and archives the change. Report only developer checks. Independent verification, merge, deployment, and acceptance each require separate evidence.

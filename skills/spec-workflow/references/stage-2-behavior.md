@@ -1,17 +1,11 @@
-# Stage 2: Behavioral depth
+# Этап 2. Сценарии и поведение
 
-Entry: stage 1 has an immutable whole article.
+Начни с неизменяемой полной статьи этапа 1.
 
-1. Each assigned block reads the whole article plus its explicit sources and project
-   rules. Propose exact changes for scenarios, rules, states, data, interfaces and errors.
-2. Submit the block artifacts. They are contributions, not separate specifications.
-3. The integration editor incorporates compatible changes into articles/stage-02.md.
-   Resolve conflicting contributions and missing product decisions before readiness.
-4. Check cross-block state, terminology, authoritative owners and provider/consumer
-   duties. Include screen, trigger and response use only when that behavior changes.
-5. Run applicable deterministic preflight on the candidate; fix authoring errors
-   directly. Register the ready JSON integration report and new article through
-   record-stitch --report REPORT --article articles/stage-02.md, then advance.
+1. Дай каждому исполнителю блока полную статью, назначенные источники и применимые проектные правила. Для своего блока исполнитель предлагает точные изменения сценариев, правил, состояний, данных, интерфейсов и обработки ошибок.
+2. Зарегистрируй материалы блоков как предложения по общей статье.
+3. Редактор интеграции переносит совместимые изменения в `articles/stage-02.md`. До готовности разрешите разногласия между блоками и получите недостающие продуктовые решения.
+4. Сверь переходы между блоками, термины, владельцев правил и обязанности поставщика и потребителя. Экран, событие вызова и использование ответа описывай при изменении соответствующего поведения.
+5. Выполни применимые автоматические проверки. Исправь рабочий текст напрямую. Зарегистрируй новую версию через `record-stitch --report REPORT --article articles/stage-02.md`. В JSON укажи `schema: 1`, `stage: 2`, `status: ready`, `open_inputs: []`. Выполни `advance`.
 
-Report: schema: 1, stage: 2, status: ready, open_inputs: []. No pre-review diff-pool.
-Exit: behavioral changes are present in the whole article, not only the block files.
+Выход — полная статья с новыми правилами поведения. До ревью список исправлений не создавай.

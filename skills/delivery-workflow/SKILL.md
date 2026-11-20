@@ -1,100 +1,37 @@
 ---
 name: delivery-workflow
 description: >-
-  Use when an approved specification explicitly routes to implementation and the
-  change must be built through bounded lanes with repeated integration barriers.
-  Not for requirements authoring, deployment without authorization, or formal acceptance.
+  Implement an approved specification with an explicit delivery route. Coordinate scoped assignments and check their combined result at each stage. Requirements authoring, deployment authorization, and formal acceptance are separate tasks.
 allowed-tools: Read Glob Grep Write Edit Bash Task AskUserQuestion
 ---
 
-# Delivery workflow
+# Реализация согласованного изменения
 
-## Essential principles
+Используй этот процесс, когда пользователь выбрал реализацию по согласованной постановке. Возобновляй начатую работу по зарегистрированным материалам. Если требований не хватает, вернись к `spec-workflow`. Если пользователь выбрал остановку после постановки, заверши работу. Для отдельного развёртывания или изменения статуса используй процедуру проекта.
 
-Read [the process kernel](../../rules/process-kernel.md) once for the task. Use
-`method-library` to materialize the lane's delivery basis from the preserved SWEBOK,
-Software Engineering at Google and specialized standard distillates.
+Прочитай [правила TRACE](../../rules/process-kernel.md). Для небольшого изолированного изменения выполни [проверки OpenSpec](references/openspec.md) и сохрани результаты по задачам. Отдельный кейс и распределение работы для этого не нужны. Постановка без реализации не требует OpenSpec.
 
-1. At the implementation boundary, prepare and bind the approved change through
-   [OpenSpec](references/openspec.md), then route a `spec_ready` case to `delivery`
-   with stable lane ids. This applies to both Codex and Claude Code in every project.
-2. Lanes may work independently, but every stage ends in one integrated change.
-3. All integration defects enter one exact stage diff-pool before correction.
-4. Developer checks, independent verification, merge, deploy and acceptance remain
-   separate evidence gates.
-5. Load only the assigned lane, shared contract and current integration report.
-6. A separate `quality-pass-reviewer` run executes the full `simplicity-code`
-   contract on the integrated implementation before independent verification. Its
-   hash-bound findings enter the current exact diff-pool; reading the skill or naming
-   the gate is not evidence.
-7. Every shared guarantee keeps the layer owner declared by the specification. A FE
-   guard does not replace BE enforcement; a BE test does not close FE behavior or E2E.
-8. If `revmux` reviews an implementation diff, its findings are candidates until a
-   receipt-bound narrow run applies `simplicity-code` to their real execution paths.
-   Only confirmed findings enter a correction pool; speculative or unreachable cases
-   remain dismissed evidence, not implementation work.
-9. Every lane receives the accepted `solution_boundary` from case context. Implement
-   current scope and preserve its justified seam, but do not add deferred variants or
-   redesign the horizon. Follow its implementation transition and retirement/rollback
-   conditions; new evidence returns to an explicit `P16` decision.
+## Порядок работы
 
-## When to use
+1. Подготовь пакет OpenSpec по согласованной статье. Привяжи его к кейсу в состоянии `spec_ready`. Выбери `delivery` и постоянные идентификаторы участков работы. Это правило действует в каждом проекте для Codex и Claude Code.
+2. Прочитай [инструкцию этапа](references/delivery-stages.md). Выполняй только `delivery_stage` и `delivery_state` из `caseflow.py status`.
+3. Для каждого исполнителя подготовь через `method-library` маршрут `core-change`. Добавь не более одного подходящего маршрута из SWEBOK, Software Engineering at Google или специальных стандартов. Примеры — `backend-http`, `backend-data`, `frontend-behavior`, `accessibility`, `test-design`, `risk-security`, `review-static-analysis`. Передай путь, хеш, задание, общий контракт и текущий отчёт о сборке результата.
+4. Передай исполнителю утверждённую `solution_boundary`. Реализуй согласованный объём. Сохрани обоснованную возможность расширения, порядок перехода, условия вывода старого пути и отката. Если новые сведения меняют границы, получи решение по `P16`. Отложенные варианты остаются за рамками текущей разработки.
+5. На каждом этапе объедини результаты исполнителей. Все ошибки интеграции внеси в один список исправлений этого этапа перед исправлением. Перед независимой проверкой отдельный `quality-pass-reviewer` выполняет `simplicity-code` по объединённому изменению. Привяжи результат к хешу и включи принятые замечания в текущий список.
+6. Если код проверяет revmux, отдельный проверяющий применяет `simplicity-code` к замечаниям по реальным путям исполнения. Привяжи отчёт к результату revmux. В список исправлений включи подтверждённые замечания. Для остальных сохрани основание отклонения.
+7. Каждый технический слой сохраняет закреплённые за ним гарантии. Проверяй отдельно серверный API (BE), поведение клиента (FE) и сквозной сценарий (E2E). Для каждого вывода используй свидетельство соответствующей проверки.
 
-- Approved requirements are ready for backend, frontend or combined implementation.
-- Several code lanes need bounded parallel work and explicit integration.
-- A paused delivery case can resume from recorded artifacts.
-- A completed implementation needs independent verification and handoff evidence.
-
-## When not to use
-
-- Requirements are incomplete: return to `spec-workflow`.
-- The user chose to stop after the specification.
-- The task is a tiny isolated edit with no lane interaction: implement directly.
-- The request is only to deploy or change a tracker status: use that system's workflow.
-
-## Four stages
-
-For a tiny direct implementation, still use the dependency/package preflight and
-task evidence rules in [OpenSpec](references/openspec.md), without creating a TRACE
-case or extra lanes. Specification-only work does not require OpenSpec.
-
-Read [delivery-stages.md](references/delivery-stages.md) and execute only
-`delivery_stage` and `delivery_state` reported by `caseflow.py status`.
-
-Before assigning a lane, materialize `core-change` plus at most one applicable
-specialized route such as `backend-http`, `backend-data`, `frontend-behavior`,
-`accessibility`, `test-design`, `risk-security` or `review-static-analysis`. Pass only
-that lane basis and its hash to the agent.
-
-| Stage | Independent work | Integration barrier |
+| Этап | Работа исполнителя | Общий результат |
 |---|---|---|
-| 1. Plan | lane scope and tests | contracts, ordering and ownership |
-| 2. Build | code and developer tests | integrated build and one defect pool |
-| 3. Verify | independent evidence | full change, regressions and conformance |
-| 4. Handoff | release/readiness artifacts | one bounded handoff report |
+| 1. План | Указать границы и тесты | Согласованы контракты, владельцы и порядок работы |
+| 2. Реализация | Изменить код и запустить тесты разработчика | Собрана общая версия. Ошибки учтены в одном списке |
+| 3. Проверка | Собрать независимые свидетельства | Проверено всё изменение, включая регрессии, совместимость и соответствие требованиям |
+| 4. Передача | Подготовить результаты и сведения о выпуске | Получатель видит версии, проверки и открытые вопросы |
 
-## Agents
+## Ответственность и завершение
 
-- `implementation-backend` owns assigned backend files only.
-- `implementation-frontend` owns assigned frontend files only.
-- `implementation-verifier` is read-only except for test automation explicitly assigned.
-- `quality-pass-reviewer` is read-only and owns only the assigned observable
-  `simplicity-code` report for one integrated diff.
+`implementation-backend` и `implementation-frontend` изменяют только назначенные им файлы. `implementation-verifier` читает материалы. Он может записывать код тестов при явном назначении этой работы. `quality-pass-reviewer` читает входные материалы и пишет только назначенный отчёт `simplicity-code`.
 
-## Success criteria
+Для каждого изменения укажи утверждённое требование. Сверь реализацию с выбранным горизонтом. Проверь, что она покрывает подтверждённые варианты, сохраняет одного владельца на каждом этапе и оставляет старый путь без новых правил. Где применимо, приложи свидетельства вывода старого пути и возможности отката.
 
-- Every code change traces to approved scope.
-- The implementation conforms to the accepted solution horizon; a narrow hardcode and
-  a speculative generic mechanism are both defects when they contradict its evidence.
-- The approved transition has one authoritative path per stage; no superseded path
-  gained behavior and retirement/rollback evidence is explicit where required.
-- Backend, frontend and shared-contract changes remain inside their declared ownership;
-  each layer is verified in its own contour before E2E composition is claimed.
-- Every stage diff-pool is closed with receipts.
-- Integrated tests and project conformance checks pass.
-- The integrated implementation passed `simplicity-code`; removed/deferred complexity
-  and the resulting runnable check are recorded in the build-stage evidence.
-- Any `revmux` code findings were screened with `simplicity-code` before correction.
-- Independent verification is recorded separately from developer self-checks.
-- Final report states what is implemented, committed, merged, deployed and accepted
-  without collapsing those statuses.
+Закрой списки исправлений подтверждениями. Проверь общую сборку, тесты и правила проекта. Сохрани результат `simplicity-code`, список удалённых или отложенных механизмов и результат проверки работающего изменения. Покажи проверки разработчика и независимого проверяющего отдельно. В итоговом отчёте укажи фактическое состояние реализации, коммита, слияния, развёртывания и приёмки.

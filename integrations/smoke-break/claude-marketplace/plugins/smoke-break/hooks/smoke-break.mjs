@@ -63,11 +63,10 @@ export function handleEvent(input, { now = Date.now(), env = process.env } = {})
     hookSpecificOutput: {
       hookEventName: "PostToolUse",
       additionalContext:
-        `Smoke break: this turn has been running for about ${elapsedMinutes} ${minuteLabel}. ` +
-        "This is only a gentle checkpoint. Consider whether the work is progressing reasonably and " +
-        "roughly according to plan. If so, or if any deviation seems modest, simply continue. " +
-        "Only if it appears substantially off course or the time spent feels disproportionate, " +
-        "consider whether changing approach or asking the user would help.",
+        `Smoke break: this turn has taken about ${elapsedMinutes} ${minuteLabel}. ` +
+        "Check progress against the plan. Continue if progress is on track or the difference is small. " +
+        "If progress differs substantially from the plan, or the task takes too long for its scope, " +
+        "consider another approach or a question for the user.",
     },
   };
 }

@@ -1,4 +1,4 @@
 interface:
   display_name: "Specification Pre-analysis"
-  short_description: "Frame, estimate, plan, and decompose a subject"
-  default_prompt: "Run $spec-preanalysis for this subject and prepare proposed artifacts without approving or publishing them."
+  short_description: "Define the problem, scope, estimate, and plan"
+  default_prompt: "Use $spec-preanalysis to prepare a proposal for the user to review."

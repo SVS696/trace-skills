@@ -2,54 +2,27 @@
 
 ## Assignment
 
-Prepare a preliminary discovery and planning recommendation. The assignment must name
-`subject`, `template`, `questions`, `source_index`, `method_basis`,
-`solution_boundary_contract`, `architecture_contract`, `read_set`, and three outputs: `brief_output`,
-`decision_output`, and `plan_output`.
+Prepare a preliminary brief, a proposed decision and a plan. Require `subject`, `template`, `questions`, `source_index`, `method_basis`, `solution_boundary_contract`, `architecture_contract`, and `read_set`. Require three output paths: `brief_output`, `decision_output`, and `plan_output`.
+
+Use the [TRACE writing profile](../../rules/technical-writing.md) for the assigned text. Keep the project language, technical names and contract values. The profile governs wording. Use the assigned sources for product facts.
 
 ## Rules
 
-- Read only this contract, the template headings, source index, named method basis and
-  exact read-set. Apply method rules as checking lenses, not as product facts.
-- Separate sourced facts, interpretation, hypotheses and assumptions. Classify every
-  unknown as `researchable`, `user-decision`, `external-owner` or `implementation-only`.
-- For each source record the exact query, authority, result, timestamp and freshness.
-  Produce explicit coverage surfaces and stop broad research after `sufficient`; a new
-  search requires a named gap or falsifying question.
-- Investigate researchable inputs before returning. For a blocking user choice, return
-  one direct question; for an external input, name its owner. Do not call a product or
-  acceptance decision implementation-only.
-- Before routing or decomposition, independently of the article template, ask and
-  answer four framing questions from the brief contract: problem plus concrete negative
-  consequence; goal plus beneficiary value; solution essence plus behavior change and
-  problem resolution; preliminary user stories with actor, need and value. Do not infer
-  any answer merely from a template heading.
-- A technical fact without its consequence, a change list without its benefit, or a
-  technical name without its behavioral role is not a completed framing answer. Return
-  `gap` and the exact direct question when evidence cannot establish an answer that may
-  change scope. `ok` requires at least one evidence-linked preliminary user story.
-- Draft evidence-linked preliminary DoD with confidence.
-- Apply `P04` through the assigned `rules/solution-boundary.md`. Choose
-  `tactical|bounded-systemic|generalized-capability`, distinguish confirmed variants
-  from hypotheses, and check both `particular-case` and `speculative-generalization`.
-  Preserve an evidence-backed localized extension seam, or explain why none is useful.
-  Do not promote deferred variants into current scope. Select an explicit
-  implementation transition and do not extend the legacy path with new business rules.
-- Apply `rules/architecture-analysis.md` triggers. Return a bounded architect assignment
-  when required; do not impersonate its independent design or conformance result.
-- Estimate only as a range with basis and confidence, or mark it unavailable.
-- Recommend one or several independently acceptable specifications. Every article uses
-  `article-led` composition: define semantic blocks only for focused passes after the
-  first whole-template draft.
-- Produce an acyclic preliminary plan bound to the brief hash. Every task names source
-  refs and observable exit criteria; add a checklist only when the task is not atomic.
-  Give each task a short reader-facing title for the product outcome. Do not make a
-  stage number, block ID, case ID, component name or TRACE operation carry the title's
-  meaning; keep those mechanics in structured fields.
-- Keep decision and plan status `proposed`. The user approves them.
-- Do not write final specification prose or publish to any external system.
+1. Read this contract, the TRACE writing profile, the template headings, the source index, the assigned method rules and the exact read-set. Use method rules to check the work. Base product facts on project sources.
+2. Distinguish sourced facts, interpretations, hypotheses and assumptions. Classify each unknown as `researchable`, `user-decision`, `external-owner`, or `implementation-only`. Keep product and acceptance decisions in the appropriate decision category.
+3. For each source, record the exact query, authority, result, timestamp and freshness. List the areas the research covers. Stop broad research when coverage is `sufficient`. Start a new search only for a named gap or a question that can disprove a conclusion.
+4. Investigate each researchable input before you return. For a blocking user choice, ask one direct question. For an external input, name the owner.
+5. Before routing or decomposition, answer the four questions in the brief contract independently of the template headings.
+   - Who encounters the problem? What concrete harm does it cause?
+   - Who benefits from the goal? What outcome has value for that person or group?
+   - What changes in the system's behavior? How does that change resolve the problem?
+   - Which preliminary user stories describe an actor, a need and its value?
+6. Explain the consequence of a technical fact, the benefit of a change, and the behavior a technical term denotes. If missing evidence could change scope, return `gap` and ask the exact question. Link the preliminary user stories and DoD to evidence. State confidence for the preliminary DoD.
+7. Apply `P04` through the assigned `rules/solution-boundary.md`. Choose `tactical|bounded-systemic|generalized-capability`. Distinguish confirmed variants from hypotheses. Check `particular-case` and `speculative-generalization`. Identify a local extension point that evidence supports, or explain why none is useful. Keep deferred variants outside the current scope. Select an explicit implementation transition. Add new business rules only on the current path.
+8. Check the triggers in `rules/architecture-analysis.md`. When a trigger applies, return a bounded assignment for an architect. The architect produces the independent design or conformance result.
+9. Give an estimate as a range with its basis and confidence. If you cannot estimate, mark it unavailable.
+10. Recommend one specification or several that the user can accept independently. Each uses `article-led` composition. Draft the whole template before the focused block passes.
+11. Bind the preliminary plan to the brief hash. Keep task dependencies acyclic. Give each task a short title that names the product outcome, source references, and observable exit criteria. Use a checklist only for a task with multiple actions. Put stage, block, case, component and TRACE operation identifiers in structured fields.
+12. Mark the decision and plan as `proposed`. The user approves them. Leave final specification writing and external publication to their assigned stages.
 
-Return `ok`, `gap`, or `input-error`, the three output paths, all four framing answers,
-recommendation, material trade-offs and the batched direct questions the parent must
-ask. `ok` is forbidden while a researchable input has not been investigated or a
-framing answer is missing.
+Return `ok`, `gap`, or `input-error`, the three paths, all four framing answers, the recommendation and material trade-offs. Group the direct questions for the parent to ask. Return `ok` only after you investigate all researchable inputs and answer all four framing questions. At least one preliminary user story must link to evidence.

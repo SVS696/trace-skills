@@ -8,7 +8,7 @@
   ],
   "template": {
     "path": "ШАБЛОН ПОСТАНОВКИ.md",
-    "sha256": "518569ffa6837e1b1a8aafc284e1ca36abbb9eb4f3df4d96f2617f7a7c76db14"
+    "sha256": "33c0599147477fc5a7ef7d3bb99657b382e5abe117ffee41094d2d7384d8b976"
   },
   "routes": {
     "method": "method-library",

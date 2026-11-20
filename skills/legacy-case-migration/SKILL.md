@@ -1,83 +1,27 @@
 ---
 name: legacy-case-migration
 description: >-
-  Use when an unfinished Vigers, Delivery Engineering, pre-article-led TRACE, or related
-  legacy case must be reviewed and re-baselined without treating old process state as approval.
-  Not for new cases or automatic bulk conversion.
+  Review an unfinished Vigers, Delivery Engineering, or earlier TRACE case. Establish a new baseline from verified material when the user selects that case. The old status grants no approval. Exclude new cases and automatic bulk conversion.
 allowed-tools: Read Glob Grep Write Bash
 ---
 
-# Legacy case migration
+# Пересмотр незавершённого кейса
 
-Read [the process kernel](../../rules/process-kernel.md). Preserve subject matter and
-applicable method rule IDs; do not preserve old state-machine verdicts. Use
-`method-library` during the new preanalysis instead of reopening the full Vigers corpus.
+Прочитай [правила TRACE](../../rules/process-kernel.md). Сохрани старый кейс и его историю Git. Из него можно взять проверенные факты, содержание и применимые идентификаторы правил. Готовность и согласование нового результата проверь заново. Используй `method-library` для выбора нужных правил.
 
-## Principles
+## 1. Проверить исходные материалы
 
-1. Preserve the old case and its Git history; migration creates a new assessment.
-2. Carry forward verified subject matter, not old process verdicts or state-machine flags.
-3. Re-evaluate the current article and evidence against the article-led four-stage model.
-4. Prepare a post; do not send messages or change external systems without authorization.
+Начни с точного пути к старому кейсу. Прочитай его статус, последнюю статью или черновик, список источников и открытые замечания. Для каждого материала выбери `carry`, `recheck`, `obsolete` или `unknown`. Работай в режиме чтения. Старые агенты и валидаторы повторно запускать не требуется.
 
-## Workflow
+## 2. Подготовить новую исходную версию
 
-### Phase 1: Inventory
+1. После инвентаризации выполни `spec-preanalysis` для текущей задачи. Используй подтверждённые материалы.
+2. Заново подготовь записку по схеме 4. Укажи запросы к источникам, результаты, давность и покрытие. Опиши проблему и последствия, цель и пользу, изменение поведения и связь с проблемой. Дай как минимум одну предварительную историю пользователя и критерии готовности. Укажи границы решения и реализации, архитектурные условия, объём, зависимости, открытые вопросы и оценку.
+3. Для каждого старого неизвестного проверь источник, задай конкретный вопрос пользователю, укажи внешнего владельца сведений или докажи, что ответ касается только реализации. Открытый вопрос, который меняет требования, сценарии или критерии приёмки, блокирует первый затронутый этап до ответа.
+4. Определи число независимо принимаемых постановок. Для каждой выбери блоки последующего детального анализа. Подготовь план по схеме 2. Свяжи его с хешем записки, источниками и проверяемыми условиями завершения. Для внешней синхронизации плана требуются разрешение и сверка записанного результата.
+5. После решения о составе работ открой каждый кейс через `caseflow init --brief`. Начни с этапа 1. Существующую полную статью можно использовать как черновик, если ей можно доверять. Проверь её по всему шаблону. Для каждой предварительной истории и каждого критерия готовности запиши итоговое решение. Наличие старых отдельных блоков не снимает эту проверку.
+6. Перечисли отсутствующие и устаревшие материалы. Покажи, что переносишь, какие входы блокируют работу и при каких условиях можно закончить этап 1. Входы нового кейса должны соответствовать действующим схемам записки, решения и плана.
 
-**Entry:** Exact old case root is known.
+## 3. Подготовить сообщение
 
-1. Read its current status, article/draft, source index and unresolved findings.
-2. Classify each artifact as `carry`, `recheck`, `obsolete`, or `unknown`.
-3. Do not replay old agents or validators.
-
-**Exit:** A read-only inventory identifies the latest trusted subject matter.
-
-### Phase 2: Re-baseline
-
-**Entry:** Inventory completed.
-
-1. Run `spec-preanalysis` against the current subject and carried evidence.
-2. Rebuild the current schema-4 brief: source queries/results/freshness and coverage;
-   template-independent problem with negative consequences, goal with benefits,
-   solution essence with behavior change and problem resolution; at least one
-   preliminary user story plus preliminary DoD; solution
-   boundary plus implementation transition, architecture gate, scope, classified
-   unknowns, dependencies and estimate. Do not copy legacy
-   `unknown` strings unchanged: research them, turn them into direct user questions,
-   name the external evidence owner, or prove they are implementation-only.
-3. Decide whether the subject needs one specification or several, then define semantic
-   depth blocks for each article-led case.
-4. Create the schema-2 execution plan bound to the brief hash, with source refs and exit
-   criteria. External plan synchronization remains optional and
-   requires separate authorization plus read-back.
-5. Start each specification case at stage 1. If a trustworthy full article already
-   exists, submit it as the candidate whole-template baseline; do not skip directly to
-   block stages merely because legacy block artifacts exist.
-   Bind the rebuilt brief through `caseflow init --brief`; stage 1 must record the final
-   disposition of every preliminary US/DoD.
-6. Create a migration diff listing missing or stale material. Every still-open input
-   that can change requirements, scenarios or AC is a blocking item assigned to the
-   earliest applicable authoring stage; an owner label does not make it non-blocking.
-
-**Exit:** The proposed stage-1 baseline and exact carry-forward set are explicit.
-
-### Phase 3: Prepare post
-
-**Entry:** Re-baseline completed.
-
-Use [post-template.md](references/post-template.md). State that old review status does
-not transfer automatically. Run the work-style `humanizer` pass before delivery.
-
-**Exit:** A ready-to-send post exists; it has not been sent.
-
-## Success criteria
-
-- No old artifact was overwritten.
-- No old PASS was presented as current acceptance.
-- The preanalysis decision precedes the proposed stage-1 baseline.
-- The new case binds current brief/decision/plan schemas; old artifacts are evidence,
-  not substitutes for those contracts.
-- The stage-1 baseline has evidence-based entry criteria and covers the whole template.
-- Direct user questions have been asked before claiming their affected entry criteria;
-  unanswered content questions remain blocking authoring inputs, never harmless backlog.
-- The post names what is carried, rechecked and intentionally not carried.
+Используй [шаблон сообщения](references/post-template.md) и [правила технического языка](../../rules/technical-writing.md). Назови сохранённые материалы, предмет перепроверки, исключённые части и причины. Объясни, какие прежние статусы требуют новой проверки. Примени `humanizer` для рабочего текста. Сверь исправленные технические фрагменты с источниками до передачи. Передай готовый черновик пользователю. Для отправки и изменения внешних систем нужно разрешение.

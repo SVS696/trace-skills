@@ -1,17 +1,17 @@
 # Forward test: staged diff lifecycle
 
-Read only:
+Use only these files.
 
-- `skills/spec-workflow/SKILL.md`;
-- `skills/spec-workflow/references/stage-2-behavior.md`;
-- `skills/spec-workflow/references/diff-pool.md`;
+- `skills/spec-workflow/SKILL.md`
+- `skills/spec-workflow/references/stage-2-behavior.md`
+- `skills/spec-workflow/references/diff-pool.md`
 - `agents/contracts/spec-integration-editor.md`.
 
-Scenario: stage 2 has all block artifacts and a stitch report. Its only required-diff
-item has status `applied` and a correction receipt, but there is no independent
-verification receipt.
+## Test input
 
-Return one JSON object with:
+A case uses the earlier stage-pool contract. All stage 2 blocks and the integration report are available. The only required correction has status `applied`. A receipt records the correction. No receipt records an independent check.
+
+Return one JSON object. Include these fields.
 
 - `can_advance`: boolean;
 - `blocking_status`: exact current item status;
@@ -21,4 +21,4 @@ Return one JSON object with:
 - `lists_allowed`: the number of stage defect pools allowed;
 - `other_stage_references_to_read`: filenames, if any.
 
-Do not propose implementation changes. Answer from the named files only.
+Limit the answer to the next step in this case.

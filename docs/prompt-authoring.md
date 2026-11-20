@@ -1,26 +1,12 @@
-# Writing TRACE instructions
+# How to write TRACE instructions
 
-Apply this checklist when changing a skill, role contract, or template comment. It is
-an authoring aid, not a new runtime gate or extra agent role.
+Use these rules when you edit a skill, a role contract, or a comment in a template. Follow the writing profile for the language of the document. [Technical writing](../rules/technical-writing.md)
 
-- State the task, required inputs, allowed reads/writes and exact outputs separately.
-- Give one ordered path. Remove conflicting old instructions instead of appending an
-  exception that forces the model to choose. State prerequisites beside the action.
-- Give explicit missing-input behavior and success criteria. Do not assume that a
-  child role inherited the parent's project knowledge or authority.
-- Keep facts, instructions, examples and variable inputs visibly separate. Use a small
-  number of representative examples; examples must obey the actual contract.
-- Say what to do and why. Keep prohibitions for real boundaries, not as a substitute
-  for the expected action. Link the authoritative rule instead of copying it everywhere.
-- Test the next concrete action and produced artifact on realistic ambiguous inputs;
-  an old model result does not establish behavior for changed instructions.
+1. Name the task. List the required inputs, the files the agent can read or change, and the expected outputs.
+2. Give the steps in execution order. Put each prerequisite beside the action it controls. When a rule changes, replace the old rule in its original location.
+3. Tell the agent what to do if an input is missing. State how to check the result. A child agent needs its own project context and a clear description of its authority.
+4. Label examples and variable input. Use examples that follow the same rules as a real case.
+5. For a boundary, state the permitted action and the reason for the restriction. Link to the rule that owns the decision.
+6. Test a realistic case with more than one possible interpretation. Check the next action and the resulting document against the source. A test result applies to the version that ran.
 
-Basis checked 2026-09-09:
-[OpenAI Cookbook: GPT-5 prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide)
-explains why contradictory or vague instructions impair precise instruction following.
-[Anthropic: Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)
-emphasizes explicit outputs, sequential steps and representative examples.
-[Anthropic: Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)
-recommends sufficient, bounded context, clear sections and narrowly defined tools.
-The TRACE decisions above are a local application of these principles, not vendor
-requirements for TRACE's particular state machine or document structure.
+TRACE uses these checks during editing. The project reviewed the following sources on 2026-09-09. They describe how to write prompts and select context. TRACE defines its own stages and document formats. [OpenAI prompting guide](https://developers.openai.com/cookbook/examples/gpt-5/gpt-5_prompting_guide) · [Anthropic prompting guidance](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) · [Anthropic context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)

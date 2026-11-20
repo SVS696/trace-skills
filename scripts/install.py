@@ -21,6 +21,8 @@ SKILLS = (
     "delivery-workflow",
     "process-timer",
     "legacy-case-migration",
+    "utr",
+    "simplified-technical-english",
 )
 MANIFEST_NAME = ".workflow-skills-agent-copies.json"
 

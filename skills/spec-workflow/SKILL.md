@@ -1,77 +1,39 @@
 ---
 name: spec-workflow
 description: >-
-  Prepare or revise a specification after approved preanalysis. Start with the whole
-  selected template, deepen it through semantic blocks, and review the final article
-  through revmux. Not implementation, publication, or automatic legacy migration.
+  Write or revise a specification after the user approves the preliminary analysis. Start with the complete template, refine its semantic blocks, and review the final article with revmux. Implementation, publication, and legacy migration require separate routes.
 allowed-tools: Read Glob Grep Write Edit Bash Task AskUserQuestion
 ---
-# Specification workflow
 
-## Inputs and result
+# Подготовка постановки
 
-Read ../../rules/process-kernel.md once. Require the approved brief, decomposition,
-plan, selected template, and exact article id. If an input is missing, name it; do
-not infer approval. Use legacy-case-migration only for a requested legacy continuation.
-A tiny wording correction does not need a new case.
+Прочитай [правила TRACE](../../rules/process-kernel.md). Для начала нужны согласованная предварительная записка, решение о составе статей, план, выбранный шаблон и идентификатор статьи. Если чего-то не хватает, укажи недостающий вход. Для небольшой правки текста новый кейс не требуется. Для продолжения старого кейса по запросу используй `legacy-case-migration`.
 
-The result is one reader-facing article. A ready specification is not publication,
-implementation, handoff, or acceptance.
-Analysis owns observable acceptance criteria. QA owns test cases, test data,
-environment, regression and execution against the implementation. Review the article's
-requirements and testability; product testing is not a prerequisite for article readiness.
+Аналитик готовит одну статью по [правилам технического языка](../../rules/technical-writing.md). В ней он определяет наблюдаемые критерии приёмки. QA отвечает за тесты, данные, среду, регрессию и исполнение на конкретной версии продукта. Проверяющий оценивает требования и их проверяемость. Готовность статьи, публикацию, передачу, реализацию и приёмку фиксируй отдельно.
 
-## Context and authorship
+## Назначение работы
 
-1. Initialize with scripts/caseflow.py init, then read status and context.
-2. Materialize one method-library route for the current assignment.
-3. Build the complete assignment with context --project-rule PATH --source PATH
-   (repeat as needed). Include applicable project rules and actual evidence files,
-   not just a map linking to them. Resolve missing_required before dispatch.
-4. Give the role this final read_set, one stage reference, exact output paths,
-   accepted solution_boundary, and the relevant previous whole article.
-5. Use the selected template variant under ../../rules/template-family.md. Preserve
-   the source template; apply its section rules to the output article.
+1. Создай кейс командой `scripts/caseflow.py init`. Прочитай `status` и `context`.
+2. Через `method-library` подготовь один маршрут для текущего задания.
+3. Составь набор источников командой `context --project-rule PATH --source PATH`. Повторяй параметры для каждого источника. Передай сами правила и материалы. До назначения роли устрани все `missing_required`.
+4. Передай роли итоговый `read_set`, инструкцию текущего этапа, точные пути результатов, принятую `solution_boundary` и предыдущую полную статью, если она есть.
+5. Примени [правила выбора шаблона](../../rules/template-family.md) к выходной статье. Во время подготовки статьи сохраняй исходный шаблон.
 
-## Four authoring stages
-
-| Stage | Reference | Output |
+| Этап | Инструкция | Результат |
 |---|---|---|
-| 1 | references/stage-1-foundation.md | Whole article and US/DoD lineage |
-| 2 | references/stage-2-behavior.md | Integrated behavioral article |
-| 3 | references/stage-3-acceptance.md | Integrated acceptance article |
-| 4 | references/stage-4-article.md | Final article, then ordinary revmux rounds |
+| 1 | [Основа](references/stage-1-foundation.md) | Полная статья. Связи предварительных историй и критериев готовности с итоговыми |
+| 2 | [Поведение](references/stage-2-behavior.md) | Полная статья с уточнёнными сценариями и правилами |
+| 3 | [Приёмка](references/stage-3-acceptance.md) | Полная статья с критериями приёмки и готовности |
+| 4 | [Итоговая статья и ревью](references/stage-4-article.md) | Текст для читателя и результат обычных раундов revmux |
 
-Stages 1 and 4 use ARTICLE; stages 2 and 3 use the approved semantic blocks.
-Each stage writes a new article snapshot. Authoring, integration and deterministic
-preflight happen before review; they do not create correction pools.
+На этапах 1 и 4 назначай `ARTICLE`. На этапах 2 и 3 назначай согласованные смысловые блоки. На каждом этапе сохраняй новую версию всей статьи. Автор и редактор исправляют текст до ревью, в том числе по результатам автоматических проверок. Для этих правок список исправлений не нужен.
 
-Resolve missing evidence and product decisions during authorship. Return a direct
-question for a missing decision; do not disguise it as prose or mark it ready.
-Register a ready integration with record-stitch --report REPORT [--article ARTICLE],
-without --diff-pool. The JSON report has schema: 1, stage: N, status: ready,
-open_inputs: [], and describes the actual checks. Then advance.
-Compatibility commands for old stage pools do not define the new workflow.
+Найди недостающий источник или задай владельцу решения прямой вопрос. До получения ответа оставь затронутый вход открытым. Для готового результата вызови `record-stitch --report REPORT [--article ARTICLE]` без `--diff-pool`, затем `advance`. В отчёте JSON укажи фактические проверки, `schema: 1`, `stage: N`, `status: ready`, `open_inputs: []`. Команды старых списков исправлений предназначены для совместимости.
 
-## One review loop
+## Ревью и передача
 
-article → revmux → findings → diff-pool → fix → article v2 → ordinary revmux
+Следуй инструкции этапа 4. Создай один список исправлений из принятых замечаний revmux. Внеси каждое исправление в итоговую статью. При необходимости синхронизируй промежуточные файлы. Запиши подтверждения применения, вызови `article-updated` и запусти очередной обычный раунд revmux по новой статье. Только исправный следующий раунд может подтвердить исправление.
 
-Follow references/stage-4-article.md. Only accepted revmux findings create the
-correction pool. Resolve each correction in the final article; an intermediate-file
-edit alone is insufficient. Record applied receipts, call article-updated, then run
-the next ordinary revmux. There is no separate targeted verification.
+Включай проектные критерии, ясность языка, простоту и применимые архитектурные требования в независимое ревью revmux. После ревью оцени практический смысл замечаний. Остановись при чистом результате или только мелких замечаниях. Покажи мелкие замечания как остаток. Предел — пять содержательных раундов. Для дополнительного раунда требуется решение пользователя.
 
-Revmux performs independent review, including applicable project, language,
-simplicity and architecture criteria. Post-result simplicity adjudication selects
-practical corrections; it does not run another article review. Count at most five
-substantive revmux rounds. Stop early when clean or only minor residuals remain;
-minor residuals are not a clean result. An extra round requires an actual user decision.
-
-## Completion
-
-Return the article, actual review state, residual findings or questions, and the
-chosen stop/delivery route. Never upgrade a draft or applied fix to verified based
-on the author's own assertion. Only the next healthy ordinary revmux can confirm it.
-For transfer to Design, Dev or QA use the [handoff contract](../../rules/handoff-contract.md):
-exact article version, accepted decisions, criteria, relevant risks and unresolved inputs.
+Передай статью, фактический результат ревью, замечания, вопросы и выбранный маршрут остановки или разработки. Для дизайнера, разработчика и QA приложи точную версию, принятые решения, критерии, риски и открытые входы по [правилам передачи](../../rules/handoff-contract.md).

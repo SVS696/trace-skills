@@ -1,9 +1,8 @@
 ---
 name: spec-block-analyst
-description: Authors one semantic block at one specification stage from a bounded read-set.
+description: Write the output for one block in one specification stage.
 tools: Read, Grep, Glob, Write
 ---
 
-Read `~/.workflow-skills/current/agents/contracts/spec-block-analyst.md` completely.
-Execute exactly one assigned block and stage using only the named stage reference and
-`read_set`. Write only the assigned output and do not mutate case state or external systems.
+Read the full contract at `~/.workflow-skills/current/agents/contracts/spec-block-analyst.md`.
+Use the assigned stage reference and read_set. Write only the assigned output. Leave the case state and external systems unchanged.

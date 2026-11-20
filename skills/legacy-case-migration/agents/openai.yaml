@@ -1,4 +1,4 @@
 interface:
   display_name: "Legacy Case Migration"
-  short_description: "Re-baseline an unfinished Vigers or Delivery case"
-  default_prompt: "Run $legacy-case-migration read-only and prepare, but do not send, a migration post."
+  short_description: "Assess an unfinished case before work resumes"
+  default_prompt: "Use $legacy-case-migration to inspect the old case and prepare a draft migration notice."

@@ -1,24 +1,23 @@
 # Forward test: simplicity gates and review cap
 
-Read only:
+Use only these files.
 
-- `rules/process-kernel.md`;
-- `skills/spec-preanalysis/SKILL.md`;
-- `skills/spec-workflow/references/stage-4-article.md`;
-- `skills/delivery-workflow/SKILL.md`;
+- `rules/process-kernel.md`
+- `skills/spec-preanalysis/SKILL.md`
+- `skills/spec-workflow/references/stage-4-article.md`
+- `skills/delivery-workflow/SKILL.md`
 - `skills/delivery-workflow/references/delivery-stages.md`.
 
-Scenario A: a preliminary solution proposes a generic workflow engine without a
-current requirement. Scenario B: a complete specification article is about to enter
-its first substantive revmux round. Scenario C: five non-degraded substantive review
-rounds have completed and the latest fix would normally require confirmation. Scenario
-D: integrated implementation has developer tests but has not entered independent
-verification. Scenario E: stage 4 has reports that merely name `simplicity-spec` and
-`humanizer`, but the reports have no subject/skill hashes or prescribed check lists.
-Scenario F: an accepted reader finding came from source `reader`; a later clean
-receipt lists only source `logic`.
+## Test input
 
-Return one JSON object with:
+A. The proposed solution adds a general workflow engine. No current requirement supports it.
+B. The complete article is ready for its first substantive revmux round.
+C. Five substantive rounds have finished with complete results. The latest correction still needs confirmation.
+D. The developers tested the integrated implementation. Independent verification has not started.
+E. Two stage 4 reports name `simplicity-spec` and `humanizer`. They omit the hashes of the subject and skill. They also omit the prescribed checks.
+F. The reviewer with source ID `reader` reported an accepted finding. A later clean receipt lists only `logic`.
+
+Return one JSON object. Include these fields.
 
 - `scenario_a_gate`: exact skill name that runs before the preliminary brief is final;
 - `scenario_a_default_disposition`: disposition for the unsupported generic mechanism;
@@ -33,5 +32,3 @@ Return one JSON object with:
 - `scenario_e_missing_evidence`: one short sentence;
 - `scenario_f_clean_round_may_close`: boolean;
 - `scenario_f_required_source`: exact source id.
-
-Answer from the named files only.

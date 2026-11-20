@@ -1,7 +1,6 @@
-# Observable quality pass
+# Отчёт о проверке качества
 
-Reading a peer skill is not evidence that its pass happened. A required pass produces
-one JSON report bound to the exact subject bytes and the exact `SKILL.md` bytes.
+Назначенная роль выполняет проверку и возвращает один отчёт JSON. Привяжи отчёт к точным байтам проверяемого файла и инструкции `SKILL.md`. Чтение инструкции само по себе не подтверждает выполнение проверки.
 
 ```json
 {
@@ -19,17 +18,13 @@ one JSON report bound to the exact subject bytes and the exact `SKILL.md` bytes.
 }
 ```
 
-`purpose` and `dismissed_findings` are present only for
-post-`revmux` adjudication. `style_profile` is required only for `humanizer`. Empty
-findings require `clean`; non-empty findings require `changes-required`.
+Поле `style_profile` обязательно только для `humanizer`. Если замечаний нет, запиши `clean`. Если есть замечания, запиши `changes-required`. Даже при чистом результате перечисли фактические проверки. Автор статьи или кода не может подписать независимый отчёт с тем же `run_id`.
 
-For specification authoring passes, suggestions update the candidate before review. Independent article gates run within ordinary revmux; only its accepted findings enter the correction pool. Delivery passes follow the delivery stage contract. For post-`revmux` adjudication, the
-subject is the exact review receipt. Confirmed findings remain in `findings` with the
-smallest proposed change;
-the rest are listed in `dismissed_findings` with reason and evidence and do not enter
-the correction diff. The two sets must be disjoint and exhaustive.
+Для технической статьи назначь `humanizer` проверку понятности для указанной аудитории. Предложи конкретное место правки и поясни, какой ответ читателю трудно найти. Сохрани словарь, обязательность и исключения из источника. Цикл скилла относится к предложенной редакции. Автор применяет принятые правки и сверяет их с источником через `utr` или `simplified-technical-english` в режиме проверки. Используй для этого существующий проход. [Порядок редактуры](technical-writing.md)
 
-The adjudication report adds:
+До ревью автор исправляет рабочую версию статьи напрямую. Независимые проверки статьи выполняй внутри обычного revmux. В общий список исправлений включай только принятые замечания revmux. В разработке используй правила этапа разработки.
+
+После revmux проверяющий разбирает замечания по точной версии отчёта. В `findings` включи каждое подтверждённое замечание с минимальной правкой. В `dismissed_findings` укажи остальные замечания с причиной и подтверждающими сведениями. Каждое замечание должно попасть ровно в один список. Только для такого разбора добавь:
 
 ```json
 {
@@ -44,23 +39,10 @@ The adjudication report adds:
 }
 ```
 
-Required checks:
+| Скилл | Обязательные значения `checks` |
+|---|---|
+| `simplicity-spec` | `minimum-core`, `seven-step-ladder`, `element-classification`, `rewritten-result` |
+| `humanizer` | `draft-rewrite`, `anti-ai-audit`, `final-rewrite` |
+| `simplicity-code` | `minimum-core`, `real-flow`, `seven-step-ladder`, `element-classification`, `runnable-result` |
 
-- `simplicity-spec`: `minimum-core`, `seven-step-ladder`,
-  `element-classification`, `rewritten-result`;
-- `humanizer`: `draft-rewrite`, `anti-ai-audit`, `final-rewrite`;
-- `simplicity-code`: `minimum-core`, `real-flow`, `seven-step-ladder`,
-  `element-classification`, `runnable-result`.
-
-For `simplicity-spec`, `element-classification` includes the skill's change-boundary
-check: identify the concrete change and requirement evidence for each technical block,
-or propose `REMOVE` / `SIMPLIFY`. A catalogue of unchanged platform contracts is a
-solution-scope defect, not prose cleanup; a "not changed" label does not justify it.
-Retain new behaviour and contract deltas, not complete baseline request/response or
-CRUD descriptions. A necessary compatibility boundary may use one short statement
-or a source link. A full-article pass cannot be `clean` while that catalogue remains;
-a bounded pass must limit its conclusion to its exact subject and read-set.
-
-The report is invalid when it only says that the skill was read, names the gate, or
-claims `clean` without its prescribed checks. The article or code author cannot issue
-the narrow reviewer report under the same `run_id`.
+В `element-classification` для `simplicity-spec` укажи, что меняется в каждом техническом блоке и какое требование это обосновывает. Если основания нет, предложи `REMOVE` или `SIMPLIFY`. Оставь в статье новое поведение и изменения контракта. Для необходимой совместимости достаточно короткого условия или ссылки. Перечень всех прежних запросов, ответов и операций CRUD расширяет объём постановки. Пока такой перечень остаётся в проверенной полной статье без основания, результат не может быть `clean`. Для частичной проверки ограничь вывод проверенным файлом и доступными источниками.

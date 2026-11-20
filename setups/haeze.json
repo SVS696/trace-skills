@@ -5,7 +5,7 @@
   "instructions": ["CLAUDE.md", "AGENTS.md"],
   "template": {
     "path": "ШАБЛОН ПОСТАНОВКИ.md",
-    "sha256": "854639fa1becec3652703ab0571b547cffd2a208390a29d14d637516c5677a45"
+    "sha256": "818589171db38f58679c927ff79b16e51060ca9e46d68f5ae0c79831fe9d69c9"
   },
   "routes": {
     "method": "method-library",
