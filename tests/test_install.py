@@ -31,6 +31,27 @@ class InstallTests(unittest.TestCase):
         result = install.verify(self.repo, self.home, [])
         self.assertTrue(result["ok"])
 
+    def test_external_language_skills_stay_with_their_installer(self) -> None:
+        project = self.root / "project"
+        project.mkdir()
+        external_skill = self.root / "independent-utr"
+        external_skill.mkdir()
+        catalogs = [
+            root / runtime / "skills"
+            for root in (self.home, project)
+            for runtime in (".agents", ".claude")
+        ]
+        for catalog in catalogs:
+            catalog.mkdir(parents=True)
+            (catalog / "utr").symlink_to(external_skill, target_is_directory=True)
+
+        install.install(self.repo, self.home, repair_links=True)
+        install.install_project(self.repo, project, repair_links=True)
+        self.assertTrue(install.verify(self.repo, self.home, [project])["ok"])
+        for catalog in catalogs:
+            self.assertEqual((catalog / "utr").resolve(), external_skill.resolve())
+            self.assertFalse((catalog / "simplified-technical-english").is_symlink())
+
     def test_install_refuses_unowned_agent(self) -> None:
         destination = self.home / ".codex" / "agents" / "role.toml"
         destination.parent.mkdir(parents=True)
