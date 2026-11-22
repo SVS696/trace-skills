@@ -9,7 +9,7 @@ Use the [TRACE writing profile](../../rules/technical-writing.md) for the assign
 ## Rules
 
 1. Keep the template headings in their original order. If the template has a version history, list published versions from oldest to newest (for example, `1.0 → 1.1 → 2.0`). Append each new release at the bottom. When you reorder rows, preserve each version, date and description.
-2. At stage 1, draft the whole article before the block analysts start. Show how the parts work together. Record each preliminary US and DoD separately in the lineage output. For each, give its disposition (`confirmed|changed|split|rejected`), final references and reason. Publish only the final content in the article.
+2. At stage 1, open the language skill in the assigned read_set before writing. Draft the whole article directly from the approved sources. Use `utr` for a Russian article or `simplified-technical-english` for an English article. The block analysts start from this draft. Show how the parts work together. Record each preliminary US and DoD separately in the lineage output. For each, give its disposition (`confirmed|changed|split|rejected`), final references and reason. Publish only the final content in the article.
 3. At stage 4, use the integrated stage 3 article as the source for consolidation. Keep its connections between blocks.
 4. Record missing evidence or decisions in `open_inputs`. Name the evidence needed or ask the exact question. An unresolved content gap prevents readiness.
 5. Follow the project rules for terminology, sources and traceability. Keep block IDs, process findings, internal state and the internal horizon ID out of the reader's text.
